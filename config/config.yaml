@@ -1,0 +1,148 @@
+# =============================================================================
+# Building Energy Load Forecast — Master Configuration
+# =============================================================================
+# This is the single source of truth for ALL parameters.
+# Never hardcode numbers in src/ or scripts/. Always read from here.
+# =============================================================================
+
+# ── Active dataset ────────────────────────────────────────────────────────────
+city: drammen          # "drammen" | "oslo"  — switch to run on Oslo dataset
+
+# ── Paths ─────────────────────────────────────────────────────────────────────
+paths:
+  raw_data:
+    drammen: data/raw/drammen
+    oslo:    data/raw/oslo
+  processed:  data/processed
+  splits:     data/processed/splits
+  outputs:
+    figures: outputs/figures
+    models:  outputs/models
+    results: outputs/results
+
+# ── Reproducibility ───────────────────────────────────────────────────────────
+seed: 42
+
+# ── Data loading & parsing ────────────────────────────────────────────────────
+data:
+  timestamp_format: "%Y-%m-%dT%H:%M:%S%z"
+  timezone: "Etc/Gmt-1"
+  target_column: "Electricity_Imported_Total_kWh"
+  weather_columns:
+    - Temperature_Outdoor_C
+    - Global_Solar_Horizontal_Radiation_W_m2
+    - Wind_Speed_m_s
+    - Wind_Direction_deg
+  # Wh → kWh conversion applied during loading
+  wh_to_kwh: true
+  # Minimum data completeness required per building (fraction)
+  min_completeness: 0.70
+
+# ── Data splits ───────────────────────────────────────────────────────────────
+splits:
+  # Chronological split — no data leakage across time
+  train_end: "2023-06-30"
+  val_end:   "2023-12-31"
+  # Everything after val_end is the test set
+
+# ── Feature engineering ───────────────────────────────────────────────────────
+features:
+  # Cyclical time encoding (sin/cos)
+  cyclical:
+    - hour_of_day       # period 24
+    - day_of_week       # period 7
+    - month             # period 12
+    - day_of_year       # period 365
+
+  # Lag features (hours behind target)
+  lag_windows: [1, 2, 3, 4, 5, 6, 12, 24]
+
+  # Rolling window statistics (hours)
+  rolling_windows: [6, 12, 24, 48]
+  rolling_stats: [mean, std]
+
+  # Feature selection thresholds
+  selection:
+    variance_threshold: 0.0          # Remove zero-variance features
+    correlation_threshold: 0.99      # Remove highly correlated duplicates
+    n_features_lgbm: 35              # Keep top-N by LightGBM importance
+
+# ── Sequence parameters (deep learning & TFT) ─────────────────────────────────
+sequence:
+  lookback: 72     # Hours of history used as input (3 days)
+  horizon:  24     # Hours ahead to forecast (1 day)
+
+# ── Model training ────────────────────────────────────────────────────────────
+training:
+  # -- Sklearn models --
+  ridge:
+    alpha: 1.0
+
+  lasso:
+    alpha: 0.01
+    max_iter: 5000
+
+  random_forest:
+    n_estimators: 200
+    max_depth: 15
+    min_samples_leaf: 4
+    n_jobs: -1
+
+  lightgbm:
+    n_estimators: 500
+    learning_rate: 0.05
+    max_depth: 8
+    num_leaves: 63
+    min_child_samples: 20
+    subsample: 0.8
+    colsample_bytree: 0.8
+    n_jobs: -1
+
+  # -- Deep learning (TensorFlow/Keras) --
+  deep_learning:
+    batch_size: 256
+    epochs: 50
+    early_stopping_patience: 10
+    reduce_lr_patience: 5
+    reduce_lr_factor: 0.2
+    min_lr: 1.0e-6
+    dropout_rate: 0.2
+
+    lstm:
+      units: [64, 32]
+      dense_units: 128
+
+    cnn_lstm:
+      conv_filters: [64, 32]
+      kernel_size: 3
+      lstm_units: 32
+      dense_units: 64
+
+    gru:
+      units: [64, 32]
+      dense_units: 128
+
+  # -- Temporal Fusion Transformer (PyTorch Forecasting) --
+  tft:
+    hidden_size: 64
+    attention_head_size: 4
+    dropout: 0.1
+    hidden_continuous_size: 32
+    learning_rate: 0.001
+    max_epochs: 50
+    gradient_clip_val: 0.1
+    batch_size: 128
+
+  # -- Ensemble (stacking) --
+  ensemble:
+    meta_learner: ridge    # "ridge" | "lightgbm"
+    ridge_alpha: 1.0
+
+# ── Evaluation metrics ────────────────────────────────────────────────────────
+evaluation:
+  primary_metric: MAE          # Used for model selection
+  metrics: [MAE, RMSE, MAPE, R2]
+
+# ── Slow models flag ──────────────────────────────────────────────────────────
+# Models flagged as slow are skipped when --skip-slow is passed to scripts
+slow_models: [cnn_lstm, tft]

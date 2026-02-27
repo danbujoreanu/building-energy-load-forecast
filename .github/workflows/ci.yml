@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install core dependencies (no TF/PyTorch for CI speed)
+        run: |
+          pip install --upgrade pip
+          pip install pandas numpy scikit-learn lightgbm matplotlib seaborn \
+                      statsmodels pyyaml pyarrow tqdm missingno
+          pip install pytest pytest-cov ruff
+
+      - name: Install package (editable)
+        run: pip install -e . --no-deps
+
+      - name: Lint with ruff
+        run: ruff check src/ tests/ scripts/
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short --cov=src/energy_forecast --cov-report=term-missing
+
+  lint:
+    name: Code quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install ruff black
+      - name: Check formatting (black)
+        run: black --check src/ tests/ scripts/
+      - name: Lint (ruff)
+        run: ruff check src/ tests/ scripts/
