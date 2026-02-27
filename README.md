@@ -20,20 +20,20 @@ The codebase is a clean, modular refactoring of the original MSc thesis work —
 
 ## Key Results
 
-| Rank | Model | MAE (kWh) | RMSE (kWh) | MAPE (%) | R² |
-|------|-------|-----------|------------|----------|----|
-| 🥇 1 | **Stacking Ensemble** | **3.21** | **4.87** | **8.4** | **0.94** |
-| 🥈 2 | Temporal Fusion Transformer | 3.38 | 5.12 | 8.9 | 0.93 |
-| 🥉 3 | LSTM | 3.61 | 5.44 | 9.3 | 0.92 |
-| 4 | GRU | 3.74 | 5.63 | 9.7 | 0.91 |
-| 5 | CNN-LSTM | 3.82 | 5.78 | 10.1 | 0.91 |
-| 6 | LightGBM | 4.15 | 6.21 | 11.2 | 0.89 |
-| 7 | Random Forest | 4.89 | 7.33 | 13.4 | 0.86 |
-| 8 | Ridge Regression | 6.12 | 9.44 | 16.8 | 0.79 |
-| 9 | Seasonal Naive (24h) | 7.88 | 11.23 | 22.1 | 0.71 |
-| 10 | Naive (persistence) | 9.43 | 13.67 | 27.5 | 0.61 |
+> **Thesis finding:** Classical tree-based models outperformed deep learning on this dataset — a compelling real-world result. Random Forest achieved the best MAE while training in under 2 minutes, compared to 6 hours for the Temporal Fusion Transformer.
 
-> *Results on held-out test set (Jan 2024). Stacking ensemble uses Ridge meta-learner over LightGBM + LSTM + GRU base learners.*
+| Rank | Model | MAE (kWh) | RMSE (kWh) | CV(RMSE) % | R² | Train time |
+|------|-------|-----------|------------|------------|-----|------------|
+| 🥇 1 | **Random Forest** | **3.300** | **6.403** | **14.48** | **0.982** | 1m 56s |
+| 🥈 2 | XGBoost | 3.419 | 6.443 | 14.56 | 0.982 | 3s |
+| 🥉 3 | LightGBM | 3.578 | 6.679 | 15.10 | 0.980 | 3s |
+| 4 | Stacking (LightGBM meta) | 3.582 | 7.030 | 15.81 | 0.978 | <1s |
+| 5 | Stacking (Ridge meta) | 3.698 | 7.051 | 15.86 | 0.978 | <1s |
+| 6 | TFT | 5.114 | 10.424 | 23.57 | 0.952 | ⏱ 6h 4m |
+| 7 | LSTM | 10.132 | 17.686 | 39.77 | 0.862 | ⏱ 3h 45m |
+| 8 | CNN-LSTM | 12.435 | 20.930 | 47.07 | 0.807 | ⏱ 37m |
+
+> *Results from held-out test set, trained on Apple Silicon (MPS). Deep learning models underperformed classical methods on this tabular hourly dataset — likely due to the relatively small building count (45) and high signal-to-noise ratio of tree-friendly lag/rolling features. The gap is a key area of future investigation with the larger Oslo dataset.*
 
 ---
 
@@ -114,22 +114,23 @@ flowchart LR
 
 ```mermaid
 quadrantChart
-    title Model Complexity vs Accuracy Gain
+    title Complexity vs Accuracy (actual thesis results)
     x-axis Low Complexity --> High Complexity
     y-axis Low Accuracy --> High Accuracy
-    quadrant-1 Best models
-    quadrant-2 Over-engineered
-    quadrant-3 Poor choice
-    quadrant-4 Quick wins
-    Ridge: [0.15, 0.35]
-    LightGBM: [0.35, 0.62]
-    Random Forest: [0.40, 0.55]
-    LSTM: [0.65, 0.78]
-    GRU: [0.60, 0.75]
-    CNN-LSTM: [0.75, 0.72]
-    TFT: [0.88, 0.88]
-    Ensemble: [0.70, 0.95]
+    quadrant-1 Best — high accuracy low cost
+    quadrant-2 Overkill
+    quadrant-3 Avoid
+    quadrant-4 Investigate further
+    Random Forest: [0.38, 0.92]
+    XGBoost: [0.32, 0.90]
+    LightGBM: [0.28, 0.88]
+    Stacking Ensemble: [0.42, 0.87]
+    TFT: [0.90, 0.65]
+    LSTM: [0.70, 0.35]
+    CNN-LSTM: [0.78, 0.28]
 ```
+
+> **Key takeaway:** Tree-based models (top-left quadrant) dominated. Deep learning models consumed far more compute for *lower* accuracy on this dataset — a finding worth exploring further with Oslo data and transfer learning approaches.
 
 ---
 

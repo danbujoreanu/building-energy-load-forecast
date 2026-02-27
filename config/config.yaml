@@ -144,5 +144,12 @@ evaluation:
   metrics: [MAE, RMSE, MAPE, R2]
 
 # ── Slow models flag ──────────────────────────────────────────────────────────
-# Models flagged as slow are skipped when --skip-slow is passed to scripts
-slow_models: [cnn_lstm, tft]
+# Models flagged as slow are skipped when --skip-slow is passed to scripts.
+# Actual training times recorded during MSc thesis (Apple Silicon MPS):
+#   tft      → 21,831 s  (~6 hours 4 min)   ← slowest
+#   lstm     → 13,497 s  (~3 hours 45 min)
+#   cnn_lstm →  2,238 s  (~37 min)
+#   rf       →    116 s  (~2 min)
+#   lightgbm →      3 s
+#   xgboost  →      3 s
+slow_models: [lstm, cnn_lstm, tft]
