@@ -25,15 +25,22 @@ The codebase is a clean, modular refactoring of the original MSc thesis work —
 | Rank | Model | MAE (kWh) | RMSE (kWh) | CV(RMSE) % | R² | Train time |
 |------|-------|-----------|------------|------------|-----|------------|
 | 🥇 1 | **Random Forest** | **3.300** | **6.403** | **14.48** | **0.982** | 1m 56s |
-| 🥈 2 | XGBoost | 3.419 | 6.443 | 14.56 | 0.982 | 3s |
+| 🥈 2 | XGBoost | 3.419 | 6.443 | 14.57 | 0.982 | 3s |
 | 🥉 3 | LightGBM | 3.578 | 6.679 | 15.10 | 0.980 | 3s |
 | 4 | Stacking (LightGBM meta) | 3.582 | 7.030 | 15.81 | 0.978 | <1s |
 | 5 | Stacking (Ridge meta) | 3.698 | 7.051 | 15.86 | 0.978 | <1s |
-| 6 | TFT | 5.114 | 10.424 | 23.57 | 0.952 | ⏱ 6h 4m |
-| 7 | LSTM | 10.132 | 17.686 | 39.77 | 0.862 | ⏱ 3h 45m |
-| 8 | CNN-LSTM | 12.435 | 20.930 | 47.07 | 0.807 | ⏱ 37m |
+| 6 | Weighted Avg Ensemble | 4.081 | 7.841 | 17.63 | 0.973 | <1s |
+| 7 | Lasso Regression | 4.201 | 7.880 | 17.81 | 0.973 | 4s |
+| 8 | Linear Regression | 4.215 | 7.767 | 17.56 | 0.973 | <1s |
+| 9 | Ridge Regression | 4.215 | 7.767 | 17.56 | 0.973 | <1s |
+| 10 | Persistence (Lag 1h) | 4.561 | 9.587 | 21.67 | 0.959 | — |
+| 11 | TFT | 5.114 | 10.424 | 23.57 | 0.952 | ⏱ 6h 4m |
+| 12 | Seasonal Naive (24h lag) | 8.762 | 19.383 | 43.82 | 0.834 | — |
+| 13 | Seasonal Naive (168h lag) | 9.621 | 19.259 | 43.54 | 0.836 | — |
+| 14 | LSTM | 10.132 | 17.686 | 39.77 | 0.862 | ⏱ 3h 45m |
+| 15 | CNN-LSTM | 12.435 | 20.930 | 47.07 | 0.807 | ⏱ 37m |
 
-> *Results from held-out test set, trained on Apple Silicon (MPS). Deep learning models underperformed classical methods on this tabular hourly dataset — likely due to the relatively small building count (45) and high signal-to-noise ratio of tree-friendly lag/rolling features. The gap is a key area of future investigation with the larger Oslo dataset.*
+> *Full results from held-out test set, trained on Apple Silicon (MPS). Classical tree-based models dominated — RF achieves R²=0.982 in under 2 minutes vs 6+ hours for deep learning with worse accuracy. This is the thesis's central finding: for tabular hourly energy data, complexity does not improve accuracy.*
 
 ---
 
@@ -125,6 +132,8 @@ quadrantChart
     XGBoost: [0.32, 0.90]
     LightGBM: [0.28, 0.88]
     Stacking Ensemble: [0.42, 0.87]
+    Ridge Regression: [0.10, 0.72]
+    Lasso Regression: [0.12, 0.71]
     TFT: [0.90, 0.65]
     LSTM: [0.70, 0.35]
     CNN-LSTM: [0.78, 0.28]
@@ -254,11 +263,18 @@ Experiments are fully reproducible on the same hardware. GPU is not required (CP
 
 ## Future Work
 
-- [ ] **Oslo integration** — transfer learning from Drammen → Oslo
-- [ ] **Probabilistic forecasting** — prediction intervals via conformal prediction
-- [ ] **Hyperparameter optimisation** — Optuna integration
-- [ ] **Real-time inference** — FastAPI endpoint for live predictions
-- [ ] **Additional features** — public holidays, school term calendar
+See [`ROADMAP.md`](ROADMAP.md) for the full prioritised research roadmap drawn from the
+MSc thesis Follow-up Questions document (11 questions, PhD-track research).
+
+Top priorities for the next iteration:
+
+- 🔴 **SHAP explainability** — beeswarm + force plots for global and local predictions (Q7)
+- 🔴 **Probabilistic forecasting** — quantile regression (P10/P50/P90) in LightGBM & TFT (Q3/Q5)
+- 🟡 **Oslo dataset integration** — cross-dataset comparison, transfer learning (Q6)
+- 🟡 **Solar/wind imputation** — include the 18%-missing weather features via MICE (Q1)
+- 🟡 **OOF stacking** — replace fixed-validation ensemble with out-of-fold meta-features (Q11)
+- 🔵 **Hierarchical BART** — partial pooling across buildings, building_id embeddings (Q6)
+- 🔵 **FastAPI inference endpoint** — real-time predictions for live deployment (Q8/Q9)
 
 ---
 
