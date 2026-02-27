@@ -1,0 +1,33 @@
+# ── Core data & ML ────────────────────────────────────────────────────────────
+pandas>=2.0
+numpy>=1.24
+scikit-learn>=1.3
+lightgbm>=4.0
+
+# ── Visualisation ─────────────────────────────────────────────────────────────
+matplotlib>=3.7
+seaborn>=0.12
+missingno>=0.5
+
+# ── Time-series statistics ────────────────────────────────────────────────────
+statsmodels>=0.14
+
+# ── Config & utilities ────────────────────────────────────────────────────────
+pyyaml>=6.0
+pyarrow>=12.0          # fast parquet I/O
+tqdm>=4.65             # progress bars
+
+# ── Deep Learning (TensorFlow/Keras) ─────────────────────────────────────────
+# Install separately if needed: pip install -e ".[deep-learning]"
+tensorflow>=2.13
+keras>=2.13
+
+# ── Temporal Fusion Transformer (PyTorch) ─────────────────────────────────────
+# Install separately if needed: pip install -e ".[tft]"
+torch>=2.0
+pytorch-forecasting>=1.0
+pytorch-lightning>=2.0
+
+# ── Notebooks ─────────────────────────────────────────────────────────────────
+ipykernel>=6.25
+nbformat>=5.9
