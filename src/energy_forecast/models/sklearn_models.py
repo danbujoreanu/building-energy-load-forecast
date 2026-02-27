@@ -1,8 +1,8 @@
 """
 models.sklearn_models
 =====================
-Wraps scikit-learn and LightGBM regressors in the common BaseForecaster
-interface, with cross-validated evaluation built in.
+Wraps scikit-learn, LightGBM, and XGBoost regressors in the common
+BaseForecaster interface, with cross-validated evaluation built in.
 
 Supported models (all configured via config.yaml)
 --------------------------------------------------
@@ -10,6 +10,7 @@ Supported models (all configured via config.yaml)
     lasso         Lasso regression
     random_forest RandomForestRegressor
     lightgbm      LGBMRegressor
+    xgboost       XGBRegressor  (MSc thesis rank 2 — 3.42 kWh MAE)
 """
 
 from __future__ import annotations
@@ -52,6 +53,7 @@ def build_sklearn_models(cfg: dict[str, Any]) -> dict[str, "SklearnForecaster"]:
             name="RandomForest",
         ),
         "lightgbm": _build_lgbm(t["lightgbm"], seed),
+        "xgboost": _build_xgboost(t["xgboost"], seed),
     }
     return models
 
@@ -75,6 +77,29 @@ def _build_lgbm(lgbm_cfg: dict, seed: int) -> "SklearnForecaster":
         verbosity=-1,
     )
     return SklearnForecaster(model, name="LightGBM")
+
+
+def _build_xgboost(xgb_cfg: dict, seed: int) -> "SklearnForecaster":
+    """Build XGBoost regressor — MSc thesis rank 2 (MAE 3.42 kWh, ~3s train time)."""
+    try:
+        from xgboost import XGBRegressor
+    except ImportError as e:
+        raise ImportError("xgboost is required: pip install xgboost") from e
+
+    model = XGBRegressor(
+        n_estimators=xgb_cfg["n_estimators"],
+        learning_rate=xgb_cfg["learning_rate"],
+        max_depth=xgb_cfg["max_depth"],
+        min_child_weight=xgb_cfg["min_child_weight"],
+        subsample=xgb_cfg["subsample"],
+        colsample_bytree=xgb_cfg["colsample_bytree"],
+        reg_alpha=xgb_cfg["reg_alpha"],
+        reg_lambda=xgb_cfg["reg_lambda"],
+        n_jobs=xgb_cfg["n_jobs"],
+        random_state=seed,
+        verbosity=0,
+    )
+    return SklearnForecaster(model, name="XGBoost")
 
 
 class SklearnForecaster(BaseForecaster):
@@ -103,6 +128,18 @@ class SklearnForecaster(BaseForecaster):
                     fit_params = {
                         "eval_set": [(X_val.values, y_val.values)],
                         "callbacks": [lgb.early_stopping(50, verbose=False)],
+                    }
+            except ImportError:
+                pass
+
+        # XGBoost also supports early stopping via eval_set
+        if X_val is not None and not fit_params:
+            try:
+                from xgboost import XGBRegressor
+                if isinstance(self.estimator, XGBRegressor):
+                    fit_params = {
+                        "eval_set": [(X_val.values, y_val.values)],
+                        "verbose": False,
                     }
             except ImportError:
                 pass
