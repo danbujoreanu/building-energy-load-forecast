@@ -120,6 +120,14 @@ class TFTForecaster(BaseForecaster):
             train=False, batch_size=tft_cfg["batch_size"] * 2, num_workers=0
         )
 
+        # Store for test-time prediction (predict() must continue time_idx)
+        self._training_dataset_ = training_dataset
+        self._max_time_idx_: dict[str, int] = (
+            df_full.groupby("building_id")["time_idx"].max().to_dict()
+        )
+        self._target_col_ = target_col
+        self._tft_cfg_ = tft_cfg
+
         tft = TemporalFusionTransformer.from_dataset(
             training_dataset,
             learning_rate=tft_cfg["learning_rate"],
@@ -161,9 +169,54 @@ class TFTForecaster(BaseForecaster):
         return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
+        """Predict on test data.
+
+        Builds a TimeSeriesDataSet from X by continuing the time_idx from
+        where training+validation ended, then creates a test dataloader and
+        runs inference.  Returns one prediction per test timestep (after
+        the initial lookback window per building).
+        """
         if self.model_ is None:
             raise RuntimeError("Call .fit() before .predict()")
-        raw_preds = self.trainer_.predict(self.model_, self._val_loader)
+
+        try:
+            from pytorch_forecasting import TimeSeriesDataSet
+        except ImportError as e:
+            raise ImportError("pytorch-forecasting required for TFT.") from e
+
+        # Build test DataFrame in the same format as fit()
+        y_placeholder = pd.Series(
+            np.zeros(len(X)),
+            index=X.index,
+            name=self._target_col_,
+        )
+        df_test = self._prepare_df(X, y_placeholder, "test")
+
+        # Assign time_idx continuing from training+val per building
+        def _continuing_time_idx(g: pd.DataFrame) -> pd.Series:
+            bid = g["building_id"].iloc[0]
+            offset = int(self._max_time_idx_.get(bid, -1)) + 1
+            return pd.Series(range(offset, offset + len(g)), index=g.index)
+
+        df_test["time_idx"] = (
+            df_test
+            .groupby("building_id", group_keys=False)
+            .apply(_continuing_time_idx)
+        )
+
+        test_dataset = TimeSeriesDataSet.from_dataset(
+            self._training_dataset_,
+            df_test,
+            predict=True,
+            stop_randomization=True,
+        )
+        test_loader = test_dataset.to_dataloader(
+            train=False,
+            batch_size=self._tft_cfg_["batch_size"] * 2,
+            num_workers=0,
+        )
+
+        raw_preds = self.trainer_.predict(self.model_, test_loader)
         return np.concatenate([p.numpy().flatten() for p in raw_preds])
 
     # ------------------------------------------------------------------

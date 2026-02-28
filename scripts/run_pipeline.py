@@ -231,25 +231,51 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
         _train_dl_model("gru", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models)
 
     # ── TFT (very slow) ───────────────────────────────────────────────────────
-    if not skip_slow and "tft" not in slow_models or (not skip_slow and "tft" in slow_models and not skip_slow):
+    # Condition simplifies to: run TFT when not skip_slow
+    if not skip_slow:
         try:
             from energy_forecast.models.tft import TFTForecaster
             tft = TFTForecaster(cfg)
             tft.fit(X_train, y_train, X_val, y_val)
             preds = tft.predict(X_test)
-            results.append(evaluate(y_test, preds, "TFT"))
+
+            # TFT may return full-length preds (it uses training history as
+            # encoder context) or trimmed preds (if encoder context is limited
+            # to the test window).  Handle both cases.
+            lookback = cfg.get("sequence", {}).get("lookback", 72)
+            if len(preds) == len(y_test):
+                y_tft = y_test
+            else:
+                y_tft = _trim_dl_targets(y_test, lookback)
+                if len(preds) != len(y_tft):
+                    raise ValueError(
+                        f"TFT prediction length {len(preds)} does not match "
+                        f"y_test ({len(y_test)}) or trimmed y_test ({len(y_tft)})."
+                    )
+
+            results.append(evaluate(y_tft, preds, "TFT"))
             fitted_models["TFT"] = tft
+            logger.info("TFT  n_eval=%d", len(y_tft))
         except Exception as exc:
-            logger.warning("TFT training failed: %s", exc)
+            logger.warning("TFT training/evaluation failed: %s", exc)
 
     # ── Stacking ensemble ─────────────────────────────────────────────────────
-    ensemble_base = {k: v for k, v in fitted_models.items()
-                     if k not in ["Naive", "Seasonal Naive (24 h)", "Mean Baseline"]}
+    # Sklearn models only — DL models return trimmed-length predictions that
+    # are incompatible with X_val for meta-feature generation.
+    _DL_NAMES = {"LSTM", "GRU", "CNN-LSTM", "TFT"}
+    _BASELINE_NAMES = {"Naive", "Seasonal Naive (24 h)", "Mean Baseline"}
+    ensemble_base = {
+        k: v for k, v in fitted_models.items()
+        if k not in _BASELINE_NAMES and k not in _DL_NAMES
+    }
     if len(ensemble_base) >= 2:
-        ensemble = StackingEnsemble(ensemble_base, cfg)
-        ensemble.fit(X_train, y_train, X_val, y_val)
-        preds = ensemble.predict(X_test)
-        results.append(evaluate(y_test, preds, ensemble.name))
+        try:
+            ensemble = StackingEnsemble(ensemble_base, cfg)
+            ensemble.fit(X_train, y_train, X_val, y_val)
+            preds = ensemble.predict(X_test)
+            results.append(evaluate(y_test, preds, ensemble.name))
+        except Exception as exc:
+            logger.warning("Stacking ensemble failed: %s", exc)
 
     # ── Save results ──────────────────────────────────────────────────────────
     comparison = compare_models(results)
@@ -263,8 +289,30 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
     logger.info("Stage 3 complete. Results → %s", res_dir / "final_metrics.csv")
 
 
+def _trim_dl_targets(y: "pd.Series", lookback: int) -> "pd.Series":
+    """Drop the first ``lookback`` rows per building from y.
+
+    Sliding-window DL models cannot produce a prediction for the first
+    ``lookback`` timesteps of each building (not enough history).  The
+    evaluate() call requires y_true and y_pred to have the same length,
+    so we trim the corresponding rows from y_true before comparing.
+    """
+    import pandas as pd  # noqa: PLC0415 (deferred import OK here)
+
+    parts = []
+    for bid in y.index.get_level_values("building_id").unique():
+        y_b = y.xs(bid, level="building_id")
+        parts.append(y_b.iloc[lookback:])
+    return pd.concat(parts)
+
+
 def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted_models):
-    """Helper to train a single DL architecture with error handling."""
+    """Helper to train a single DL architecture with error handling.
+
+    DL models use a sliding-window approach (see build_sequences) and cannot
+    predict for the first ``lookback`` timesteps of each building.  We trim
+    ``y_te`` to match the number of predictions before calling evaluate().
+    """
     from energy_forecast.models.deep_learning import LSTMForecaster, CNNLSTMForecaster, GRUForecaster
     from energy_forecast.evaluation import evaluate
 
@@ -276,8 +324,23 @@ def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted
         model = cls(cfg)
         model.fit(X_tr, y_tr, X_v, y_v)
         preds = model.predict(X_te)
-        results.append(evaluate(y_te, preds, model.name))
+
+        # Align y_te: DL models cannot predict the first `lookback` steps per
+        # building — trim those rows so len(y_te_aligned) == len(preds).
+        lookback = cfg.get("sequence", {}).get("lookback", 72)
+        y_te_aligned = _trim_dl_targets(y_te, lookback)
+
+        if len(y_te_aligned) != len(preds):
+            logger.warning(
+                "%s prediction length mismatch: y=%d, preds=%d — skipping.",
+                arch.upper(), len(y_te_aligned), len(preds),
+            )
+            return
+
+        results.append(evaluate(y_te_aligned, preds, model.name))
         fitted_models[model.name] = model
+        logger.info("%s  n_eval=%d (trimmed %d lookback rows per building)",
+                    model.name, len(y_te_aligned), lookback)
     except Exception as exc:
         logger.warning("%s training failed: %s", arch.upper(), exc)
 
