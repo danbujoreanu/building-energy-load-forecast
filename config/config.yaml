@@ -96,7 +96,8 @@ features:
 # ── Sequence parameters (deep learning & TFT) ─────────────────────────────────
 sequence:
   lookback: 72     # Hours of history used as input (3 days)
-  horizon:  24     # Hours ahead to forecast (1 day)
+  horizon:   1     # Must match forecast_horizon. 1 = H+1 single-step evaluation
+                   # (same as features.forecast_horizon above)
 
 # ── Model training ────────────────────────────────────────────────────────────
 training:
