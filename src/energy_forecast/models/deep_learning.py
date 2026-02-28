@@ -116,7 +116,7 @@ class LSTMForecaster(BaseForecaster):
             "epochs":     dl_cfg["epochs"],
             "batch_size": dl_cfg["batch_size"],
             "callbacks":  callbacks,
-            "verbose":    0,
+            "verbose":    1,
         }
         if X_val is not None and y_val is not None:
             X_v_seq, y_v_seq = build_sequences(
@@ -187,7 +187,7 @@ class CNNLSTMForecaster(BaseForecaster):
             "epochs":     dl_cfg["epochs"],
             "batch_size": dl_cfg["batch_size"],
             "callbacks":  callbacks,
-            "verbose":    0,
+            "verbose":    1,
         }
         if X_val is not None and y_val is not None:
             X_v_seq, y_v_seq = build_sequences(
@@ -251,7 +251,7 @@ class GRUForecaster(BaseForecaster):
             "epochs":     dl_cfg["epochs"],
             "batch_size": dl_cfg["batch_size"],
             "callbacks":  callbacks,
-            "verbose":    0,
+            "verbose":    1,
         }
         if X_val is not None and y_val is not None:
             X_v_seq, y_v_seq = build_sequences(
