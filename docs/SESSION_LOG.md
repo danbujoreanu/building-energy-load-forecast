@@ -297,6 +297,126 @@ python scripts/generate_eda_charts.py --city drammen --quick      # skip heavy c
 
 ---
 
+---
+
+## Session 5 — 2026-02-28 (Forecast-Horizon Fix + Honest h=24 Evaluation)
+
+### Objective
+- Identify and explain the 1-step oracle artifact in the original pipeline results
+- Fix `forecast_horizon` enforcement in temporal feature engineering
+- Re-run pipeline in honest 24h-ahead mode (thesis-comparable)
+- Add intelligent `number_of_users` imputation matching the original thesis notebooks
+- Fix thesis_vs_pipeline chart (Stacking showing 0.0 was an oracle artifact)
+- Update README with correct analysis and methodology comparison
+
+### Critical Finding: Oracle vs Honest Evaluation
+
+**What happened:**
+Thesis sklearn models (RF=3.30 kWh, XGB=3.42 kWh) AND v2 pipeline h=1 results used `lag_1h`
+as a feature at test time. This is a *1-step oracle* — you're telling the model "here is
+actual electricity consumption from 1 hour ago" at prediction time. With autocorrelation r=0.977
+at lag_1h, Ridge/Stacking learn to essentially reproduce the previous timestep → MAE ≈ 0.002 kWh.
+
+**Why this matters:**
+- Thesis sklearn were *not* cheating — this is how single-step tabular models work.
+- But the ensemble MAE=0.002 in `thesis_vs_pipeline.png` appeared as "0.0" on the scale.
+- The user correctly flagged this as suspicious.
+- The h=24 pipeline (first honest 24h-ahead evaluation) removes all lags < 24h, giving
+  results that represent *true* next-day forecasting capability.
+
+**Oracle vs honest comparison:**
+| Mode | Ridge MAE | LightGBM MAE | Stacking MAE |
+|------|-----------|--------------|-------------|
+| h=1 oracle (thesis-style) | 0.006 kWh | 3.258 kWh | 0.002 kWh |
+| h=24 honest (new default) | 9.148 kWh | 5.423 kWh | 5.408 kWh |
+
+The ~2 kWh gap for tree models (3.26 → 5.42) is the **cost of removing oracle knowledge**.
+
+### Changes Made
+
+#### 1. `config/config.yaml` — New default `forecast_horizon: 24`
+```yaml
+features:
+  forecast_horizon: 24   # was implicitly 1; changed to thesis-comparable mode
+  lag_windows: [1, 2, 3, 4, 5, 6, 12, 24, 25, 26, 48, 168]   # extended
+  rolling_windows: [6, 12, 24, 48, 168]                        # extended with 168h
+```
+
+#### 2. `src/energy_forecast/features/temporal.py` — Horizon enforcement
+```python
+horizon: int = int(feat_cfg.get("forecast_horizon", 1))
+# Removes lags and rolling windows shorter than the forecast horizon
+lag_windows   = [w for w in all_lag_windows   if w >= horizon]
+roll_windows  = [w for w in all_roll_windows  if w >= horizon]
+```
+With `forecast_horizon=24`: removes lags [1,2,3,4,5,6,12] and rolling [6,12].
+Keeps lags [24,25,26,48,168] and rolling [24,48,168].
+
+#### 3. `src/energy_forecast/data/preprocessing.py` — Intelligent user imputation
+Added `_impute_number_of_users()` matching the thesis EDA notebook approach:
+- Computes median users/m² density per `building_category` from buildings with complete data
+- Imputes missing buildings: `imputed = round(density × floor_area)`
+- Falls back to global median density if category has no reference buildings (e.g. both Offices missing)
+
+Buildings imputed:
+```
+6411  Office  8424 m²  →  749 users  [global density 0.0889 — no Office reference]
+6413  School  5086 m²  →  402 users  [category density 0.0791 users/m²]
+6441  Office  1510 m²  →  134 users  [global density 0.0889 — no Office reference]
+```
+Matched `consolidated_building_metadata.csv` from original thesis notebooks.
+
+#### 4. `src/energy_forecast/visualization/eda_charts.py` — Fixed thesis_vs_pipeline chart
+Added `exclude_oracle_artifacts=True` parameter:
+- Removes Ridge and Stacking Ensemble from the pipeline side of the comparison chart
+  (they read as 0.0 in h=1 oracle mode due to integer autocorrelation artifact)
+- Added Δ annotations showing exact MAE difference per model
+- Added text box explaining the oracle vs honest methodology difference
+
+#### 5. `README.md` — Major update
+- Updated pipeline v2 results to h=24 honest values
+- Added critical finding box: thesis sklearn was ALSO oracle (not a v2 bug)
+- Added methodology comparison table (thesis h=1 oracle vs v2 h=24 honest)
+
+### Pipeline v2 Results (h=24, honest, thesis-comparable)
+
+**Data:** 45/45 buildings loaded, 42 pass 70% completeness filter | 47,803 test samples (Jan–Mar 2022)
+
+| Model | MAE (kWh) | RMSE | MAPE | R² |
+|-------|-----------|------|------|----|
+| Stacking Ensemble | **5.408** | 8.981 | 10.65% | 0.976 |
+| LightGBM | 5.423 | 9.128 | 10.38% | 0.976 |
+| XGBoost | 5.716 | 9.413 | 11.57% | 0.974 |
+| RandomForest | 6.092 | 10.447 | 11.24% | 0.968 |
+| Ridge | 9.148 | 15.817 | 20.10% | 0.927 |
+| Mean Baseline | 27.261 | 45.491 | 39.54% | 0.392 |
+
+**Feature set (h=24):** 35 selected features including lags [24h, 25h, 26h, 48h, 168h],
+rolling stats [24h, 48h, 168h], cyclical encodings, calendar, building metadata.
+
+### Files Modified This Session
+
+| File | Change |
+|------|--------|
+| `config/config.yaml` | New default `forecast_horizon: 24`; extended lag/rolling windows |
+| `src/energy_forecast/features/temporal.py` | Horizon enforcement — removes oracle-leaking short lags |
+| `src/energy_forecast/data/preprocessing.py` | Intelligent `number_of_users` imputation |
+| `src/energy_forecast/visualization/eda_charts.py` | Fix thesis_vs_pipeline oracle artifact display |
+| `README.md` | Honest h=24 results, critical finding, methodology comparison |
+| `docs/SESSION_LOG.md` | This session record |
+
+### Session 5 Commit
+- "Fix forecast_horizon to h=24; honest eval; intelligent user imputation; fix thesis chart"
+
+### Next Session — Recommended Starting Point
+1. **Run deep learning models**: `python scripts/run_pipeline.py --city drammen --stages training` (no `--skip-slow`) — LSTM/GRU/CNN-LSTM (~4 hours each)
+2. **Generate per-building profiles**: `python scripts/generate_eda_charts.py --city drammen --profiles`
+3. **OOF stacking**: Replace fixed-val stacking with k-fold OOF for more robust meta-learner
+4. **Probabilistic forecasting**: Quantile regression in LightGBM (ROADMAP Phase 2, Q3-Q5)
+5. **Fix minor warnings**: Replace `⚠` glyph in chart titles (Arial font missing); update seaborn boxplot to use `hue` parameter
+
+---
+
 ## Pending Technical Debt
 
 | Issue | Priority | Notes |
@@ -304,11 +424,15 @@ python scripts/generate_eda_charts.py --city drammen --quick      # skip heavy c
 | ~~Building 6412 skipped — BOM on line 0~~ | ✅ Fixed S4 | BOM stripped, all 45 load |
 | ~~Building 6417 skipped — malformed Header_line~~ | ✅ Fixed S4 | Extra semicolons stripped |
 | ~~WeightedAverageEnsemble not in code~~ | ✅ Done S4 | MAE 4.081 kWh reproduced |
-| Deep learning models not yet run on real data | 🟡 | --skip-slow used; LSTM/GRU/CNN-LSTM pending |
-| OOF stacking (fixed-val used instead) | 🟡 | ROADMAP improvement |
-| Ridge/Stacking perfect score (1-step oracle) | 🔵 | Integer autocorr; documented in README |
-| Two TFT variants (only one in code) | 🔵 | Thesis ran TFT with MAE Loss and Comprehensive |
-| Per-building profiles not generated | 🔵 | Run `generate_eda_charts.py --profiles` |
+| ~~1-step oracle leakage in tabular pipeline~~ | ✅ Fixed S5 | `forecast_horizon: 24` enforced |
+| ~~number_of_users imputation ad-hoc~~ | ✅ Fixed S5 | Category-density method, matches thesis |
+| ~~thesis_vs_pipeline chart shows 0.0~~ | ✅ Fixed S5 | Oracle artifacts excluded from chart |
+| Deep learning models not yet run on real data | 🟡 HIGH | `--skip-slow` used; LSTM/GRU/CNN-LSTM pending |
+| OOF stacking (fixed-val used instead) | 🟡 MEDIUM | ROADMAP improvement; k-fold cross-val |
+| Per-building profiles not generated | 🔵 LOW | Run `generate_eda_charts.py --profiles` |
+| Two TFT variants (only one in code) | 🔵 LOW | Thesis ran TFT with MAE Loss and Comprehensive |
+| Seaborn FutureWarning (boxplot hue) | 🔵 LOW | `palette` without `hue` deprecated |
+| Unicode glyph warning (Arial + ⚠ symbol) | 🔵 LOW | Replace `⚠` with ASCII in chart titles |
 
 ---
 
