@@ -289,7 +289,7 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
     logger.info("Stage 3 complete. Results → %s", res_dir / "final_metrics.csv")
 
 
-def _trim_dl_targets(y: "pd.Series", lookback: int) -> "pd.Series":
+def _trim_dl_targets(y, lookback: int):
     """Drop the first ``lookback`` rows per building from y.
 
     Sliding-window DL models cannot produce a prediction for the first
