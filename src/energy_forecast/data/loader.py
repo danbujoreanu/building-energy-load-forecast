@@ -159,10 +159,12 @@ def _parse_building_file(
     meta = _extract_metadata(raw_lines, filepath)
 
     # ── Step 2: find where the data table starts ──────────────────────────────
-    header_line_idx = int(meta.get("Header_line", 22)) - 1   # 1-indexed in file
+    # Header_line;22 means the column-header row is at 1-indexed line 22
+    # (0-indexed: 21).  Data begins at the NEXT row (0-indexed: 22).
+    header_line_idx = int(meta.get("Header_line", 22))  # 0-indexed first data row
 
-    # ── Step 3: parse the abbreviated column names (3 rows above data) ────────
-    abbrev_line_idx = header_line_idx - 3
+    # ── Step 3: parse the abbreviated column names (1 row above data) ─────────
+    abbrev_line_idx = header_line_idx - 1
     abbrev_line = raw_lines[abbrev_line_idx].strip().split(";")
     # First element is the timestamp column
     raw_col_names = ["TimeStamp"] + abbrev_line[1:]

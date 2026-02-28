@@ -37,13 +37,17 @@ data:
   wh_to_kwh: true
   # Minimum data completeness required per building (fraction)
   min_completeness: 0.70
+  # Drop columns with fewer than this fraction of non-NaN rows.
+  # Removes optional sub-meter columns absent for most buildings.
+  column_min_coverage: 0.50
 
 # ── Data splits ───────────────────────────────────────────────────────────────
 splits:
-  # Chronological split — no data leakage across time
-  train_end: "2023-06-30"
-  val_end:   "2023-12-31"
-  # Everything after val_end is the test set
+  # Chronological split — no data leakage across time.
+  # Drammen data range: 2018-01-01 → 2022-03-18
+  train_end: "2020-12-31"   # ~3 years training
+  val_end:   "2021-12-31"   # 1 year validation
+  # Everything after 2021-12-31 is the test set (~2.5 months)
 
 # ── Feature engineering ───────────────────────────────────────────────────────
 features:

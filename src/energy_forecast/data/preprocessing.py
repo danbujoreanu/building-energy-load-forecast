@@ -78,6 +78,20 @@ def build_model_ready_data(
     if dropped:
         logger.info("Dropped %d rows with missing target '%s'", dropped, target)
 
+    # ── 5b. Drop sparse columns (not measured at most buildings) ──────────────
+    col_min_coverage = cfg["data"].get("column_min_coverage", 0.50)
+    before_cols = df.shape[1]
+    coverage = df.notna().mean()
+    keep_cols = coverage[coverage >= col_min_coverage].index.tolist()
+    dropped_cols = before_cols - len(keep_cols)
+    if dropped_cols:
+        sparse = sorted(c for c in df.columns if c not in keep_cols)
+        logger.info(
+            "Dropped %d sparse columns (< %.0f%% coverage): %s",
+            dropped_cols, col_min_coverage * 100, sparse,
+        )
+    df = df[keep_cols]
+
     # ── 6. Derive time-based features (deterministic, no leakage) ─────────────
     df = _add_calendar_features(df)
 

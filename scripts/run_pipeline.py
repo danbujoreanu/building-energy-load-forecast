@@ -174,7 +174,11 @@ def _run_features(cfg: dict) -> None:
     splits_dir.mkdir(exist_ok=True)
     for name, obj in [("X_train_fs", X_tr), ("X_val_fs", X_v), ("X_test_fs", X_te),
                       ("y_train", y_tr), ("y_val", y_v), ("y_test", y_te)]:
-        obj.to_parquet(splits_dir / f"{name}.parquet")
+        # Series.to_parquet() not available in all pandas versions — use to_frame()
+        if isinstance(obj, pd.Series):
+            obj.to_frame().to_parquet(splits_dir / f"{name}.parquet")
+        else:
+            obj.to_parquet(splits_dir / f"{name}.parquet")
 
     logger.info("Stage 2 complete. Selected %d features.", len(kept))
 
