@@ -161,6 +161,24 @@ def _merge_metadata(df: pd.DataFrame, metadata: pd.DataFrame) -> pd.DataFrame:
        "building_category" in meta.columns:
         meta = _impute_number_of_users(meta)
 
+    # ── Derive central_heating_system (matches thesis feature set) ────────────
+    # Binary indicator: 1 = centralised system (boiler, heat pump, district
+    # heating); 0 = distributed electric heating (EH / EFH).
+    # Rule: primary heat source (first token before comma) is EH or EFH → 0.
+    # Derived from sh_heat_source column; matches consolidated_building_metadata.csv.
+    if "sh_heat_source" in meta.columns:
+        def _to_central(val: str | float) -> int:
+            if pd.isna(val):
+                return 0
+            primary = str(val).split(",")[0].strip()
+            return 0 if primary in ("EH", "EFH") else 1
+        meta["central_heating_system"] = meta["sh_heat_source"].apply(_to_central)
+        logger.info(
+            "Derived central_heating_system: %d centralised, %d distributed",
+            meta["central_heating_system"].sum(),
+            (meta["central_heating_system"] == 0).sum(),
+        )
+
     meta_sub = meta.set_index("building_id")
     df = df.join(meta_sub, on="building_id", how="left")
     return df

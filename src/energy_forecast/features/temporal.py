@@ -4,11 +4,16 @@ features.temporal
 Generates all temporal features for the model-ready dataset:
 
     1. Cyclical (sin/cos) encoding of time periods
-    2. Lag features for target and key predictors
-    3. Rolling window statistics (mean, std)
+    2. Temperature × hour interaction features
+    3. Lag features for target and key predictors
+    4. Rolling window statistics (mean, std, min, max)
 
 All operations are applied *per building* to avoid leaking data across
 buildings.  NaN rows introduced by lag/rolling are dropped at the end.
+
+The ``forecast_horizon`` config parameter controls which lags are permitted:
+  - horizon=1  : all lags usable (single-step-ahead, H+1 evaluation)
+  - horizon=24 : only lags ≥ 24h included (honest 24h-ahead evaluation)
 
 Public API
 ----------
@@ -39,7 +44,7 @@ def build_temporal_features(
     cfg: dict[str, Any],
     target: str | None = None,
 ) -> pd.DataFrame:
-    """Add lag, rolling-window, and cyclical features to the dataset.
+    """Add lag, rolling-window, cyclical, and interaction features to the dataset.
 
     Parameters
     ----------
@@ -59,17 +64,12 @@ def build_temporal_features(
     feat_cfg = cfg["features"]
 
     # ── Forecast horizon enforcement ──────────────────────────────────────────
-    # forecast_horizon = 1  → 1-step oracle (all lags allowed; lag_1h dominates)
-    # forecast_horizon = 24 → true 24h-ahead (only lags ≥ 24h included;
-    #                          directly comparable to MSc thesis)
     horizon: int = int(feat_cfg.get("forecast_horizon", 1))
-    logger.info(
-        "Building temporal features (forecast_horizon=%dh) …", horizon
-    )
+    logger.info("Building temporal features (forecast_horizon=%dh) …", horizon)
     if horizon > 1:
         logger.info(
-            "  ⚠  horizon=%dh: removing lag/rolling features shorter than "
-            "%dh to avoid oracle leakage. Results are thesis-comparable.",
+            "  horizon=%dh: removing lag/rolling features shorter than "
+            "%dh to prevent oracle leakage.",
             horizon, horizon,
         )
 
@@ -81,8 +81,17 @@ def build_temporal_features(
             period = _CYCLICAL_PERIODS.get(col, 24)
             df = _add_cyclical(df, col, period)
 
-    # ── 2. Lag features (applied per building, horizon-aware) ─────────────────
-    all_lag_windows: list[int] = feat_cfg.get("lag_windows", [1, 2, 3, 6, 12, 24])
+    # ── 2. Temperature × hour interaction features ────────────────────────────
+    # These cross-terms capture the interaction between outdoor temperature and
+    # time-of-day load patterns (e.g. morning warm-up amplified by cold weather).
+    # Included in the thesis feature set; selected by LightGBM importance.
+    if "Temperature_Outdoor_C" in df.columns and "hour_of_day_sin" in df.columns:
+        df["temp_x_hour_sin"] = df["Temperature_Outdoor_C"] * df["hour_of_day_sin"]
+    if "Temperature_Outdoor_C" in df.columns and "hour_of_day_cos" in df.columns:
+        df["temp_x_hour_cos"] = df["Temperature_Outdoor_C"] * df["hour_of_day_cos"]
+
+    # ── 3. Lag features (applied per building, horizon-aware) ─────────────────
+    all_lag_windows: list[int] = feat_cfg.get("lag_windows", [1, 2, 3, 24, 25, 26, 48, 168])
     # Enforce minimum lag = forecast_horizon (no oracle leakage)
     lag_windows = [w for w in all_lag_windows if w >= horizon]
     if not lag_windows:
@@ -99,10 +108,9 @@ def build_temporal_features(
         .apply(_add_lags, lag_sources=lag_sources, lags=lag_windows)
     )
 
-    # ── 3. Rolling window statistics (per building, horizon-aware) ────────────
-    all_roll_windows: list[int] = feat_cfg.get("rolling_windows", [6, 12, 24, 48])
-    # Rolling windows < horizon give oracle leakage (they include timesteps
-    # we would not yet have available at prediction time)
+    # ── 4. Rolling window statistics (per building, horizon-aware) ────────────
+    all_roll_windows: list[int] = feat_cfg.get("rolling_windows", [3, 6, 12, 24, 72, 168])
+    # Rolling windows < horizon would include future timesteps at prediction time
     roll_windows = [w for w in all_roll_windows if w >= horizon]
     if not roll_windows:
         roll_windows = [horizon]
@@ -110,7 +118,7 @@ def build_temporal_features(
         removed_r = sorted(set(all_roll_windows) - set(roll_windows))
         logger.info("  Removed oracle rolling windows (< %dh): %s", horizon, removed_r)
 
-    roll_stats:   list[str] = feat_cfg.get("rolling_stats", ["mean", "std"])
+    roll_stats: list[str] = feat_cfg.get("rolling_stats", ["mean", "std", "min", "max"])
     roll_sources = [target, "Temperature_Outdoor_C"]
     roll_sources = [c for c in roll_sources if c in df.columns]
 
@@ -119,7 +127,7 @@ def build_temporal_features(
         .apply(_add_rolling, sources=roll_sources, windows=roll_windows, stats=roll_stats)
     )
 
-    # ── 4. Drop NaN rows introduced by lag/rolling (warmup rows only) ─────────
+    # ── 5. Drop NaN rows introduced by lag/rolling (warmup rows only) ─────────
     # Only drop on lag columns (first max_lag hours per building are NaN).
     # Do NOT drop on optional energy sub-meter columns that are legitimately
     # absent for buildings without those meters.
@@ -175,4 +183,8 @@ def _add_rolling(
                 group[f"{col}_roll_{w}h_mean"] = roller.mean()
             if "std" in stats:
                 group[f"{col}_roll_{w}h_std"] = roller.std()
+            if "min" in stats:
+                group[f"{col}_roll_{w}h_min"] = roller.min()
+            if "max" in stats:
+                group[f"{col}_roll_{w}h_max"] = roller.max()
     return group

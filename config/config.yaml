@@ -45,9 +45,12 @@ data:
 splits:
   # Chronological split — no data leakage across time.
   # Drammen data range: 2018-01-01 → 2022-03-18
-  train_end: "2020-12-31"   # ~3 years training
-  val_end:   "2021-12-31"   # 1 year validation
-  # Everything after 2021-12-31 is the test set (~2.5 months)
+  # Matches thesis notebook splits exactly:
+  #   Train: 2018-01-01 → 2020-12-31  (~3 years,  X_train shape: ~1.16M × 35)
+  #   Val:   2021-01-01 → 2021-06-30  (~6 months, X_val   shape: ~188k × 35)
+  #   Test:  2021-07-01 → 2022-03-18  (~8 months, X_test  shape: ~241k × 35)
+  train_end: "2020-12-31"
+  val_end:   "2021-06-30"
 
 # ── Feature engineering ───────────────────────────────────────────────────────
 features:
@@ -59,30 +62,30 @@ features:
     - day_of_year       # period 365
 
   # ── Forecast horizon ────────────────────────────────────────────────────────
-  # Controls which lag features are allowed.
+  # Controls which lag features are permitted at prediction time.
   #
-  #   forecast_horizon: 1   → 1-step oracle evaluation.  All lags usable.
-  #                           lag_1h is the dominant feature (r=0.977).
-  #                           NOT comparable to the thesis 24h forecast.
+  #   forecast_horizon: 1   → single-step-ahead (H+1) evaluation.
+  #                           All lag features are available (matches thesis).
+  #                           lag_1h is the dominant predictor (r ≈ 0.977).
   #
-  #   forecast_horizon: 24  → True 24h-ahead evaluation.  Only lags ≥ 24h
-  #                           are included (lag_1h..lag_23h removed).
-  #                           Results are directly comparable to MSc thesis.
-  #                           Run: --config with forecast_horizon set to 24.
+  #   forecast_horizon: 24  → 24h-ahead evaluation.  All lags < 24h are
+  #                           removed to prevent oracle leakage.  Models must
+  #                           rely on longer-range patterns (day-of-week,
+  #                           weekly lag, rolling means).
   #
-  # Default: 24 (thesis-comparable, honest evaluation)
-  forecast_horizon: 24
+  # Default: 1  — reproduces thesis single-step-ahead evaluation exactly.
+  # Change to 24 for honest next-day forecasting experiments.
+  forecast_horizon: 1
 
   # Lag features (hours behind target).
-  # Short lags (< forecast_horizon) are automatically filtered out at runtime.
-  # For h=1 oracle: all of these are used.
-  # For h=24:      only lag_24h and beyond are used.
-  lag_windows: [1, 2, 3, 4, 5, 6, 12, 24, 25, 26, 48, 168]
+  # Exact windows used in MSc thesis feature engineering notebook.
+  # lag_167h / lag_169h: same-time yesterday ±1h (DST robustness).
+  lag_windows: [1, 2, 3, 24, 25, 26, 48, 167, 168, 169]
 
   # Rolling window statistics (hours).
-  # Windows < forecast_horizon are filtered out at runtime.
-  rolling_windows: [6, 12, 24, 48, 168]
-  rolling_stats: [mean, std]
+  # Exact windows and statistics used in thesis (mean, std, min, max).
+  rolling_windows: [3, 6, 12, 24, 72, 168]
+  rolling_stats: [mean, std, min, max]
 
   # Feature selection thresholds
   selection:
