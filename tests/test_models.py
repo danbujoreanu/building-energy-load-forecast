@@ -83,6 +83,12 @@ class TestSklearnModels:
                     "num_leaves": 15, "min_child_samples": 5,
                     "subsample": 0.8, "colsample_bytree": 0.8, "n_jobs": 1,
                 },
+                "xgboost": {
+                    "n_estimators": 50, "learning_rate": 0.1, "max_depth": 3,
+                    "min_child_weight": 1, "subsample": 0.8,
+                    "colsample_bytree": 0.8, "reg_alpha": 0.0,
+                    "reg_lambda": 1.0, "n_jobs": 1,
+                },
             },
         }
         models = build_sklearn_models(cfg)

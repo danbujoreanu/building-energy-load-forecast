@@ -49,9 +49,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--stages",
         nargs="+",
-        choices=["eda", "features", "training"],
+        choices=["eda", "features", "training", "explain"],
         default=["eda", "features", "training"],
-        help="Which pipeline stages to run (default: all).",
+        help="Which pipeline stages to run (default: all except explain).",
     )
     parser.add_argument(
         "--config",
@@ -96,10 +96,15 @@ def main() -> None:
     if "training" in args.stages:
         _run_training(cfg, skip_slow=args.skip_slow)
 
+    # ── Stage 4: SHAP Explainability ─────────────────────────────────────────
+    if "explain" in args.stages:
+        _run_explain(cfg)
+
     elapsed = time.perf_counter() - t0
     logger.info("=" * 60)
     logger.info("Pipeline complete in %.1f seconds (%.1f min)", elapsed, elapsed / 60)
     logger.info("Results → outputs/results/final_metrics.csv")
+    logger.info("SHAP   → outputs/figures/shap/")
     logger.info("Figures → outputs/figures/")
     logger.info("=" * 60)
 
@@ -271,6 +276,56 @@ def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted
         fitted_models[model.name] = model
     except Exception as exc:
         logger.warning("%s training failed: %s", arch.upper(), exc)
+
+
+def _run_explain(cfg: dict) -> None:
+    """Stage 4: SHAP explainability on the top-3 tree-based models.
+
+    Produces four plots per model:
+        - beeswarm  (global: feature importance + direction)
+        - bar       (global: mean |SHAP|, cleaner for reports)
+        - waterfall (local: single-prediction breakdown)
+        - heatmap   (all-samples: patterns across test set)
+
+    Also saves SHAP values as .npz for notebook post-analysis.
+
+    Run independently after training:
+        python scripts/run_pipeline.py --stages explain
+    """
+    import pandas as pd
+    from energy_forecast.evaluation.explainability import explain_model
+    from energy_forecast.models.sklearn_models import build_sklearn_models
+
+    proc_dir = Path(cfg["paths"]["processed"]) / "splits"
+    fig_dir  = Path(cfg["paths"]["outputs"]["figures"])
+
+    logger.info("── Stage 4: SHAP Explainability ────────────────────")
+
+    X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")
+    y_train = pd.read_parquet(proc_dir / "y_train.parquet").squeeze()
+    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")
+    y_val   = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
+    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")
+
+    # Refit tree models (fast — RF ~2min, XGB/LGBM ~3s each)
+    tree_models = {
+        name: model
+        for name, model in build_sklearn_models(cfg).items()
+        if name in ("random_forest", "xgboost", "lightgbm")
+    }
+
+    for name, model in tree_models.items():
+        logger.info("Fitting %s for SHAP analysis ...", name)
+        model.fit(X_train, y_train, X_val, y_val)
+        explain_model(
+            model,
+            X_train,
+            X_test,
+            save_dir=fig_dir,
+            n_samples=500,   # subsample for speed; increase for publication
+        )
+
+    logger.info("Stage 4 complete. SHAP plots → %s/shap/", fig_dir)
 
 
 if __name__ == "__main__":
