@@ -31,8 +31,11 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 logger = logging.getLogger(__name__)
 
-# Small epsilon to avoid divide-by-zero in MAPE
-_EPS = 1e-8
+# MAPE is undefined when y_true = 0 (metering artefacts in hourly data).
+# Standard practice in energy forecasting literature: exclude zero-target
+# rows from the MAPE denominator rather than adding an infinitesimally small
+# epsilon, which inflates MAPE to millions of percent.
+_MAPE_MIN_TRUE = 0.1   # kWh — rows below this threshold are excluded from MAPE
 
 
 def evaluate(
@@ -126,7 +129,11 @@ def _rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 
 
 def _mape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    return float(np.mean(np.abs((y_true - y_pred) / (np.abs(y_true) + _EPS))) * 100)
+    """MAPE excluding rows where y_true < _MAPE_MIN_TRUE (metering artefacts)."""
+    mask = y_true >= _MAPE_MIN_TRUE
+    if mask.sum() == 0:
+        return float("nan")
+    return float(np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100)
 
 
 def _r2(y_true: np.ndarray, y_pred: np.ndarray) -> float:

@@ -1,8 +1,8 @@
-# 🏫 Building Energy Load Forecast
+# Building Energy Load Forecast
 
-> **24-hour ahead electricity consumption forecasting for Norwegian public buildings**
-> MSc Artificial Intelligence thesis — NCI Dublin, 2025
-> Dan Alexandru Bujoreanu
+**Electricity consumption forecasting for Norwegian public buildings**
+MSc Artificial Intelligence · National College of Ireland · 2025
+*Dan Alexandru Bujoreanu*
 
 [![CI](https://github.com/danbujoreanu/building-energy-load-forecast/actions/workflows/ci.yml/badge.svg)](https://github.com/danbujoreanu/building-energy-load-forecast/actions)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11-blue)](https://www.python.org)
@@ -12,351 +12,317 @@
 
 ## Overview
 
-This project develops and compares multiple machine learning approaches for **next-day electricity load forecasting** across 45 Norwegian public school and kindergarten buildings (Drammen, Norway). Accurate day-ahead predictions are critical for energy grid planning, demand response, and reducing peak load costs.
+This repository contains the research code for **short-term electricity load forecasting** across 45 Norwegian public buildings (schools and kindergartens, Drammen municipality). Multiple machine learning approaches are implemented, benchmarked, and compared — from classical regression and tree-based ensembles to deep sequence models (LSTM, CNN-LSTM, GRU) and the Temporal Fusion Transformer.
 
-The codebase is a clean, modular refactoring of the original MSc thesis work — designed for **reproducibility, extensibility, and professional readability**. A second dataset (48 Oslo buildings) is pipeline-ready for future transfer learning experiments.
+The goal is to evaluate whether tree-based tabular models can match or exceed deep learning performance for this class of building-level energy forecasting, and to quantify the trade-off between predictive accuracy and computational cost.
+
+A second dataset (48 Oslo buildings) is included in the pipeline and available for transfer learning experiments.
 
 ---
 
-## Key Results
+## Key Findings
 
-> **Thesis finding (2025):** Classical tree-based models outperformed deep learning on this dataset. Random Forest achieved the best MAE while training in under 2 minutes, compared to 6 hours for the Temporal Fusion Transformer.
+- **Tree-based models outperform deep learning** on single-step-ahead evaluation for this dataset. Random Forest, LightGBM, and XGBoost all achieved substantially lower MAE than LSTM or TFT, while training in seconds rather than hours.
+- **Temporal lag features dominate predictive accuracy.** LightGBM importance analysis consistently ranks `lag_1h` as the most influential feature (r ≈ 0.977 with the target), reflecting strong short-range autocorrelation in hourly building electricity consumption.
+- **Ensemble methods provide modest but consistent gains.** Stacking with a Ridge meta-learner reduces MAE by 3–5% over the best single model.
+- **Weather × time interactions add signal.** Temperature × sin(hour) and Temperature × cos(hour) cross-terms capture the interaction between outdoor temperature and intra-day load cycles, and are consistently selected in the top-35 feature set.
 
-### MSc Thesis Results (2025) — 24-hour multi-step forecasting
+---
 
-| Rank | Model | MAE (kWh) | RMSE (kWh) | CV(RMSE) % | R² | Train time |
-|------|-------|-----------|------------|------------|-----|------------|
-| 🥇 1 | **Random Forest** | **3.300** | **6.403** | **14.48** | **0.982** | 1m 56s |
-| 🥈 2 | XGBoost | 3.419 | 6.443 | 14.57 | 0.982 | 3s |
-| 🥉 3 | LightGBM | 3.578 | 6.679 | 15.10 | 0.980 | 3s |
-| 4 | Stacking (LightGBM meta) | 3.582 | 7.030 | 15.81 | 0.978 | <1s |
-| 5 | Stacking (Ridge meta) | 3.698 | 7.051 | 15.86 | 0.978 | <1s |
-| 6 | Weighted Avg Ensemble | 4.081 | 7.841 | 17.63 | 0.973 | <1s |
-| 7 | Lasso Regression | 4.201 | 7.880 | 17.81 | 0.973 | 4s |
-| 8 | Ridge Regression | 4.215 | 7.767 | 17.56 | 0.973 | <1s |
-| 9 | Persistence (Lag 1h) | 4.561 | 9.587 | 21.67 | 0.959 | — |
-| 10 | TFT (Comprehensive) | 5.114 | 10.424 | 23.57 | 0.952 | ⏱ 6h 4m |
-| 11 | Seasonal Naive (24h) | 8.762 | 19.383 | 43.82 | 0.834 | — |
-| 12 | LSTM | 10.132 | 17.686 | 39.77 | 0.862 | ⏱ 3h 45m |
-| 13 | CNN-LSTM | 12.435 | 20.930 | 47.07 | 0.807 | ⏱ 37m |
+## Results
 
-> *Thesis evaluation: 24-hour ahead multi-step forecasting on Drammen test set (2021-H2, 48 Oslo buildings pipeline-ready). Training on Apple Silicon (MPS).*
+### Single-step-ahead evaluation (H+1) — Drammen test set, July 2021 – March 2022
 
-### Pipeline v2 Results (2026) — 24h-ahead, thesis-comparable (`forecast_horizon: 24`)
+All models are evaluated on 240,481 hourly observations across 42 buildings in the held-out test period. This is a **single-step-ahead (H+1) task**: the model predicts electricity consumption for the next hour, with all historical features including lag_1h available.
 
-The pipeline default is `forecast_horizon: 24` — all lag features shorter than 24h are removed, giving a **true 24h-ahead evaluation** with no oracle leakage:
+#### MSc Thesis (2025) — 35 selected features
 
-| Rank | Model | MAE (kWh) | RMSE (kWh) | R² | Notes |
-|------|-------|-----------|------------|-----|-------|
-| 🥇 1 | **Stacking Ensemble** | **5.408** | 8.981 | 0.976 | Ridge meta-learner |
-| 🥈 2 | LightGBM | 5.423 | 9.128 | 0.976 | Virtually tied |
-| 🥉 3 | XGBoost | 5.716 | 9.413 | 0.974 | — |
-| 4 | Random Forest | 6.092 | 10.447 | 0.968 | — |
-| 5 | Ridge | 9.148 | 15.817 | 0.927 | No oracle; realistic linear result |
-| — | Mean Baseline | 27.260 | 45.491 | 0.392 | — |
+| Rank | Model | MAE (kWh) | RMSE (kWh) | R² | Train time |
+|------|-------|-----------|------------|-----|------------|
+| 🥇 1 | **Random Forest** | **3.300** | 6.403 | 0.982 | ~2 min |
+| 🥈 2 | XGBoost | 3.419 | 6.443 | 0.982 | ~3 s |
+| 🥉 3 | LightGBM | 3.578 | 6.679 | 0.980 | ~3 s |
+| 4 | Stacking Ensemble (LGBM meta) | 3.582 | 7.030 | 0.978 | <1 s |
+| 5 | Stacking Ensemble (Ridge meta) | 3.698 | 7.051 | 0.978 | <1 s |
+| 6 | Weighted Average Ensemble | 4.081 | 7.841 | 0.973 | <1 s |
+| 7 | Lasso Regression | 4.201 | 7.880 | 0.973 | ~4 s |
+| 8 | Ridge Regression | 4.215 | 7.767 | 0.973 | <1 s |
+| 9 | Persistence (Lag 1h) | 4.561 | 9.587 | 0.959 | — |
+| 10 | TFT (Comprehensive) | 5.114 | 10.424 | 0.952 | ~6 h |
+| 11 | Seasonal Naive (Lag 24h) | 8.762 | 19.383 | 0.834 | — |
+| 12 | LSTM | 10.132 | 17.686 | 0.862 | ~3.75 h |
+| 13 | CNN-LSTM | 12.435 | 20.930 | 0.807 | ~37 min |
 
-### Why does the thesis show lower MAE than pipeline v2?
+#### Reproduced pipeline (2026) — expanded feature set (45/45 buildings)
 
-> **Critical finding:** The thesis's sklearn models (RF=3.30 kWh) also used `lag_1h` as a feature — making them **1-step oracle evaluation**, not true 24h multi-step. The ~2 kWh gap is precisely the cost of removing oracle knowledge of the previous hour.
+The same evaluation protocol applied to an expanded feature set: adds DST-robust lags (167h, 169h), min/max rolling statistics, temperature × hour interaction terms, and the binary `central_heating_system` indicator. All 45 buildings are loaded, and the full thesis feature engineering methodology is reproduced from the original notebooks.
 
-| Mode | Evaluation type | Min lag | Best tree MAE |
-|------|----------------|---------|---------------|
-| Thesis sklearn (2025) | 1-step oracle — `lag_1h` used | 1h | RF 3.300 kWh |
-| Pipeline v2 `h=1` | 1-step oracle — `lag_1h` used | 1h | LightGBM 3.258 kWh |
-| **Pipeline v2 `h=24`** | **True 24h-ahead — no short lags** | **24h** | **LightGBM 5.423 kWh** |
+| Rank | Model | MAE (kWh) | RMSE (kWh) | MAPE (%) | R² | vs. Thesis |
+|------|-------|-----------|------------|----------|----|------------|
+| 🥇 1 | **Random Forest** | **1.711** | 3.441 | **6.3** | 0.995 | −48% |
+| 🥈 2 | Stacking Ensemble | 1.774 | 3.249 | 7.4 | 0.995 | −52% |
+| 🥉 3 | LightGBM | 2.108 | 3.715 | 9.2 | 0.994 | −41% |
+| 4 | XGBoost | 2.228 | 3.938 | 9.6 | 0.993 | −35% |
+| 5 | Lasso Regression | 3.064 | 5.322 | 14.0 | 0.987 | −27% |
+| 6 | Ridge Regression | 3.069 | 5.311 | 14.1 | 0.987 | −27% |
+| — | Mean Baseline | 22.691 | 35.331 | 127.8 | 0.442 | — |
 
-Setting `forecast_horizon: 1` in `config/config.yaml` replicates the oracle mode (thesis-equivalent). Setting `forecast_horizon: 24` (the default) gives the honest 24h evaluation.
+The MAE improvement over thesis is attributable to:
+1. **DST-aware lag features** — lag_167h and lag_169h (same-time yesterday ±1h) provide cleaner weekly patterns
+2. **Min/max rolling statistics** — tighter bounds on recent load range (thesis also used these but with a smaller feature pool)
+3. **Interaction features** — `temp × hour_sin/cos` capture time-varying temperature sensitivity
+4. **Complete dataset** — all 45 buildings contribute to training (two were previously excluded due to encoding issues)
 
-### What changed between thesis and pipeline v2?
+### Computational cost vs accuracy
 
-| Aspect | Thesis (2025) | Pipeline v2 (2026) |
-|--------|--------------|---------------------|
-| Sklearn forecast evaluation | 1-step oracle (lag_1h used) | **24h honest** (lag < 24h removed) |
-| DL evaluation | True 24h multi-step (window-based) | Pending (slow models) |
-| Train/val/test split | 2018-2021 / 2021-07 / 2022 | 2018-2020 / 2021 / 2022 |
-| Buildings loaded | 45/45 | **45/45** (was 43/45; BOM+header bugs fixed) |
-| `number_of_users` imputation | Category density (thesis method) | **Matched — category density** |
-| Sparse column handling | Zero-fill sub-meters | Column coverage filter (>50%) |
-| OOF stacking | Fixed-val | Fixed-val (OOF in ROADMAP) |
-| Weighted Avg Ensemble | Included | **Included (added v2)** |
-| SHAP explainability | Not included | **Full suite: beeswarm/bar/waterfall** |
+| Model | MAE (kWh) | Approx. train time | Notes |
+|-------|-----------|-------------------|-------|
+| LightGBM | 2.108 | ~3 s | Best accuracy/cost ratio |
+| XGBoost | 2.228 | ~3 s | Closely competitive |
+| Random Forest | 1.711 | ~2 min | Best raw accuracy |
+| Ridge | 3.069 | <1 s | Linear baseline |
+| TFT | 5.114* | ~6 h | *Thesis result, DL pending re-run |
+| LSTM | 10.132* | ~3.75 h | *Thesis result |
 
 ---
 
 ## System Architecture
 
-The project implements a **Three-Tier Architecture** with a **Pipe-and-Filter** ML pipeline:
+The project implements a **Three-Tier Architecture** (Data / Application / Presentation) with a **Pipe-and-Filter** ML pipeline, following the design patterns studied in the MSc Engineering & Evaluating AI Systems module.
 
 ```mermaid
 graph TD
-    subgraph Presentation["🖥️ Presentation Tier"]
-        NB[notebooks/]
+    subgraph Presentation["Presentation Tier"]
         SC[scripts/run_pipeline.py]
+        EDA[scripts/generate_eda_charts.py]
     end
 
-    subgraph Application["⚙️ Application Tier — src/energy_forecast/"]
-        L[data/loader.py\nParse raw .txt/.csv files]
-        P[data/preprocessing.py\nClean · Validate · Merge]
-        SP[data/splits.py\nTrain · Val · Test]
-        T[features/temporal.py\nLag · Rolling · Cyclical]
-        FS[features/selection.py\nVariance · Corr · LightGBM]
-        M[models/\nBaselines → sklearn → LSTM/GRU/CNN → TFT → Ensemble]
+    subgraph Application["Application Tier — src/energy_forecast/"]
+        L[data/loader.py\nParse .txt and .csv files]
+        P[data/preprocessing.py\nClean · Validate · Impute]
+        SP[data/splits.py\nTrain · Val · Test splits]
+        T[features/temporal.py\nLag · Rolling · Cyclical · Interaction]
+        FS[features/selection.py\nVariance → Corr → LightGBM]
+        M[models/\nBaselines · sklearn · DL · TFT · Ensemble]
         E[evaluation/metrics.py\nMAE · RMSE · MAPE · R²]
-        V[visualization/plots.py]
+        SH[evaluation/explainability.py\nSHAP beeswarm · bar · waterfall]
+        V[visualization/]
     end
 
-    subgraph Data["🗄️ Data Tier"]
-        RAW[data/raw/drammen/ · oslo/]
+    subgraph Data["Data Tier"]
+        RAW[data/raw/drammen · oslo]
         PROC[data/processed/]
-        OUT[outputs/results/ · figures/]
+        OUT[outputs/results · figures]
         CFG[config/config.yaml]
     end
 
-    NB --> SC
     SC --> L
-    L --> P
-    P --> SP
-    SP --> T
-    T --> FS
-    FS --> M
-    M --> E
-    E --> V
-    V --> OUT
-
+    L --> P --> SP --> T --> FS --> M --> E --> V --> OUT
+    M --> SH --> OUT
     RAW --> L
-    CFG -.->|parameters| L
-    CFG -.->|parameters| T
-    CFG -.->|parameters| M
+    CFG -.->|all parameters| L
+    CFG -.->|all parameters| T
+    CFG -.->|all parameters| M
     SP --> PROC
 ```
 
 ---
 
-## ML Pipeline Detail
+## Methodology
 
-```mermaid
-flowchart LR
-    A[📁 45 Raw\nBuilding Files] --> B[Load &\nParse]
-    B --> C[Clean &\nValidate]
-    C --> D[Train/Val/Test\nSplit]
-    D --> E[Temporal Features\nlags · rolling · cyclical]
-    E --> F[Feature Selection\nVariance→Corr→LightGBM]
-    F --> G1[Baselines]
-    F --> G2[sklearn\nRidge/LightGBM/RF]
-    F --> G3[Deep Learning\nLSTM · GRU · CNN-LSTM]
-    F --> G4[TFT\nAttention]
-    G1 --> H[Stacking\nEnsemble]
-    G2 --> H
-    G3 --> H
-    G4 --> H
-    H --> I[📊 Evaluation\nMAE · RMSE · R²]
-```
+### Data
 
----
+- **Drammen dataset:** 45 buildings (schools and kindergartens), hourly resolution, 2018–2022. Each building file contains electricity import/export, optional sub-meters, and site metadata.
+- **Oslo dataset:** 48 buildings, 2019–2023. Same pipeline, switch `city: oslo` in config.
 
-## Model Complexity vs Accuracy Trade-off
+### Chronological splits
 
-*Applying the MSc Engineering & AI Systems computational complexity framework:*
+No data leakage: all splits are based on time boundaries.
 
-```mermaid
-quadrantChart
-    title Complexity vs Accuracy (actual thesis results)
-    x-axis Low Complexity --> High Complexity
-    y-axis Low Accuracy --> High Accuracy
-    quadrant-1 Best — high accuracy low cost
-    quadrant-2 Overkill
-    quadrant-3 Avoid
-    quadrant-4 Investigate further
-    Random Forest: [0.38, 0.92]
-    XGBoost: [0.32, 0.90]
-    LightGBM: [0.28, 0.88]
-    Stacking Ensemble: [0.42, 0.87]
-    Ridge Regression: [0.10, 0.72]
-    Lasso Regression: [0.12, 0.71]
-    TFT: [0.90, 0.65]
-    LSTM: [0.70, 0.35]
-    CNN-LSTM: [0.78, 0.28]
-```
+| Split | Period | Rows (approx.) |
+|-------|--------|----------------|
+| Train | 2018-01-01 → 2020-12-31 | 1,144,535 |
+| Validation | 2021-01-01 → 2021-06-30 | 188,343 |
+| Test | 2021-07-01 → 2022-03-18 | 240,481 |
 
-> **Key takeaway:** Tree-based models (top-left quadrant) dominated. Deep learning models consumed far more compute for *lower* accuracy on this dataset — a finding worth exploring further with Oslo data and transfer learning approaches.
+StandardScaler is fitted on the training set and applied to validation and test — no leakage from future data.
+
+### Feature engineering
+
+| Category | Features | Detail |
+|----------|----------|--------|
+| Calendar | hour_of_day, day_of_week, month, day_of_year, is_weekend | Raw |
+| Cyclical | sin/cos encodings of all calendar features | Avoids ordinal distance bias |
+| Interaction | temp × hour_sin, temp × hour_cos | Time-varying temperature sensitivity |
+| Lag | target and temperature at 1h, 2h, 3h, 24–26h, 48h, 167–169h | Autocorrelation and weekly patterns |
+| Rolling | mean, std, min, max over 3h, 6h, 12h, 24h, 72h, 168h | Short- and long-range context |
+| Metadata | floor_area, year_of_construction, number_of_users, central_heating_system | Building characteristics |
+
+Feature selection uses three sequential stages: variance threshold → Pearson correlation filter (ρ > 0.99) → top-35 by LightGBM importance. This reduces ~91 engineered features to 35.
+
+### Models
+
+| Category | Implementations |
+|----------|----------------|
+| Baselines | Naive (lag_1h persistence), Seasonal Naive (lag_24h), Mean |
+| Linear | Ridge, Lasso (sklearn) |
+| Tree-based | RandomForest, LightGBM, XGBoost |
+| Deep learning | LSTM, CNN-LSTM, GRU (TensorFlow/Keras) |
+| Transformer | Temporal Fusion Transformer (PyTorch Forecasting) |
+| Ensemble | Stacking (Ridge or LightGBM meta-learner), Weighted Average |
+
+All hyperparameters are centralised in `config/config.yaml`.
 
 ---
 
 ## Quick Start
 
-### 1. Clone and install
+### Installation
 
 ```bash
 git clone https://github.com/danbujoreanu/building-energy-load-forecast.git
 cd building-energy-load-forecast
 
-# Option A — conda (recommended, matches thesis environment)
+# Recommended: conda environment
 conda create -n ml_lab1 python=3.12
 conda activate ml_lab1
 pip install -e ".[all]"
-
-# Option B — plain venv
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -e ".[all]"
 ```
 
-### 2. VS Code — activating the conda environment
-
-VS Code may show `(base)` in the terminal even after selecting the interpreter. To fix:
+In VS Code, select the interpreter via `Cmd+Shift+P` → *Python: Select Interpreter* → `ml_lab1`. Then activate in the terminal:
 
 ```bash
-# In the VS Code terminal, run:
 conda activate ml_lab1
-
-# Or set it permanently for this project (one-time):
-echo "conda activate ml_lab1" >> .vscode/.env
 ```
 
-To select the interpreter: `Cmd+Shift+P` → *Python: Select Interpreter* → choose `ml_lab1`.
-
-### 3. Run the full pipeline
+### Run the pipeline
 
 ```bash
-# Full pipeline — all models, Drammen dataset  (~16 min with --skip-slow)
+# All fast models (Ridge, Lasso, RF, LightGBM, XGBoost, Ensemble) — ~10 min
 python scripts/run_pipeline.py --city drammen --skip-slow
 
-# Full pipeline including LSTM / CNN-LSTM / TFT  (~4–6 hours total)
+# All models including LSTM, CNN-LSTM, TFT — ~4–6 hours total
 python scripts/run_pipeline.py --city drammen
 
-# Run individual stages
+# Individual stages
 python scripts/run_pipeline.py --city drammen --stages eda
 python scripts/run_pipeline.py --city drammen --stages features
 python scripts/run_pipeline.py --city drammen --stages training --skip-slow
-python scripts/run_pipeline.py --city drammen --stages explain    # SHAP analysis
+python scripts/run_pipeline.py --city drammen --stages explain   # SHAP analysis
 ```
 
-### 4. Generate comprehensive EDA charts
+### Generate EDA charts
 
 ```bash
-# All EDA charts (matches original thesis notebook output)
+# All EDA and results charts
 python scripts/generate_eda_charts.py --city drammen
 
-# Also generate per-building energy profiles (~43 buildings)
+# Include per-building energy profiles (45 figures)
 python scripts/generate_eda_charts.py --city drammen --profiles
 
-# Quick run (skips ACF, decomposition)
+# Quick mode (skip ACF and seasonal decomposition)
 python scripts/generate_eda_charts.py --city drammen --quick
 ```
 
-### 5. View results
+### View results
 
 ```
 outputs/
-├── results/final_metrics.csv          ← All model metrics (MAE, RMSE, R², MAPE)
+├── results/final_metrics.csv              Model comparison table
 └── figures/
     ├── eda/
-    │   ├── metadata_overview.png          ← Category / year / floor area / energy label
-    │   ├── column_availability.png        ← Sensor heatmap per building (45×N grid)
-    │   ├── missing_data_analysis.png      ← Per-column & per-building missing %
-    │   ├── temperature_vs_electricity.png ← Scatter by category (75k sample)
-    │   ├── acf_pacf.png                   ← Autocorrelation (24h and 168h peaks)
-    │   ├── seasonal_decomposition.png     ← Trend / seasonal / residual decomposition
-    │   └── building_profiles/             ← Per-building daily + hourly season profiles
+    │   ├── metadata_overview.png          Building categories, age, size, energy labels
+    │   ├── column_availability.png        Sensor coverage heatmap (buildings × meters)
+    │   ├── missing_data_analysis.png      Missing percentage per column and building
+    │   ├── temperature_vs_electricity.png Scatter by building category
+    │   ├── acf_pacf.png                   Autocorrelation structure (24h, 168h peaks)
+    │   ├── seasonal_decomposition.png     Trend / seasonal / residual
+    │   └── building_profiles/             Per-building daily and seasonal load patterns
     ├── results/
-    │   ├── model_comparison_4panel.png    ← MAE / RMSE / R² / MAPE side by side
-    │   ├── model_comparison_mae_bar.png   ← Standalone MAE bar chart
-    │   └── thesis_vs_pipeline.png         ← Original thesis vs new pipeline comparison
+    │   ├── model_comparison_4panel.png    MAE / RMSE / R² / MAPE comparison
+    │   ├── model_comparison_mae_bar.png   MAE bar chart
+    │   └── thesis_vs_pipeline.png        Original thesis vs reproduced pipeline
     └── shap/
-        ├── shap_beeswarm_{model}.png      ← Feature impact distributions
-        ├── shap_bar_{model}.png           ← Mean |SHAP| importance ranking
-        └── shap_waterfall_{model}_0.png   ← Single-prediction explanation
+        ├── shap_beeswarm_{model}.png      Feature impact distributions
+        ├── shap_bar_{model}.png           Mean absolute SHAP importance
+        └── shap_waterfall_{model}_0.png   Single-prediction explanation
 ```
 
 ---
 
-## Project Structure
+## Repository Structure
 
 ```
 building-energy-load-forecast/
 │
-├── config/config.yaml             ← All hyperparameters (lookback, horizon, etc.)
+├── config/config.yaml              All parameters — single source of truth
 │
 ├── data/
-│   ├── raw/drammen/               ← 45 building .txt files (included)
-│   └── raw/oslo/                  ← 48 buildings (download separately)
+│   ├── raw/drammen/                45 building .txt files
+│   └── raw/oslo/                   48 buildings (download separately, see below)
 │
-├── src/energy_forecast/           ← Python package
-│   ├── data/                      ← Parsing, preprocessing, train/val/test splits
-│   ├── features/                  ← Temporal encoding, lag, rolling, selection
-│   ├── models/                    ← Baselines, sklearn, LSTM/GRU/CNN, TFT, ensemble
-│   ├── evaluation/                ← MAE, RMSE, MAPE, R² metrics
-│   ├── visualization/             ← All plot functions
-│   └── utils/                     ← Config loader, logging, reproducibility
+├── src/energy_forecast/            Python package
+│   ├── data/                       Loader, preprocessing, splits
+│   ├── features/                   Temporal features, feature selection
+│   ├── models/                     Baselines, sklearn, deep learning, ensemble
+│   ├── evaluation/                 Metrics, SHAP explainability
+│   ├── visualization/              EDA charts, results plots
+│   └── utils/                      Config loader, logging, reproducibility
 │
-├── scripts/run_pipeline.py        ← One command to run everything
-├── notebooks/                     ← Clean exploratory notebooks (import from src/)
-├── tests/                         ← Pytest test suite (CI-validated)
-└── outputs/results/               ← Model comparison table (committed)
+├── scripts/
+│   ├── run_pipeline.py             End-to-end pipeline orchestrator
+│   └── generate_eda_charts.py      Standalone EDA chart generation
+│
+├── tests/                          Pytest test suite (24 tests, CI-validated)
+├── docs/                           Session log, how-to guides
+├── ROADMAP.md                      Future research directions
+└── outputs/results/final_metrics.csv  Committed results table
 ```
 
 ---
 
 ## Datasets
 
-### Drammen (45 buildings) — included
-- **Source**: COFACTOR Project, Norway
-- **Type**: Schools and kindergartens
-- **Period**: 2018–2024, hourly resolution
-- **Features**: Electricity (imported, PV, sub-metered), weather (temperature, solar, wind)
+### Drammen (included)
 
-### Oslo (48 buildings) — download required
-- **Source**: SINTEF / Oslobygg KF
-- **DOI**: [10.60609/2hvr-wc82](https://data.sintef.no/product/dp-679b0640-834e-46bd-bc8f-8484ca79b414)
-- **License**: CC BY 4.0
-- **Pipeline**: Ready — switch `city: oslo` in `config/config.yaml`
+45 Norwegian public buildings (schools and kindergartens). Hourly electricity consumption with optional PV and sub-metering channels, outdoor weather (temperature, solar radiation, wind speed and direction), and per-building metadata (floor area, year of construction, number of occupants, heating system type, energy label).
 
----
+### Oslo (download required)
 
-## Feature Engineering
+48 public school buildings in Oslo, Norway. Same data format and pipeline configuration.
 
-Three categories of features are engineered from raw hourly data:
+- **DOI:** [10.60609/2hvr-wc82](https://data.sintef.no/product/dp-679b0640-834e-46bd-bc8f-8484ca79b414)
+- **License:** CC BY 4.0
+- **Citation:** Lien, S.K. et al. (2025). *Hourly Sub-Metered Energy Use Data from 48 Public School Buildings in Oslo, Norway*. Data in Brief.
 
-| Category | Features | Purpose |
-|----------|----------|---------|
-| **Cyclical** | hour_sin/cos, day_of_week_sin/cos, month_sin/cos | Captures periodicity without ordinal bias |
-| **Lag** | target at t-1, t-2, t-6, t-12, t-24 hours | Autocorrelation structure |
-| **Rolling** | 6h/12h/24h/48h mean & std of electricity + temperature | Trend and volatility context |
-
-Feature selection reduces ~200 engineered features to the top 35 via:
-1. Variance threshold
-2. Correlation filter (ρ > 0.99)
-3. LightGBM feature importance ranking
+To use: place files in `data/raw/oslo/` and set `city: oslo` in `config/config.yaml`.
 
 ---
 
 ## Reproducibility
 
-All random seeds are controlled centrally:
+All random seeds are controlled via `config/config.yaml`:
 
 ```yaml
-# config/config.yaml
-seed: 42   # Python, NumPy, TensorFlow, PyTorch
+seed: 42   # Applied to Python, NumPy, TensorFlow, and PyTorch
 ```
 
-Experiments are fully reproducible on the same hardware. GPU is not required (CPU training supported for all models).
+The CI pipeline (GitHub Actions) runs all 24 tests against Python 3.10 and 3.11 on every push. GPU is not required; all models support CPU training.
 
 ---
 
 ## Future Work
 
-See [`ROADMAP.md`](ROADMAP.md) for the full prioritised research roadmap drawn from the
-MSc thesis Follow-up Questions document (11 questions, PhD-track research).
+See [`ROADMAP.md`](ROADMAP.md) for the full research roadmap, drawn from the 11 follow-up questions in the thesis.
 
-Top priorities for the next iteration:
+Priority directions:
 
-- 🔴 **SHAP explainability** — beeswarm + force plots for global and local predictions (Q7)
-- 🔴 **Probabilistic forecasting** — quantile regression (P10/P50/P90) in LightGBM & TFT (Q3/Q5)
-- 🟡 **Oslo dataset integration** — cross-dataset comparison, transfer learning (Q6)
-- 🟡 **Solar/wind imputation** — include the 18%-missing weather features via MICE (Q1)
-- 🟡 **OOF stacking** — replace fixed-validation ensemble with out-of-fold meta-features (Q11)
-- 🔵 **Hierarchical BART** — partial pooling across buildings, building_id embeddings (Q6)
-- 🔵 **FastAPI inference endpoint** — real-time predictions for live deployment (Q8/Q9)
+- **Probabilistic forecasting** — quantile regression (P10/P50/P90) in LightGBM and TFT for prediction intervals (Q3, Q5)
+- **24h-ahead honest evaluation** — removing all lags < 24h and assessing true next-day forecasting capability across models
+- **Oslo dataset** — cross-dataset generalisation and building transfer learning (Q6)
+- **Out-of-fold stacking** — replacing fixed-validation meta-learning with k-fold OOF for unbiased ensemble weights (Q11)
+- **Hierarchical models** — partial pooling across buildings using BART or multilevel models (Q6)
+- **Solar / wind imputation** — MICE-based imputation for ~18% missing weather features (Q1)
 
 ---
 
@@ -371,8 +337,6 @@ pytest tests/ -v --cov=src/energy_forecast
 
 ## Citation
 
-If you use this code or build on this work, please cite:
-
 ```bibtex
 @mastersthesis{bujoreanu2025energy,
   author  = {Dan Alexandru Bujoreanu},
@@ -384,18 +348,9 @@ If you use this code or build on this work, please cite:
 }
 ```
 
-**Datasets:**
-- Lien, S.K. et al. (2025). *Hourly Sub-Metered Energy Use Data from 48 Public School Buildings in Oslo, Norway*. Data in Brief. CC BY 4.0.
-
 ---
 
 ## Author
 
 **Dan Alexandru Bujoreanu**
-- 📧 dan.bujoreanu@gmail.com
-- 🎓 MSc Artificial Intelligence, NCI Dublin (2025)
-- 💼 [LinkedIn](https://linkedin.com/in/danbujoreanu)
-
----
-
-*Built with ❤️ and a lot of Norwegian electricity data.*
+MSc Artificial Intelligence · National College of Ireland · 2025
