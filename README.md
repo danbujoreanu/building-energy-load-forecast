@@ -20,7 +20,9 @@ The codebase is a clean, modular refactoring of the original MSc thesis work —
 
 ## Key Results
 
-> **Thesis finding:** Classical tree-based models outperformed deep learning on this dataset — a compelling real-world result. Random Forest achieved the best MAE while training in under 2 minutes, compared to 6 hours for the Temporal Fusion Transformer.
+> **Thesis finding (2025):** Classical tree-based models outperformed deep learning on this dataset. Random Forest achieved the best MAE while training in under 2 minutes, compared to 6 hours for the Temporal Fusion Transformer.
+
+### MSc Thesis Results (2025) — 24-hour multi-step forecasting
 
 | Rank | Model | MAE (kWh) | RMSE (kWh) | CV(RMSE) % | R² | Train time |
 |------|-------|-----------|------------|------------|-----|------------|
@@ -31,16 +33,40 @@ The codebase is a clean, modular refactoring of the original MSc thesis work —
 | 5 | Stacking (Ridge meta) | 3.698 | 7.051 | 15.86 | 0.978 | <1s |
 | 6 | Weighted Avg Ensemble | 4.081 | 7.841 | 17.63 | 0.973 | <1s |
 | 7 | Lasso Regression | 4.201 | 7.880 | 17.81 | 0.973 | 4s |
-| 8 | Linear Regression | 4.215 | 7.767 | 17.56 | 0.973 | <1s |
-| 9 | Ridge Regression | 4.215 | 7.767 | 17.56 | 0.973 | <1s |
-| 10 | Persistence (Lag 1h) | 4.561 | 9.587 | 21.67 | 0.959 | — |
-| 11 | TFT | 5.114 | 10.424 | 23.57 | 0.952 | ⏱ 6h 4m |
-| 12 | Seasonal Naive (24h lag) | 8.762 | 19.383 | 43.82 | 0.834 | — |
-| 13 | Seasonal Naive (168h lag) | 9.621 | 19.259 | 43.54 | 0.836 | — |
-| 14 | LSTM | 10.132 | 17.686 | 39.77 | 0.862 | ⏱ 3h 45m |
-| 15 | CNN-LSTM | 12.435 | 20.930 | 47.07 | 0.807 | ⏱ 37m |
+| 8 | Ridge Regression | 4.215 | 7.767 | 17.56 | 0.973 | <1s |
+| 9 | Persistence (Lag 1h) | 4.561 | 9.587 | 21.67 | 0.959 | — |
+| 10 | TFT (Comprehensive) | 5.114 | 10.424 | 23.57 | 0.952 | ⏱ 6h 4m |
+| 11 | Seasonal Naive (24h) | 8.762 | 19.383 | 43.82 | 0.834 | — |
+| 12 | LSTM | 10.132 | 17.686 | 39.77 | 0.862 | ⏱ 3h 45m |
+| 13 | CNN-LSTM | 12.435 | 20.930 | 47.07 | 0.807 | ⏱ 37m |
 
-> *Full results from held-out test set, trained on Apple Silicon (MPS). Classical tree-based models dominated — RF achieves R²=0.982 in under 2 minutes vs 6+ hours for deep learning with worse accuracy. This is the thesis's central finding: for tabular hourly energy data, complexity does not improve accuracy.*
+> *Thesis evaluation: 24-hour ahead multi-step forecasting on Drammen test set (2021-H2, 48 Oslo buildings pipeline-ready). Training on Apple Silicon (MPS).*
+
+### Pipeline v2 Results (2026) — 1-step oracle evaluation
+
+The refactored pipeline uses **1-step-ahead oracle evaluation** (actual past values used as lag features, not recursive predictions). This gives lower MAE but is a different task to the thesis 24h forecast:
+
+| Rank | Model | MAE (kWh) | RMSE (kWh) | R² | Notes |
+|------|-------|-----------|------------|-----|-------|
+| 🥇 1 | LightGBM | **3.258** | 5.530 | 0.991 | Best non-linear model |
+| 🥈 2 | XGBoost | 3.541 | 5.999 | 0.990 | Close second |
+| 🥉 3 | Random Forest | 3.629 | 6.563 | 0.988 | — |
+| — | Mean Baseline | 27.270 | 45.852 | 0.396 | Non-trivial beat |
+| — | Ridge / Stacking | ~0.006 | ~0.011 | ~1.000 | ⚠️ Integer-valued data artefact* |
+
+> *Ridge achieves near-perfect scores because electricity values are stored as integer Wh (÷1000 → exact integers in kWh). With autocorrelation r=0.977, lag_1h almost perfectly predicts the next integer. This is **not data leakage** — it reflects the 1-step oracle setup and integer quantisation. **Use LightGBM MAE=3.258 kWh** as the meaningful pipeline benchmark.
+
+### What changed between thesis and pipeline?
+
+| Aspect | Thesis (2025) | Pipeline v2 (2026) |
+|--------|--------------|---------------------|
+| Forecast horizon | 24h multi-step | 1-step oracle |
+| Train/val/test split | up to 2021-06-30 test | 2018-2020 / 2021 / 2022 |
+| Buildings loaded | 45/45 | 43/45 → **45/45** ✓ fixed |
+| Imputation | Zero-fill sub-meters | Sparse column filter + median |
+| OOF stacking | ✗ (fixed-val) | ✗ pending ROADMAP |
+| Weighted Avg Ensemble | ✓ | ✓ added in v2 |
+| SHAP explainability | ✗ | ✓ full SHAP suite |
 
 ---
 
@@ -151,39 +177,82 @@ quadrantChart
 git clone https://github.com/danbujoreanu/building-energy-load-forecast.git
 cd building-energy-load-forecast
 
-# Create a virtual environment (recommended)
+# Option A — conda (recommended, matches thesis environment)
+conda create -n ml_lab1 python=3.12
+conda activate ml_lab1
+pip install -e ".[all]"
+
+# Option B — plain venv
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
-
-# Install the package + core dependencies
 pip install -e ".[all]"
 ```
 
-### 2. Run the full pipeline
+### 2. VS Code — activating the conda environment
+
+VS Code may show `(base)` in the terminal even after selecting the interpreter. To fix:
 
 ```bash
-# Full pipeline (all models, Drammen dataset)
-python scripts/run_pipeline.py --city drammen
+# In the VS Code terminal, run:
+conda activate ml_lab1
 
-# Skip slow models during development (CNN-LSTM, TFT)
+# Or set it permanently for this project (one-time):
+echo "conda activate ml_lab1" >> .vscode/.env
+```
+
+To select the interpreter: `Cmd+Shift+P` → *Python: Select Interpreter* → choose `ml_lab1`.
+
+### 3. Run the full pipeline
+
+```bash
+# Full pipeline — all models, Drammen dataset  (~16 min with --skip-slow)
 python scripts/run_pipeline.py --city drammen --skip-slow
+
+# Full pipeline including LSTM / CNN-LSTM / TFT  (~4–6 hours total)
+python scripts/run_pipeline.py --city drammen
 
 # Run individual stages
 python scripts/run_pipeline.py --city drammen --stages eda
 python scripts/run_pipeline.py --city drammen --stages features
 python scripts/run_pipeline.py --city drammen --stages training --skip-slow
+python scripts/run_pipeline.py --city drammen --stages explain    # SHAP analysis
 ```
 
-### 3. View results
+### 4. Generate comprehensive EDA charts
+
+```bash
+# All EDA charts (matches original thesis notebook output)
+python scripts/generate_eda_charts.py --city drammen
+
+# Also generate per-building energy profiles (~43 buildings)
+python scripts/generate_eda_charts.py --city drammen --profiles
+
+# Quick run (skips ACF, decomposition)
+python scripts/generate_eda_charts.py --city drammen --quick
+```
+
+### 5. View results
 
 ```
 outputs/
-├── results/final_metrics.csv      ← All model metrics
+├── results/final_metrics.csv          ← All model metrics (MAE, RMSE, R², MAPE)
 └── figures/
-    ├── model_comparison_mae.png
-    ├── building_profiles.png
-    ├── temperature_sensitivity.png
-    └── seasonal_patterns.png
+    ├── eda/
+    │   ├── metadata_overview.png          ← Category / year / floor area / energy label
+    │   ├── column_availability.png        ← Sensor heatmap per building (45×N grid)
+    │   ├── missing_data_analysis.png      ← Per-column & per-building missing %
+    │   ├── temperature_vs_electricity.png ← Scatter by category (75k sample)
+    │   ├── acf_pacf.png                   ← Autocorrelation (24h and 168h peaks)
+    │   ├── seasonal_decomposition.png     ← Trend / seasonal / residual decomposition
+    │   └── building_profiles/             ← Per-building daily + hourly season profiles
+    ├── results/
+    │   ├── model_comparison_4panel.png    ← MAE / RMSE / R² / MAPE side by side
+    │   ├── model_comparison_mae_bar.png   ← Standalone MAE bar chart
+    │   └── thesis_vs_pipeline.png         ← Original thesis vs new pipeline comparison
+    └── shap/
+        ├── shap_beeswarm_{model}.png      ← Feature impact distributions
+        ├── shap_bar_{model}.png           ← Mean |SHAP| importance ranking
+        └── shap_waterfall_{model}_0.png   ← Single-prediction explanation
 ```
 
 ---

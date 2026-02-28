@@ -1,17 +1,23 @@
 """
 models.ensemble
 ===============
-Stacking ensemble that combines predictions from multiple base learners
-through a meta-learner (Ridge or LightGBM).
+Ensemble methods that combine predictions from multiple base learners.
 
-Architecture (from MSc thesis)
--------------------------------
-    Base learners  → predictions on validation set  → meta-features
-    Meta-learner   trained on meta-features
-    Final prediction  = meta-learner(base_preds on test)
+Two implementations (both from MSc thesis):
 
-This implements the Task Orchestration pattern: the StackingEnsemble
-coordinates independent base models without them knowing about each other.
+StackingEnsemble
+    Base learners → predictions on validation set → meta-features
+    Meta-learner (Ridge or LightGBM) trained on those meta-features.
+    Final prediction = meta-learner(base_preds on test).
+    Thesis results: Ridge MAE 3.698 kWh | LGBM MAE 3.582 kWh.
+
+WeightedAverageEnsemble
+    Weights = softmax(1 / val_MAE) per model, normalised to sum=1.
+    Simple, interpretable, no additional training needed.
+    Thesis result: MAE 4.081 kWh (Drammen test set, all 6 models).
+
+This implements the Task Orchestration pattern: each ensemble coordinates
+independent base models without them knowing about each other.
 """
 
 from __future__ import annotations
@@ -96,6 +102,83 @@ class StackingEnsemble(BaseForecaster):
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Base model '%s' failed to predict: %s", name, exc)
         return np.column_stack(list(preds.values()))
+
+
+class WeightedAverageEnsemble(BaseForecaster):
+    """Inverse-MAE weighted average ensemble.
+
+    Weights are computed from each base model's MAE on the validation set:
+        weight_i  = (1 / MAE_i) / sum(1 / MAE_j  for all j)
+
+    This replicates the ``Weighted Avg Ensemble`` from the MSc thesis
+    (validation MAE 4.081 kWh on the Drammen test set).
+
+    Parameters
+    ----------
+    base_models:
+        Dict of {model_name: fitted BaseForecaster}.
+    """
+
+    name = "Weighted Avg Ensemble"
+
+    def __init__(self, base_models: dict[str, BaseForecaster]) -> None:
+        self.base_models = base_models
+        self.weights_: dict[str, float] = {}
+
+    def fit(
+        self,
+        X_train: pd.DataFrame,
+        y_train: pd.Series,
+        X_val: pd.DataFrame | None = None,
+        y_val: pd.Series | None = None,
+        **kwargs: Any,
+    ) -> "WeightedAverageEnsemble":
+        """Compute inverse-MAE weights from the validation set."""
+        if X_val is None or y_val is None:
+            raise ValueError(
+                "WeightedAverageEnsemble requires X_val and y_val to compute weights."
+            )
+
+        maes: dict[str, float] = {}
+        for model_name, model in self.base_models.items():
+            try:
+                preds = model.predict(X_val)
+                mae = float(np.mean(np.abs(preds - y_val.values)))
+                maes[model_name] = mae
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Model '%s' failed on val set: %s", model_name, exc)
+
+        if not maes:
+            raise ValueError("No base models produced valid validation predictions.")
+
+        inv_maes = {k: 1.0 / v for k, v in maes.items() if v > 0}
+        total = sum(inv_maes.values())
+        self.weights_ = {k: v / total for k, v in inv_maes.items()}
+
+        for name, w in sorted(self.weights_.items(), key=lambda x: -x[1]):
+            logger.info("  Weight %-35s = %.4f  (val MAE=%.4f kWh)", name, w, maes[name])
+
+        return self
+
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        """Weighted average of base model predictions."""
+        weighted_sum = np.zeros(len(X))
+        for model_name, model in self.base_models.items():
+            weight = self.weights_.get(model_name, 0.0)
+            if weight == 0.0:
+                continue
+            try:
+                weighted_sum += weight * model.predict(X)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Model '%s' failed at predict: %s", model_name, exc)
+        return weighted_sum
+
+    @property
+    def weights_df(self) -> pd.DataFrame:
+        """Return weights as a tidy DataFrame, sorted descending."""
+        return pd.DataFrame(
+            {"model": list(self.weights_.keys()), "weight": list(self.weights_.values())}
+        ).sort_values("weight", ascending=False).reset_index(drop=True)
 
 
 def _build_lgbm_meta(ens_cfg: dict, seed: int) -> Any:

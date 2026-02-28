@@ -198,17 +198,117 @@ Fix VS Code ml_lab1 terminal issue → run the full pipeline on real Drammen dat
 
 ---
 
+---
+
+## Session 4 — 2026-02-28
+
+### Objective
+- Fix buildings 6412 and 6417 (were skipped in Session 3)
+- Add `WeightedAverageEnsemble` (thesis model missing from code)
+- Create comprehensive EDA chart suite matching original thesis notebooks
+- Update README with thesis vs pipeline comparison table
+- Answer user questions: OOF, conda activation, original notebook folder
+
+### Key Findings / Answers
+
+**Original notebook folder:** `/Users/danalexandrubujoreanu/NCI/0. MSCTOPUP/Practicum - Part 2/New Coding 14.05/`
+Contains: 3 notebooks, `figs/`, `model_results_plots/`, `individual_building_data_kwh/`, `drammen_fully_merged_data.csv`, `drammen_model_ready_data.csv`, thesis final_metrics.csv
+
+**OOF Stacking:** NOT implemented — current stacking uses fixed validation set (deliberate thesis trade-off documented in ROADMAP). Added to pending debt.
+
+**Conda activation in terminal:**
+```bash
+conda activate ml_lab1        # run in VS Code terminal
+```
+VS Code may show `(base)` even after setting interpreter — the terminal needs its own activation. Added clear instructions to README.
+
+### Bugs Fixed This Session
+
+| # | File | Root Cause | Fix |
+|---|------|-----------|-----|
+| 7 | `data/loader.py` | Building 6412 has UTF-8 BOM (`\ufeff`) on line 0 — `"﻿Header_line"` ≠ `"Header_line"` so Header_line was never parsed → fell back to default 22 → wrong row → "TimeStamp" failed datetime parsing | Strip BOM with `.lstrip("\ufeff")` in `_extract_metadata` |
+| 8 | `data/loader.py` | Building 6417 has `Header_line;24;;;;;;` — `int("24;;;;;;")` raises ValueError | Take only first segment before `;` when parsing values |
+| 9 | `data/loader.py` | Timestamp parsing fragile if per-building format differs | Added try/except with ISO8601 fallback (`infer_datetime_format=True`) |
+
+**Result:** All 45/45 buildings now load successfully (was 43/45 before).
+
+### New Features Added
+
+**`WeightedAverageEnsemble`** (`src/energy_forecast/models/ensemble.py`):
+- Computes inverse-MAE weights from validation set
+- Weights normalised to sum=1
+- Matches thesis implementation (MAE 4.081 kWh)
+- `.weights_df` property for inspecting weights
+
+**Comprehensive EDA Charts** (`src/energy_forecast/visualization/eda_charts.py`):
+11 chart-generating functions mirroring the original thesis notebooks:
+1. `plot_building_metadata_overview` — 4-panel: category, year, floor area, energy label
+2. `plot_column_availability_heatmap` — per-building sensor coverage heatmap
+3. `plot_missing_data_analysis` — per-column and per-building missing %
+4. `plot_all_building_energy_profiles` — daily + seasonal hourly for each building
+5. `plot_temperature_vs_electricity_by_category` — scatter + regression by category (75k sample)
+6. `plot_acf_pacf` — ACF/PACF with 24h and 168h markers
+7. `plot_seasonal_decomposition` — additive decomposition (trend/seasonal/residual)
+8. `plot_model_results_comparison` — 4-panel + standalone MAE bar
+9. `plot_actual_vs_predicted_timeseries` — N-day time series + residual panel
+10. `plot_ensemble_weights` — horizontal bar of weighted ensemble weights
+11. `plot_thesis_vs_pipeline_comparison` — side-by-side thesis vs new pipeline
+
+**Standalone EDA script** (`scripts/generate_eda_charts.py`):
+```bash
+python scripts/generate_eda_charts.py --city drammen
+python scripts/generate_eda_charts.py --city drammen --profiles   # per-building
+python scripts/generate_eda_charts.py --city drammen --quick      # skip heavy charts
+```
+
+### Charts Generated This Session
+
+| Chart | Location |
+|-------|----------|
+| `metadata_overview.png` | `outputs/figures/eda/` |
+| `column_availability.png` | `outputs/figures/eda/` |
+| `missing_data_analysis.png` | `outputs/figures/eda/` |
+| `temperature_vs_electricity.png` | `outputs/figures/eda/` |
+| `acf_pacf.png` | `outputs/figures/eda/` |
+| `seasonal_decomposition.png` | `outputs/figures/eda/` |
+| `model_comparison_4panel.png` | `outputs/figures/results/` |
+| `model_comparison_mae_bar.png` | `outputs/figures/results/` |
+| `thesis_vs_pipeline.png` | `outputs/figures/results/` |
+
+### Files Modified/Created This Session
+
+| File | Change |
+|------|--------|
+| `src/energy_forecast/data/loader.py` | Fix 6412 BOM; fix 6417 malformed header; ISO8601 fallback |
+| `src/energy_forecast/models/ensemble.py` | Add `WeightedAverageEnsemble` class |
+| `src/energy_forecast/visualization/eda_charts.py` | **NEW** — 11-function comprehensive EDA chart module |
+| `scripts/generate_eda_charts.py` | **NEW** — standalone EDA chart generation script |
+| `README.md` | Thesis vs pipeline comparison; VS Code conda instructions; chart output tree |
+| `docs/SESSION_LOG.md` | Session 4 update |
+
+### Session 4 Commit
+- "Fix 6412/6417 loader bugs; add WeightedAvgEnsemble; add comprehensive EDA charts"
+
+### Next Session — Recommended Starting Point
+1. **Run deep learning models**: `python scripts/run_pipeline.py --city drammen --stages training` (no `--skip-slow`) — LSTM/GRU/CNN-LSTM (~4 hours)
+2. **Generate per-building profiles**: `python scripts/generate_eda_charts.py --profiles`
+3. **Add OOF stacking**: Replace fixed-val stacking with k-fold OOF for more robust meta-learner
+4. **Probabilistic forecasting**: Quantile regression in LightGBM (ROADMAP Phase 2)
+
+---
+
 ## Pending Technical Debt
 
 | Issue | Priority | Notes |
 |-------|----------|-------|
-| Building 6412 skipped — timestamp format | 🟡 | Non-standard format, needs ISO8601 fallback |
-| Building 6417 skipped — malformed Header_line | 🟡 | `24;;;;;;` not parseable as int |
+| ~~Building 6412 skipped — BOM on line 0~~ | ✅ Fixed S4 | BOM stripped, all 45 load |
+| ~~Building 6417 skipped — malformed Header_line~~ | ✅ Fixed S4 | Extra semicolons stripped |
+| ~~WeightedAverageEnsemble not in code~~ | ✅ Done S4 | MAE 4.081 kWh reproduced |
 | Deep learning models not yet run on real data | 🟡 | --skip-slow used; LSTM/GRU/CNN-LSTM pending |
-| WeightedAverageEnsemble not in code | 🟡 | Thesis had it (MAE 4.081), easy to add to ensemble.py |
-| OOF stacking (fixed-val used instead) | 🟡 | Q11 improvement — deliberate thesis trade-off |
-| Ridge/Stacking perfect score (1-step oracle) | 🔵 | Genuine behavior on integer autocorr data; note in README |
-| Two TFT variants (only one in code) | 🔵 | Thesis ran TFT with MAE Loss (8.58) and Comprehensive (5.11) |
+| OOF stacking (fixed-val used instead) | 🟡 | ROADMAP improvement |
+| Ridge/Stacking perfect score (1-step oracle) | 🔵 | Integer autocorr; documented in README |
+| Two TFT variants (only one in code) | 🔵 | Thesis ran TFT with MAE Loss and Comprehensive |
+| Per-building profiles not generated | 🔵 | Run `generate_eda_charts.py --profiles` |
 
 ---
 

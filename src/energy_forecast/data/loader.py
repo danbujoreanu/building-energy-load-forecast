@@ -181,8 +181,19 @@ def _parse_building_file(
     df = pd.DataFrame(rows, columns=raw_col_names[: len(rows[0])] if rows else raw_col_names)
 
     # ── Step 5: parse timestamp ───────────────────────────────────────────────
-    ts_fmt = cfg["data"].get("timestamp_format", "%Y-%m-%dT%H:%M:%S%z")
-    df["TimeStamp"] = pd.to_datetime(df["TimeStamp"], format=ts_fmt, utc=True)
+    # Use per-building format if stored in metadata, else fall back to config,
+    # then fall back to ISO8601 inference (handles non-standard formats).
+    ts_fmt = meta.get("timestamp_format") or cfg["data"].get(
+        "timestamp_format", "%Y-%m-%dT%H:%M:%S%z"
+    )
+    try:
+        df["TimeStamp"] = pd.to_datetime(df["TimeStamp"], format=ts_fmt, utc=True)
+    except (ValueError, TypeError):
+        logger.debug(
+            "Timestamp format '%s' failed for %s — falling back to ISO8601 inference",
+            ts_fmt, filepath.name,
+        )
+        df["TimeStamp"] = pd.to_datetime(df["TimeStamp"], utc=True, infer_datetime_format=True)
     df["TimeStamp"] = df["TimeStamp"].dt.tz_convert("Europe/Oslo")
 
     # ── Step 6: rename columns & coerce numeric ───────────────────────────────
@@ -210,15 +221,29 @@ def _parse_building_file(
 
 
 def _extract_metadata(lines: list[str], filepath: Path) -> dict:
-    """Extract key-value metadata from the header section of a building file."""
+    """Extract key-value metadata from the header section of a building file.
+
+    Robustness fixes:
+    - BOM (\\ufeff) is stripped from the first line (building_6412.txt).
+    - Extra trailing semicolons on values are stripped (building_6417.txt,
+      e.g. ``Header_line;24;;;;;;`` → stored value is ``"24"``).
+    """
     meta: dict[str, str] = {}
     for line in lines:
-        stripped = line.strip()
+        # Strip BOM (U+FEFF) that some editors prepend on Windows/Excel exports
+        stripped = line.strip().lstrip("\ufeff")
         if not stripped or stripped.startswith("#"):
             continue
         parts = stripped.split(";", 1)
-        if len(parts) == 2 and parts[0] in _META_KEYS:
-            meta[parts[0]] = parts[1].strip()
+        if len(parts) < 2:
+            continue
+        key = parts[0].strip()
+        # Take only the first non-empty segment of the value (handles
+        # lines like "Header_line;24;;;;;;" or "lighting_control;0;")
+        raw_val = parts[1].strip()
+        value = raw_val.split(";")[0].strip()
+        if key in _META_KEYS:
+            meta[key] = value
 
     # Fallback: derive building_id from filename if not in header
     if "building_id" not in meta:
