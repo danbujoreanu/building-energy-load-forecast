@@ -14,6 +14,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import matplotlib
+matplotlib.use("Agg")   # non-interactive backend — safe for scripts & CI
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
@@ -35,8 +37,9 @@ def _save_or_show(fig: plt.Figure, save_path: str | Path | None, tight: bool = T
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(save_path, dpi=FIGURE_DPI, bbox_inches="tight")
         logger.info("Figure saved → %s", save_path)
-    plt.show()
-    plt.close(fig)
+        plt.close(fig)
+    else:
+        plt.show()
 
 
 # ---------------------------------------------------------------------------

@@ -83,6 +83,14 @@ def make_splits(
     X_test  = df.loc[test_mask,  feature_cols]
     y_test  = df.loc[test_mask,  target]
 
+    # ── Impute remaining NaN with training-set median (no data leakage) ──────
+    # Weather gaps > 3 h and missing metadata are filled with column medians
+    # computed from X_train only and then applied to val/test.
+    train_medians = X_train.median()
+    X_train = X_train.fillna(train_medians)
+    X_val   = X_val.fillna(train_medians)
+    X_test  = X_test.fillna(train_medians)
+
     # ── Fit scaler on train only (avoid data leakage) ─────────────────────────
     scaler = StandardScaler()
     X_train_scaled = pd.DataFrame(
@@ -116,8 +124,11 @@ def make_splits(
         out = Path(processed_dir) / "splits"
         out.mkdir(parents=True, exist_ok=True)
         for name, obj in splits.items():
-            if isinstance(obj, pd.DataFrame | pd.Series):
+            if isinstance(obj, pd.DataFrame):
                 obj.to_parquet(out / f"{name}.parquet")
+            elif isinstance(obj, pd.Series):
+                # Series.to_parquet() not available in all pandas versions
+                obj.to_frame().to_parquet(out / f"{name}.parquet")
             elif isinstance(obj, StandardScaler):
                 with open(out / "scaler.pkl", "wb") as fh:
                     pickle.dump(obj, fh)

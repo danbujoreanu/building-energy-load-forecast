@@ -88,11 +88,16 @@ def build_temporal_features(
         .apply(_add_rolling, sources=roll_sources, windows=roll_windows, stats=roll_stats)
     )
 
-    # ── 4. Drop NaN rows introduced by lag/rolling ────────────────────────────
+    # ── 4. Drop NaN rows introduced by lag/rolling (warmup rows only) ─────────
+    # Only drop on lag columns (first max_lag hours per building are NaN).
+    # Do NOT drop on optional energy sub-meter columns that are legitimately
+    # absent for buildings without those meters.
     before = len(df)
-    df = df.dropna()
+    lag_cols = [c for c in df.columns if "_lag_" in c]
+    drop_subset = lag_cols if lag_cols else None
+    df = df.dropna(subset=drop_subset)
     logger.info(
-        "Temporal features added. Dropped %d NaN rows (from lag/rolling). "
+        "Temporal features added. Dropped %d NaN rows (lag warmup). "
         "Total features: %d",
         before - len(df),
         df.shape[1],
