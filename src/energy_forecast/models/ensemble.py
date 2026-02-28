@@ -34,10 +34,20 @@ from .base import BaseForecaster
 logger = logging.getLogger(__name__)
 
 
-class StackingEnsemble(BaseForecaster):
-    """Stacking ensemble with a configurable meta-learner."""
+_META_LABELS: dict[str, str] = {
+    "ridge":    "Ridge",
+    "lightgbm": "LGBM",
+}
 
-    name = "Stacking Ensemble"
+
+class StackingEnsemble(BaseForecaster):
+    """Stacking ensemble with a configurable meta-learner.
+
+    The instance ``name`` attribute is set from config at construction time
+    so it matches the thesis naming convention:
+        - "Stacking Ensemble (Ridge meta)"
+        - "Stacking Ensemble (LGBM meta)"
+    """
 
     def __init__(
         self,
@@ -57,6 +67,10 @@ class StackingEnsemble(BaseForecaster):
         self.cfg = cfg
         self.meta_learner_: Any = None
         self._base_names: list[str] = []
+
+        meta_key = cfg["training"]["ensemble"].get("meta_learner", "ridge")
+        meta_label = _META_LABELS.get(meta_key, meta_key.capitalize())
+        self.name: str = f"Stacking Ensemble ({meta_label} meta)"
 
     def fit(
         self,

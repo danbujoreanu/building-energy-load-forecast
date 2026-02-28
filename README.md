@@ -60,7 +60,7 @@ The same evaluation protocol applied to an expanded feature set: adds DST-robust
 | Rank | Model | MAE (kWh) | RMSE (kWh) | MAPE (%) | R² | vs. Thesis |
 |------|-------|-----------|------------|----------|----|------------|
 | 🥇 1 | **Random Forest** | **1.711** | 3.441 | **6.3** | 0.995 | −48% |
-| 🥈 2 | Stacking Ensemble | 1.774 | 3.249 | 7.4 | 0.995 | −52% |
+| 🥈 2 | Stacking Ensemble (Ridge meta) | 1.774 | 3.249 | 7.4 | 0.995 | −52% |
 | 🥉 3 | LightGBM | 2.108 | 3.715 | 9.2 | 0.994 | −41% |
 | 4 | XGBoost | 2.228 | 3.938 | 9.6 | 0.993 | −35% |
 | 5 | Lasso Regression | 3.064 | 5.322 | 14.0 | 0.987 | −27% |

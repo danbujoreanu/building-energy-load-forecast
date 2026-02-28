@@ -249,7 +249,7 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
         ensemble = StackingEnsemble(ensemble_base, cfg)
         ensemble.fit(X_train, y_train, X_val, y_val)
         preds = ensemble.predict(X_test)
-        results.append(evaluate(y_test, preds, "Stacking Ensemble"))
+        results.append(evaluate(y_test, preds, ensemble.name))
 
     # ── Save results ──────────────────────────────────────────────────────────
     comparison = compare_models(results)

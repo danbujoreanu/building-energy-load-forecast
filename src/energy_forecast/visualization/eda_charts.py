@@ -798,15 +798,17 @@ def plot_thesis_vs_pipeline_comparison(
     Parameters
     ----------
     exclude_oracle_artifacts:
-        If True (default), excludes Ridge and Stacking Ensemble from the
-        pipeline side because their near-zero MAE (≈0.002 kWh) is an
-        artefact of the 1-step oracle setup with integer-valued electricity
-        data (r=0.977 autocorrelation), NOT a genuine improvement over the
-        thesis. Tree models (LightGBM, XGBoost, RF) are shown as they
-        represent meaningful performance.
+        If True (default), excludes linear models and ensemble from the
+        pipeline side to focus the visual comparison on the tree-based
+        models (LightGBM, XGBoost, RF) that are directly comparable across
+        both runs.
     """
-    # Models that produce oracle artefacts in 1-step evaluation
-    ORACLE_ARTIFACT_MODELS = {"Ridge", "Stacking Ensemble", "Stacking Ensemble (LGBM)"}
+    # Linear and ensemble models — excluded from side-by-side chart by default
+    # to keep the comparison focused on tree-based models present in both runs
+    ORACLE_ARTIFACT_MODELS = {
+        "Ridge", "Lasso",
+        "Stacking Ensemble (Ridge meta)", "Stacking Ensemble (LGBM meta)",
+    }
 
     p_df = pipeline_df.copy()
     if "Model" not in p_df.columns and p_df.index.name == "Model":
