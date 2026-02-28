@@ -58,11 +58,30 @@ features:
     - month             # period 12
     - day_of_year       # period 365
 
-  # Lag features (hours behind target)
-  lag_windows: [1, 2, 3, 4, 5, 6, 12, 24]
+  # ── Forecast horizon ────────────────────────────────────────────────────────
+  # Controls which lag features are allowed.
+  #
+  #   forecast_horizon: 1   → 1-step oracle evaluation.  All lags usable.
+  #                           lag_1h is the dominant feature (r=0.977).
+  #                           NOT comparable to the thesis 24h forecast.
+  #
+  #   forecast_horizon: 24  → True 24h-ahead evaluation.  Only lags ≥ 24h
+  #                           are included (lag_1h..lag_23h removed).
+  #                           Results are directly comparable to MSc thesis.
+  #                           Run: --config with forecast_horizon set to 24.
+  #
+  # Default: 24 (thesis-comparable, honest evaluation)
+  forecast_horizon: 24
 
-  # Rolling window statistics (hours)
-  rolling_windows: [6, 12, 24, 48]
+  # Lag features (hours behind target).
+  # Short lags (< forecast_horizon) are automatically filtered out at runtime.
+  # For h=1 oracle: all of these are used.
+  # For h=24:      only lag_24h and beyond are used.
+  lag_windows: [1, 2, 3, 4, 5, 6, 12, 24, 25, 26, 48, 168]
+
+  # Rolling window statistics (hours).
+  # Windows < forecast_horizon are filtered out at runtime.
+  rolling_windows: [6, 12, 24, 48, 168]
   rolling_stats: [mean, std]
 
   # Feature selection thresholds

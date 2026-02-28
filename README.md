@@ -42,31 +42,44 @@ The codebase is a clean, modular refactoring of the original MSc thesis work —
 
 > *Thesis evaluation: 24-hour ahead multi-step forecasting on Drammen test set (2021-H2, 48 Oslo buildings pipeline-ready). Training on Apple Silicon (MPS).*
 
-### Pipeline v2 Results (2026) — 1-step oracle evaluation
+### Pipeline v2 Results (2026) — 24h-ahead, thesis-comparable (`forecast_horizon: 24`)
 
-The refactored pipeline uses **1-step-ahead oracle evaluation** (actual past values used as lag features, not recursive predictions). This gives lower MAE but is a different task to the thesis 24h forecast:
+The pipeline default is `forecast_horizon: 24` — all lag features shorter than 24h are removed, giving a **true 24h-ahead evaluation** with no oracle leakage:
 
 | Rank | Model | MAE (kWh) | RMSE (kWh) | R² | Notes |
 |------|-------|-----------|------------|-----|-------|
-| 🥇 1 | LightGBM | **3.258** | 5.530 | 0.991 | Best non-linear model |
-| 🥈 2 | XGBoost | 3.541 | 5.999 | 0.990 | Close second |
-| 🥉 3 | Random Forest | 3.629 | 6.563 | 0.988 | — |
-| — | Mean Baseline | 27.270 | 45.852 | 0.396 | Non-trivial beat |
-| — | Ridge / Stacking | ~0.006 | ~0.011 | ~1.000 | ⚠️ Integer-valued data artefact* |
+| 🥇 1 | **Stacking Ensemble** | **5.408** | 8.981 | 0.976 | Ridge meta-learner |
+| 🥈 2 | LightGBM | 5.423 | 9.128 | 0.976 | Virtually tied |
+| 🥉 3 | XGBoost | 5.716 | 9.413 | 0.974 | — |
+| 4 | Random Forest | 6.092 | 10.447 | 0.968 | — |
+| 5 | Ridge | 9.148 | 15.817 | 0.927 | No oracle; realistic linear result |
+| — | Mean Baseline | 27.260 | 45.491 | 0.392 | — |
 
-> *Ridge achieves near-perfect scores because electricity values are stored as integer Wh (÷1000 → exact integers in kWh). With autocorrelation r=0.977, lag_1h almost perfectly predicts the next integer. This is **not data leakage** — it reflects the 1-step oracle setup and integer quantisation. **Use LightGBM MAE=3.258 kWh** as the meaningful pipeline benchmark.
+### Why does the thesis show lower MAE than pipeline v2?
 
-### What changed between thesis and pipeline?
+> **Critical finding:** The thesis's sklearn models (RF=3.30 kWh) also used `lag_1h` as a feature — making them **1-step oracle evaluation**, not true 24h multi-step. The ~2 kWh gap is precisely the cost of removing oracle knowledge of the previous hour.
+
+| Mode | Evaluation type | Min lag | Best tree MAE |
+|------|----------------|---------|---------------|
+| Thesis sklearn (2025) | 1-step oracle — `lag_1h` used | 1h | RF 3.300 kWh |
+| Pipeline v2 `h=1` | 1-step oracle — `lag_1h` used | 1h | LightGBM 3.258 kWh |
+| **Pipeline v2 `h=24`** | **True 24h-ahead — no short lags** | **24h** | **LightGBM 5.423 kWh** |
+
+Setting `forecast_horizon: 1` in `config/config.yaml` replicates the oracle mode (thesis-equivalent). Setting `forecast_horizon: 24` (the default) gives the honest 24h evaluation.
+
+### What changed between thesis and pipeline v2?
 
 | Aspect | Thesis (2025) | Pipeline v2 (2026) |
 |--------|--------------|---------------------|
-| Forecast horizon | 24h multi-step | 1-step oracle |
-| Train/val/test split | up to 2021-06-30 test | 2018-2020 / 2021 / 2022 |
-| Buildings loaded | 45/45 | 43/45 → **45/45** ✓ fixed |
-| Imputation | Zero-fill sub-meters | Sparse column filter + median |
-| OOF stacking | ✗ (fixed-val) | ✗ pending ROADMAP |
-| Weighted Avg Ensemble | ✓ | ✓ added in v2 |
-| SHAP explainability | ✗ | ✓ full SHAP suite |
+| Sklearn forecast evaluation | 1-step oracle (lag_1h used) | **24h honest** (lag < 24h removed) |
+| DL evaluation | True 24h multi-step (window-based) | Pending (slow models) |
+| Train/val/test split | 2018-2021 / 2021-07 / 2022 | 2018-2020 / 2021 / 2022 |
+| Buildings loaded | 45/45 | **45/45** (was 43/45; BOM+header bugs fixed) |
+| `number_of_users` imputation | Category density (thesis method) | **Matched — category density** |
+| Sparse column handling | Zero-fill sub-meters | Column coverage filter (>50%) |
+| OOF stacking | Fixed-val | Fixed-val (OOF in ROADMAP) |
+| Weighted Avg Ensemble | Included | **Included (added v2)** |
+| SHAP explainability | Not included | **Full suite: beeswarm/bar/waterfall** |
 
 ---
 

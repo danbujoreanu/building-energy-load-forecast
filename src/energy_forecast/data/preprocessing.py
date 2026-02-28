@@ -138,17 +138,90 @@ def _filter_by_completeness(
 
 
 def _merge_metadata(df: pd.DataFrame, metadata: pd.DataFrame) -> pd.DataFrame:
-    """Left-join building metadata onto time-series rows."""
+    """Left-join building metadata onto time-series rows.
+
+    Applies intelligent imputation for ``number_of_users`` before joining:
+      - Uses category-specific median users-per-sqm density (matching the
+        MSc thesis EDA notebook approach).
+      - Buildings: 6411 (Off), 6413 (Sch), 6441 (Off) had missing values
+        in the original dataset.
+      - If no same-category reference exists (e.g. both Offices missing),
+        falls back to the global median users-per-sqm.
+    """
     meta_cols = [
         "building_id", "building_category", "floor_area",
         "year_of_construction", "number_of_users", "energy_label",
         "sh_heat_source", "dhw_heat_source",
     ]
     available = [c for c in meta_cols if c in metadata.columns]
-    meta_sub = metadata[available].set_index("building_id")
+    meta = metadata[available].copy()
 
+    # ── Intelligent number_of_users imputation ────────────────────────────────
+    if "number_of_users" in meta.columns and "floor_area" in meta.columns and \
+       "building_category" in meta.columns:
+        meta = _impute_number_of_users(meta)
+
+    meta_sub = meta.set_index("building_id")
     df = df.join(meta_sub, on="building_id", how="left")
     return df
+
+
+def _impute_number_of_users(meta: pd.DataFrame) -> pd.DataFrame:
+    """Impute missing number_of_users using category-specific user density.
+
+    Method (matches MSc thesis EDA notebook):
+    1. Compute median users/m² for each building_category from complete rows.
+    2. For missing buildings: imputed_users = category_density × floor_area.
+    3. If the category has NO complete reference rows (e.g. all Offices missing),
+       fall back to the global median density.
+
+    Buildings with missing values in the Drammen dataset:
+        6411 (Off, 8424 m²) — no other Office reference → global fallback
+        6413 (Sch, 5086 m²) — median School density = 0.079 users/m² → ~402
+        6441 (Off, 1510 m²) — no other Office reference → global fallback
+    """
+    missing_mask = meta["number_of_users"].isna()
+    if not missing_mask.any():
+        return meta
+
+    # Compute users-per-sqm from buildings with complete data
+    complete = meta.dropna(subset=["number_of_users", "floor_area"])
+    complete = complete[complete["floor_area"] > 0]
+
+    # Category-level median density
+    cat_density = (
+        complete
+        .assign(density=complete["number_of_users"] / complete["floor_area"])
+        .groupby("building_category")["density"]
+        .median()
+    )
+    global_density = (
+        complete["number_of_users"] / complete["floor_area"]
+    ).median()
+
+    meta = meta.copy()
+    imputed_info = []
+    for idx, row in meta[missing_mask].iterrows():
+        cat = row.get("building_category")
+        area = row.get("floor_area", np.nan)
+        if pd.isna(area) or area <= 0:
+            continue
+        density = cat_density.get(cat, global_density)
+        source = "category" if cat in cat_density.index else "global"
+        imputed_val = round(density * area)
+        meta.at[idx, "number_of_users"] = imputed_val
+        imputed_info.append(
+            f"building {row['building_id']} ({cat}, {area:.0f} m²) → "
+            f"{imputed_val:.0f} users  [{source} density={density:.4f}]"
+        )
+
+    if imputed_info:
+        logger.info(
+            "Imputed number_of_users for %d buildings (thesis-style category density):\n  %s",
+            len(imputed_info), "\n  ".join(imputed_info),
+        )
+
+    return meta
 
 
 def _clip_outliers(

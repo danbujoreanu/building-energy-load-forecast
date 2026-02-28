@@ -791,45 +791,87 @@ def plot_thesis_vs_pipeline_comparison(
     thesis_df: pd.DataFrame,
     pipeline_df: pd.DataFrame,
     save_path: str | Path | None = None,
+    exclude_oracle_artifacts: bool = True,
 ) -> None:
     """Side-by-side bar chart comparing thesis results vs new pipeline results.
 
-    Highlights both differences and similarities, with annotations explaining
-    key methodological changes (1-step oracle vs multi-step, different splits).
+    Parameters
+    ----------
+    exclude_oracle_artifacts:
+        If True (default), excludes Ridge and Stacking Ensemble from the
+        pipeline side because their near-zero MAE (≈0.002 kWh) is an
+        artefact of the 1-step oracle setup with integer-valued electricity
+        data (r=0.977 autocorrelation), NOT a genuine improvement over the
+        thesis. Tree models (LightGBM, XGBoost, RF) are shown as they
+        represent meaningful performance.
     """
+    # Models that produce oracle artefacts in 1-step evaluation
+    ORACLE_ARTIFACT_MODELS = {"Ridge", "Stacking Ensemble", "Stacking Ensemble (LGBM)"}
+
+    p_df = pipeline_df.copy()
+    if "Model" not in p_df.columns and p_df.index.name == "Model":
+        p_df = p_df.reset_index()
+
+    if exclude_oracle_artifacts:
+        p_df = p_df[~p_df["Model"].isin(ORACLE_ARTIFACT_MODELS)]
+
     # Merge on model name
     merged = pd.merge(
         thesis_df[["Model", "MAE"]].rename(columns={"MAE": "Thesis MAE (kWh)"}),
-        pipeline_df[["Model", "MAE"]].rename(columns={"MAE": "Pipeline MAE (kWh)"}),
+        p_df[["Model", "MAE"]].rename(columns={"MAE": "Pipeline MAE (kWh)"}),
         on="Model", how="inner",
     ).sort_values("Thesis MAE (kWh)")
 
     if merged.empty:
-        logger.warning("No common models found between thesis and pipeline DataFrames")
+        logger.warning("No common non-artifact models found between thesis and pipeline DataFrames")
         return
 
     x = np.arange(len(merged))
     width = 0.38
 
-    fig, ax = plt.subplots(figsize=(max(12, len(merged) * 1.4), 7))
+    fig, ax = plt.subplots(figsize=(max(12, len(merged) * 1.6), 8))
     bars1 = ax.bar(x - width / 2, merged["Thesis MAE (kWh)"], width,
-                   color="#4C72B0", label="Thesis (2025, multi-step 24h)", alpha=0.9)
+                   color="#4C72B0", label="Thesis 2025 — 24h multi-step forecast", alpha=0.9)
     bars2 = ax.bar(x + width / 2, merged["Pipeline MAE (kWh)"], width,
-                   color="#DD8452", label="Pipeline v2 (2026, 1-step oracle)", alpha=0.9)
+                   color="#DD8452", label="Pipeline v2 2026 — 1-step oracle (h=1)", alpha=0.9)
 
-    ax.bar_label(bars1, fmt="%.2f", padding=2, fontsize=8, rotation=90)
-    ax.bar_label(bars2, fmt="%.2f", padding=2, fontsize=8, rotation=90)
+    ax.bar_label(bars1, fmt="%.3f", padding=3, fontsize=9)
+    ax.bar_label(bars2, fmt="%.3f", padding=3, fontsize=9)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(merged["Model"], rotation=30, ha="right", fontsize=9)
+    ax.set_xticklabels(merged["Model"], rotation=20, ha="right", fontsize=10)
     ax.set_ylabel("MAE (kWh)  ← lower is better")
     ax.set_title(
-        "MSc Thesis (2025) vs New Pipeline (2026) — MAE Comparison\n"
-        "Note: Pipeline uses 1-step oracle (actual lag features) — lower MAE is expected.\n"
-        "Thesis used 24-hour multi-step forecasting. Both on Drammen dataset.",
+        "MSc Thesis (2025) vs Pipeline v2 (2026) — MAE Comparison\n"
+        "Thesis: 24h multi-step forecast | Pipeline: 1-step oracle (forecast_horizon=1)\n"
+        "⚠  Ridge & Stacking excluded (MAE≈0 artefact — integer data + lag_1h r=0.977)",
         fontweight="bold",
     )
-    ax.legend(fontsize=10)
+    ax.legend(fontsize=10, loc="upper left")
     ax.grid(axis="y", alpha=0.4)
+
+    # Add difference annotations
+    for i, (_, row) in enumerate(merged.iterrows()):
+        t_mae = row["Thesis MAE (kWh)"]
+        p_mae = row["Pipeline MAE (kWh)"]
+        diff = p_mae - t_mae
+        color = "#e74c3c" if diff > 0.3 else "#2ecc71" if diff < -0.3 else "#95a5a6"
+        ax.annotate(
+            f"Δ{diff:+.2f}",
+            xy=(x[i], max(t_mae, p_mae) + 0.1),
+            ha="center", fontsize=8, color=color, fontweight="bold",
+        )
+
+    # Add explanation text box
+    note = (
+        "Note: Pipeline v2 uses forecast_horizon=1 (1-step oracle).\n"
+        "Set forecast_horizon=24 in config to get thesis-comparable results.\n"
+        "Tree model MAEs are within ~0.3 kWh of thesis — methodology difference."
+    )
+    ax.text(
+        0.01, 0.97, note,
+        transform=ax.transAxes, fontsize=8, verticalalignment="top",
+        bbox=dict(boxstyle="round,pad=0.4", facecolor="lightyellow", alpha=0.8),
+    )
 
     _save_or_show(fig, save_path)
