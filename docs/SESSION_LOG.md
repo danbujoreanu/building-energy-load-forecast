@@ -963,3 +963,56 @@ Log: `outputs/logs/run_full_2026-03-01.log`
 ---
 
 *Session log maintained by Claude Code. Always update this file at the end of each session.*
+
+---
+
+## Session 11 — 2026-03-01 (evening)
+
+### Context restored from summary — TFT still running (PID 34411, epoch 1 in progress ~21:28)
+
+### Notebook review: critical findings
+
+After reading all 3 original thesis notebooks (EDA, Feature Engineering, Model Training):
+
+#### 1. GPU: tensorflow-metal was MISSING
+- LSTM, GRU, CNN-LSTM ran on CPU during our full pipeline run
+- Notebook used tensorflow-macos + tensorflow-metal → Apple Silicon GPU
+- Fix: `pip install tensorflow-metal` → GPU now visible to TF (`/physical_device:GPU:0`)
+- Previous DL run times (LSTM 87 min, GRU 97 min, CNN-LSTM 17 min) were CPU-only
+- Next full pipeline re-run will use GPU for all Keras models
+
+#### 2. CRITICAL: Notebook used H+24 multi-horizon, we use H+1
+- Notebook: `N_HORIZON_FORECAST = 24` → model outputs 24 values per inference
+- Production refactor: `horizon: 1` → single-step H+1 prediction
+- DL 3D shapes in notebook: X_train_dl (1,159,312 × 72 × 35), y_train_dl (1,159,312 × 24)
+- Our production: y is 1D (single value per sample)
+- This explains why notebook DL results were poor (CNN-LSTM MAE 12.4, TFT MAE 8.57)
+  - H+24 = lag_1h through lag_23h NOT available (future leakage), much harder task
+  - H+1  = lag_1h available (r=0.977), much easier task → our MAE ~3.5 DL
+- ACTION: H+24 honest evaluation run is already in ACTION_PLAN as a future step
+
+#### 3. Confirmed: 35 features fed to ALL models (tree + DL)
+- Tree models: 2D (n_samples × 35)
+- LSTM/GRU/CNN-LSTM: 3D sequences (n_samples × lookback_72 × 35)
+- TFT: same 35, but categorised into static_reals / time_varying_known_reals / time_varying_unknown_reals
+
+#### 4. TFT hidden_size bug confirmed and fixed
+- Notebook: hidden_size=32, hidden_continuous_size=16 → 163K params
+- Our config (wrong): hidden_size=64, hidden_continuous_size=32 → 833K params (~24hr training)
+- Fixed to: hidden_size=32, hidden_continuous_size=16 → 242K params (~6-7hr training)
+- Small remaining delta (242K vs 163K) due to our production dataset having more time-varying features
+
+#### 5. Notebook final results (H+24 multi-horizon, for reference)
+| Model | MAE | RMSE | R² |
+|---|---|---|---|
+| Random Forest | 3.30 | 6.40 | 0.982 |
+| XGBoost | 3.42 | 6.44 | 0.982 |
+| CNN-LSTM | 12.44 | 20.93 | 0.807 |
+| TFT (MAE loss) | 8.58 | 13.44 | 0.948 |
+| Stacking (LGBM meta) | **3.58** | **7.03** | **0.978** |
+
+### Pending after this session
+- [ ] TFT epoch 1 still in progress (started ~21:29, expected ~40 min per epoch)
+- [ ] Re-run full pipeline with tensorflow-metal GPU enabled
+- [ ] Evaluate: does H+24 run need to be added to roadmap explicitly?
+
