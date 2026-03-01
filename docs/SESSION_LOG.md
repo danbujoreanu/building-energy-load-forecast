@@ -557,4 +557,205 @@ Project README should read as an academic project page — methodology, results,
 
 ---
 
+---
+
+## Session 7 — 2026-03-01 (Full DL Results + TFT Fix + AI Studio Feedback Log)
+
+### Objective
+- Stacking Ensemble renamed dynamically from config (Ridge meta / LGBM meta)
+- Fix two silent DL bugs preventing LSTM/GRU/CNN-LSTM/TFT from running
+- Execute overnight pipeline run (all models including DL)
+- Fix TFT pytorch-lightning 2.x incompatibility
+- Read and record AI Studio feedback + AICS 2025 conference reviewer comments
+- Verify H+1 vs H+24 methodology ground truth from original thesis notebooks
+
+---
+
+### Part A: DL Bug Fixes
+
+#### Bug 1 — DL Length Mismatch (LSTM/GRU/CNN-LSTM)
+`build_sequences()` drops the first `lookback=72` rows per building (no full window exists).
+This produces **237,313** predictions vs **240,481** y_test rows — silent skip via try/except.
+
+**Fix:** Added `_trim_dl_targets(y, lookback)` helper in `run_pipeline.py`:
+```python
+def _trim_dl_targets(y, lookback: int):
+    parts = []
+    for bid in y.index.get_level_values("building_id").unique():
+        parts.append(y.xs(bid, level="building_id").iloc[lookback:])
+    return pd.concat(parts)
+```
+Used in `_train_dl_model()` to align `y_te` before `evaluate()`.
+
+#### Bug 2 — sequence.horizon=24 extra mismatch
+`range(lookback, n - horizon + 1)` with horizon=24 also drops the last 23 rows.
+**Fix:** `config.yaml` `sequence.horizon: 24 → 1` (training horizon matches eval horizon).
+
+#### Bug 3 — TFT predict() used val_loader
+TFT would train 6 hours then predict on validation data, not test data.
+**Fix:** `tft.py` predict() now stores `_training_dataset_` + `_max_time_idx_` in fit(),
+then builds a proper test TimeSeriesDataSet with continuing time_idx.
+
+#### Bug 4 — Keras verbose=0 (silent training)
+User couldn't see epoch-by-epoch progress.
+**Fix:** All three DL models changed `fit_kwargs["verbose"]: 0 → 1`.
+
+---
+
+### Part B: TFT pytorch-lightning 2.x Fix
+
+**Root cause:** pytorch-forecasting 1.3+ uses `lightning.pytorch.LightningModule` internally.
+The code imported `pytorch_lightning` (legacy wrapper) which exposes a *different class object*
+with the same name. Trainer.fit() does `isinstance(model, LightningModule)` → False → crash.
+
+**Diagnosis:**
+```python
+import pytorch_lightning as pl_legacy
+import lightning.pytorch as pl_new
+from pytorch_forecasting import TemporalFusionTransformer
+
+issubclass(TemporalFusionTransformer, pl_legacy.LightningModule)  # → False
+issubclass(TemporalFusionTransformer, pl_new.LightningModule)     # → True ✅
+```
+
+**Fix:** `tft.py` line 70: `import pytorch_lightning as pl` → `import lightning.pytorch as pl`
+
+---
+
+### Part C: Overnight Run — Final Results (H+1, 240,481 test samples)
+
+| Rank | Model | MAE (kWh) | RMSE | MAPE | R² | n_samples |
+|------|-------|-----------|------|------|----|-----------|
+| 1 | RandomForest | **1.711** | 3.441 | 6.3% | 0.9947 | 240,481 |
+| 2 | Stacking Ensemble (Ridge meta) | 1.774 | 3.249 | 7.4% | 0.9953 | 240,481 |
+| 3 | LightGBM | 2.109 | 3.715 | 9.2% | 0.9938 | 240,481 |
+| 4 | XGBoost | 2.228 | 3.938 | 9.6% | 0.9931 | 240,481 |
+| 5 | Lasso | 3.064 | 5.322 | 14.0% | 0.9873 | 240,481 |
+| 6 | Ridge | 3.069 | 5.311 | 14.1% | 0.9874 | 240,481 |
+| 7 | LSTM | 3.582 | 6.435 | 18.5% | 0.9816 | 237,313 |
+| 8 | GRU | 3.947 | 6.507 | 33.0% | 0.9812 | 237,313 |
+| 9 | CNN-LSTM | 4.572 | 7.239 | 37.2% | 0.9767 | 237,313 |
+| 10 | Mean Baseline | 22.691 | 35.331 | 127.8% | 0.4415 | 240,481 |
+| 11 | Seasonal Naive (24h) | 43.768 | 63.686 | 107.5% | −0.8146 | 240,481 |
+| 12 | Naive | 44.088 | 51.803 | 599.1% | −0.2006 | 240,481 |
+
+TFT: ran overnight but hit pytorch-lightning import bug → not in this table (fix applied separately).
+
+**DL training times (Apple Silicon MPS):** ~88 min total vs thesis ~6h 40min
+- LSTM early stopped at epoch 12 (best: epoch 2) — lag_1h makes it trivial
+- GRU early stopped at epoch ~12
+- CNN-LSTM: fastest DL model, also early stopped
+
+**Why DL models stopped early:** With `lag_1h` (r=0.977) in the 35-feature input, DL models
+fit the persistence baseline almost immediately. Early stopping (patience=10) terminates
+training well before the full 50 epochs because no meaningful improvement occurs.
+
+---
+
+### Part D: Stacking Ensemble Naming Fix
+
+Renamed from static `"Stacking Ensemble"` to dynamic name from config:
+```python
+# ensemble.py
+_META_LABELS = {"ridge": "Ridge", "lightgbm": "LGBM"}
+meta_key = cfg["training"]["ensemble"].get("meta_learner", "ridge")
+self.name = f"Stacking Ensemble ({_META_LABELS.get(meta_key, meta_key.capitalize())} meta)"
+```
+Updated: `final_metrics.csv`, `README.md`, `run_pipeline.py`, `generate_eda_charts.py`, `eda_charts.py`.
+
+---
+
+### Part E: Methodology Ground Truth — H+1 vs H+24
+
+**Question:** "In my thesis and notebooks, did I use 24H step for DL and 1H for comparison?"
+
+**Verified from thesis notebook `3. Drammen_Model_Training_Final.ipynb`:**
+
+Thesis DL models trained with multi-step output (horizon=24) but evaluated on H+1 only:
+```python
+y_true_flat = y_test_dl[:, 0]          # first step of 24-step output
+y_pred_flat = y_pred_lstm_test[:, 0]   # first step only
+```
+Multiple H+1 references at lines 5690, 5722, 5858, 6362–6435, 6467–6469.
+
+**Conclusion:**
+- Thesis: ALL models evaluated at H+1 ✅
+- V2: ALL models evaluated at H+1 ✅ (comparison is fair within this framework)
+- **Key difference**: Thesis DL trained multi-step, V2 DL trained single-step (both evaluate H+1)
+- V2 actually gives DL a *fairer* shot — training objective matches evaluation
+
+---
+
+### Part F: AI Studio Feedback + AICS 2025 Reviewer Comments
+
+Full details recorded in: **`docs/AI_STUDIO_FEEDBACK.md`** (created this session)
+
+**Key AI Studio takeaways:**
+1. Results improved because `lag_1h` ("silver bullet") was given explicitly to DL models
+2. H+1 is "easy mode" — H+24 is industry gold standard for grid operators
+3. Feature Parity Trap: DL gets same 35 engineered features → redundancy → early stopping
+4. Weather leakage (actual vs forecast) must be stated as limitation in any paper
+5. Blueprint for bulletproof journal paper → H+24, raw sequences for DL, Seq2Seq architecture
+
+**AICS 2025 outcomes (both tracks accepted):**
+- Full Paper (Springer Nature CCIS Series): 4 reviewers, scores 64–85/100 ✅
+- Student Paper (DCU Press Companion Proceedings): 4 reviewers, scores 19–87/100 ✅
+- Key weakness across reviewers: single dataset, limited novelty, feature parity in DL
+
+**SINTEF domain expert feedback:**
+- Tree models validated for this domain ✅
+- DNN transformers can be accurate but require time to train/tune
+- Solar radiation (`Global_Solar_Horizontal_Radiation_W_m2`) recommended as future feature
+
+---
+
+### Files Modified This Session
+
+| File | Change |
+|------|--------|
+| `src/energy_forecast/models/ensemble.py` | Dynamic `self.name` from config meta_learner key |
+| `src/energy_forecast/models/tft.py` | `import lightning.pytorch as pl`; predict() rebuilt for test data |
+| `src/energy_forecast/models/deep_learning.py` | `verbose: 0 → 1` for all three DL models |
+| `scripts/run_pipeline.py` | `_trim_dl_targets()`; `_train_dl_model()` aligned; TFT try/except; ensemble.name |
+| `config/config.yaml` | `sequence.horizon: 24 → 1` |
+| `outputs/results/final_metrics.csv` | Full 12-model results including LSTM/GRU/CNN-LSTM |
+| `README.md` | DL results added, n_samples note, methodology notes |
+| `docs/AI_STUDIO_FEEDBACK.md` | **New file** — all external feedback recorded |
+| `docs/SESSION_LOG.md` | This session record |
+
+### Session 7 Commits
+- "Rename Stacking Ensemble dynamically from config meta_learner key"
+- "Fix DL length mismatch and TFT val/test loader bug; add _trim_dl_targets"
+- "Fix TFT import: lightning.pytorch (not pytorch_lightning) for 2.x compatibility"
+- (DL overnight run results committed)
+
+---
+
+## Pending Technical Debt
+
+| Issue | Priority | Notes |
+|-------|----------|-------|
+| ~~Building 6412 skipped — BOM on line 0~~ | ✅ Fixed S4 | BOM stripped, all 45 load |
+| ~~Building 6417 skipped — malformed Header_line~~ | ✅ Fixed S4 | Extra semicolons stripped |
+| ~~WeightedAverageEnsemble not in code~~ | ✅ Done S4 | MAE 4.081 kWh reproduced |
+| ~~1-step oracle leakage in tabular pipeline~~ | ✅ Fixed S5/S6 | `forecast_horizon` documented |
+| ~~number_of_users imputation ad-hoc~~ | ✅ Fixed S5 | Category-density method |
+| ~~thesis_vs_pipeline chart shows 0.0~~ | ✅ Fixed S5 | Oracle artifacts excluded |
+| ~~Thesis feature set not fully reproduced~~ | ✅ Fixed S6 | 167h/169h lags, min/max, interactions |
+| ~~central_heating_system feature missing~~ | ✅ Fixed S6 | Derived from sh_heat_source |
+| ~~MAPE calculation broken (millions %)~~ | ✅ Fixed S6 | Zero-value exclusion |
+| ~~DL models not run (length mismatch bug)~~ | ✅ Fixed S7 | _trim_dl_targets(), all 3 DL done |
+| ~~TFT predict() used val_loader~~ | ✅ Fixed S7 | Rebuilt with continuing time_idx |
+| ~~TFT pytorch-lightning 2.x incompatibility~~ | ✅ Fixed S7 | lightning.pytorch import |
+| TFT not yet validated end-to-end on real data | 🟡 HIGH | Fix applied; needs overnight run |
+| H+24 honest evaluation (separate experiment) | 🟡 MEDIUM | Set forecast_horizon: 24 in config |
+| OOF stacking (fixed-val used instead) | 🟡 MEDIUM | ROADMAP improvement; k-fold cross-val |
+| Oslo dataset run (generalization proof) | 🟡 MEDIUM | Reviewer 2 explicitly requested |
+| Solar radiation feature (Phase 2) | 🔵 LOW | SINTEF validated; already loaded in V2 |
+| Probabilistic forecasting (quantile regression) | 🔵 LOW | LightGBM quantile objective |
+| Per-building profiles not generated | 🔵 LOW | Run `generate_eda_charts.py --profiles` |
+| Feature correlation drop rule undocumented | 🔵 LOW | Reviewer 3 (Student): "which of pair dropped?" |
+
+---
+
 *Session log maintained by Claude Code. Always update this file at the end of each session.*
