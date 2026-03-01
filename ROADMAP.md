@@ -154,7 +154,7 @@ A proper comparison requires **paradigm parity**: each model family receives its
 > multi-output head), `config.yaml` (paradigm parity flags). The forecast_horizon guard
 > already exists — this builds on it.
 
-### 2B.3 — Production Deployment Architecture (Track A + B prerequisite)
+### 2B.3 — Production Deployment Architecture (conceptual — ML science only)
 
 H+24 is the real deployment scenario: utility companies and data centre operators need
 **day-ahead forecasts** to manage grid contracts, demand response bids, and peak shaving.
@@ -176,8 +176,10 @@ retrain LSTM/TFT overnight on schedule; alert if rolling MAE degrades > threshol
 | Item | Detail | Effort |
 |------|--------|--------|
 | 🔵 Rolling window back-test | Walk-forward expanding window evaluation | Medium |
-| 🔵 FastAPI inference endpoint | `POST /predict` with building_id, horizon, model, return_quantiles | High |
-| 🔵 Docker deployment | Containerised service + periodic retraining scheduler | High |
+
+> **FastAPI + Docker implementation tracked in Phase 3D** — Phase 2 stays focused on ML
+> science (perfecting H+24 and Quantile models). Phase 3 wraps the perfected model in a
+> Dockerised API.
 
 ---
 
@@ -188,8 +190,15 @@ retrain LSTM/TFT overnight on schedule; alert if rolling MAE degrades > threshol
 | 🔴 Quantile regression (LightGBM) | `objective='quantile'`, predict P10/P50/P90 natively | Low |
 | 🔴 Quantile regression (TFT) | TFT already supports quantile outputs | Low |
 | 🔴 Prediction interval metrics | Coverage (does P90 contain truth 90%?) + Width (sharpness) | Low |
+| 🟡 Daily Peak Error | MAE on daily peak *magnitude* — how close is predicted max per building per day? | Low |
+| 🟡 Time of Peak Error | Mean absolute hour error between predicted and actual daily peak timing | Low |
 | 🟡 Custom peak-weighted loss | Higher loss weight for top-10% load hours | Medium |
 | 🟡 Tail-aware evaluation | MAE computed only on top-10% load hours, alongside global MAE | Low |
+
+> **Why Peak metrics matter (AI Studio, March 2026):** For Demand Response and Grid Operations
+> (H+24), being off by 5 kWh at 3am doesn't cost money. Missing the 5pm peak by 5 kWh does.
+> Daily Peak Error and Time of Peak Error are the metrics that sell to Viotas, ESB, and data
+> centre operators — they care about the spike, not the baseline.
 
 ### 2D — Stacking / Ensemble Improvements (Q11)
 
@@ -205,8 +214,15 @@ retrain LSTM/TFT overnight on schedule; alert if rolling MAE degrades > threshol
 |------|--------|--------|
 | 🟡 Solar radiation feature | Already loaded (`Global_Solar_Horizontal_Radiation_W_m2`); add to feature pool after imputation | Medium |
 | 🟡 Solar/wind imputation (MICE) | MICE on solar using Temperature, Hour, Month (18% missing) | Medium |
+| 🟡 Forecast Uncertainty Penalty (WeatherNext/ERA5) | Swap oracle temperature proxy for historical NWP forecast archives (Google WeatherNext, NOAA, or ERA5); measure Δ MAE between oracle and forecast weather | Medium |
 | 🔵 MET Nordic spatial interpolation | Query MET Nordic API for nearest weather station per building | Medium |
 | 🔵 ERA5 reanalysis | Meteorological reanalysis as fallback / synthetic weather source | High |
+
+> **Why Forecast Uncertainty Penalty matters (AI Studio, March 2026):** All current models use
+> *observed* temperature — perfect oracle knowledge. In production, you only have a weather
+> *forecast*. The gap between oracle MAE and forecast MAE is the "production penalty". Measuring
+> and disclosing this proves the model is production-ready, not just academically competitive.
+> This is a highly publishable addition and a key selling point for Viotas / data centre partners.
 
 ---
 
@@ -263,6 +279,7 @@ DOI: [10.60609/2hvr-wc82](https://data.sintef.no/product/dp-679b0640-834e-46bd-b
 | 🎓 Behind-the-Meter feature engineering | Q8 | PV/EV integration in building energy systems |
 | 🎓 Energy community dynamic pricing | Crowley et al. 2025 | Kazempour/Mitridati research link |
 | 🎓 RACI + governance framework | Q10 | Responsible AI for utility companies (ESB, EirGrid) |
+| 🎓 Cross-domain transfer (Data Centre) | AI Studio, March 2026 | Apply pipeline to Data Centre IT/Cooling load dataset — proves architecture generalises beyond Norwegian public buildings to high-density compute facilities |
 
 ---
 
@@ -317,6 +334,9 @@ See `docs/AI_STUDIO_FEEDBACK.md` for full detail.
 | AI Studio | lag_1h is the true performance driver; H+1 = "easy mode"; H+24 is the honest evaluation | 🔴 HIGH |
 | AI Studio | Feature parity ≠ paradigm parity — DL needs raw sequences, trees need engineered features | 🔴 HIGH |
 | AI Studio | H+24 paradigm parity: Branch A (trees, ≥24h lags) vs Branch B (DL, raw 72h sequences + known future weather) | 🔴 HIGH |
+| AI Studio (Roadmap review, March 2026) | Add Forecast Uncertainty Penalty (oracle vs NWP weather) — highly publishable, proves production-readiness | 🟡 MEDIUM |
+| AI Studio (Roadmap review, March 2026) | Add Daily Peak Error + Time of Peak Error to 2C — the metrics that matter for Demand Response and grid operators | 🟡 MEDIUM |
+| AI Studio (Roadmap review, March 2026) | Cross-Domain Transfer to Data Centre IT/Cooling load — proves architecture generalises beyond Norwegian buildings | 🎓 PhD |
 | AICS R1 (Full Paper, 76/100) | DL given engineered features creates feature parity trap; DL should get raw sequences | 🔴 HIGH |
 | AICS R2 (Full Paper, 64/100) | Single dataset limits generalisability; add Oslo for transfer learning | 🟡 MEDIUM |
 | AICS R3 (Full Paper, 85/100) | Very clear presentation | ✅ Confirmed |
@@ -369,5 +389,5 @@ Output:        24-step multi-horizon prediction (direct)
 
 ---
 
-*Last updated: 2026-03-01 (Session 11 — AI Studio paradigm parity experiment design added)*
+*Last updated: 2026-03-01 (Session 11 — AI Studio roadmap review: WeatherNext penalty, Peak metrics, redundancy fix, Data Centre cross-domain)*
 *Maintained by: Dan Alexandru Bujoreanu — dan.bujoreanu@gmail.com*
