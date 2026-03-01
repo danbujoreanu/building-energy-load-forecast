@@ -156,7 +156,8 @@ class TFTForecaster(BaseForecaster):
                 patience=10,
                 mode="min",
             ),
-            pl.callbacks.LearningRateMonitor(),
+            # LearningRateMonitor removed: requires a logger (logger=False above).
+            # LR reduction still occurs via ReduceLROnPlateau inside TFT's configure_optimizers.
         ]
         trainer = pl.Trainer(
             max_epochs=tft_cfg["max_epochs"],

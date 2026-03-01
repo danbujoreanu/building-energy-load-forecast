@@ -825,12 +825,80 @@ Expanded `_correlation_filter` docstring to explicitly answer AICS Reviewer 3 (S
 | ~~TFT pytorch-lightning 2.x incompatibility~~ | ✅ Fixed S7 | lightning.pytorch import |
 | ~~OOF stacking (fixed-val used instead)~~ | ✅ Fixed S8 | TimeSeriesSplit OOF, oof_folds: 5 |
 | ~~Feature correlation drop rule undocumented~~ | ✅ Fixed S8 | Docstring clarifies upper-triangle rule |
-| TFT not yet validated end-to-end on real data | 🔴 HIGH | Fix applied; overnight run started S9 |
+| ~~TFT LearningRateMonitor crash~~ | ✅ Fixed S10 | LRMonitor removed; EarlyStopping retained |
+| ~~Keras verbose=1 log flooding~~ | ✅ Fixed S10 | verbose=2 + TFT progress bar disabled |
+| TFT result pending (PID 25584 running) | 🔴 HIGH | MPS GPU; appends to final_metrics.csv on done |
 | H+24 honest evaluation (separate experiment) | 🔴 HIGH | Set forecast_horizon: 24 in config |
+| Extended stacking (DL in meta-features) | 🔴 HIGH | Design complete S9; implement after TFT validates |
 | Oslo dataset run (generalization proof) | 🟡 MEDIUM | Reviewer 2 explicitly requested |
+| Add training time to results table | 🟡 MEDIUM | Infrastructure added S10; active next full run |
 | Solar radiation feature (Phase 2) | 🟡 MEDIUM | SINTEF validated; already loaded in V2 |
 | Probabilistic forecasting (quantile regression) | 🔵 LOW | LightGBM quantile objective |
 | Per-building profiles not generated | 🔵 LOW | Run `generate_eda_charts.py --profiles` |
+
+---
+
+## Session 10 — 2026-03-01 (Full DL Run Results + TFT Fix)
+
+### Objective
+Analyse 3h47m full pipeline run results; fix TFT LearningRateMonitor crash; add training time
+tracking; start TFT-only standalone run. Addressed log file flood (Keras verbose=1 / \r).
+
+### Full Pipeline Run — Drammen, 2026-03-01
+`python scripts/run_pipeline.py --city drammen` | Runtime: 13,670s (227.8 min)
+
+| Rank | Model | MAE | RMSE | MAPE | R² | Train time | Epochs |
+|------|-------|-----|------|------|----|------------|--------|
+| 1 | Random Forest | **1.711** | 3.441 | 6.31% | 0.9947 | 291s | — |
+| 2 | Stacking (Ridge OOF) | **1.744** | **3.240** | 7.43% | **0.9953** | 1,048s | — |
+| 3 | LightGBM | 2.109 | 3.715 | 9.25% | 0.9938 | 11s | — |
+| 4 | XGBoost | 2.228 | 3.938 | 9.56% | 0.9931 | 7s | — |
+| 5 | Lasso | 3.064 | 5.322 | 13.95% | 0.9873 | 157s | — |
+| 6 | Ridge | 3.069 | 5.311 | 14.12% | 0.9874 | <1s | — |
+| 7 | LSTM | 3.582 | 6.435 | 18.52% | 0.9816 | 5,248s | 12 (ES@2) |
+| 8 | GRU | 3.947 | 6.507 | 33.00% | 0.9812 | 5,814s | 13 (ES@3) |
+| 9 | CNN-LSTM | 4.572 | 7.239 | 37.22% | 0.9767 | 996s | 12 (ES@2) |
+| — | TFT | CRASHED | — | — | — | ~10s | — |
+
+n=240,481 (sklearn/stacking) | n=237,313 (DL, 72h lookback × 44 buildings trimmed)
+
+**Key observations:**
+- DL models stopped at epochs 12-13 (patience=10 → converged by epoch 2-3). DL finds little
+  additional structure beyond what RF already captures — consistent with paper conclusion.
+- CNN-LSTM (996s) trained 5× faster than LSTM/GRU: Conv1D is parallelisable on Apple Silicon.
+- GRU/CNN-LSTM MAPE (33-37%) unreliable — MAPE explodes on near-zero-load buildings.
+  MAE is the correct evaluation metric for this dataset.
+- TFT CRASHED: `Cannot use LearningRateMonitor with Trainer that has no logger.`
+
+### Bugs Fixed
+
+| Bug | File | Fix |
+|-----|------|-----|
+| TFT LearningRateMonitor + logger=False conflict | tft.py | Removed LRMonitor callback; LR reduction via ReduceLROnPlateau unchanged |
+| Keras verbose=1 floods log with 34,735 \r writes (7.4MB / 85 lines) | deep_learning.py | verbose=1 → verbose=2 (one \n per epoch) |
+| TFT PyTorch Lightning progress bar (same \r issue) | tft.py | enable_progress_bar=True → False |
+| Keras `input_shape` deprecation warning (cosmetic) | deep_learning.py | Non-critical; noted for future cleanup |
+
+### New Infrastructure
+
+#### Training time tracking (run_pipeline.py)
+`train_times: dict = {}` accumulates per-model wall-clock seconds.
+Joined to final_metrics.csv as `train_time_s` column. `_train_dl_model()` accepts optional param.
+Takes effect from next full pipeline run.
+
+#### run_tft_only.py (new script)
+Loads pre-computed feature-selected splits; trains TFT; predicts; evaluates;
+appends/updates TFT row in `outputs/results/final_metrics.csv`. Idempotent — safe to re-run.
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `src/energy_forecast/models/tft.py` | LRMonitor removed; progress bar disabled |
+| `src/energy_forecast/models/deep_learning.py` | verbose=2 on LSTM, CNN-LSTM, GRU |
+| `scripts/run_pipeline.py` | Per-model training time tracking; train_time_s in CSV |
+| `scripts/run_tft_only.py` | **New** standalone TFT train+evaluate+append script |
+| `docs/SESSION_LOG.md` | This session record |
 
 ---
 
