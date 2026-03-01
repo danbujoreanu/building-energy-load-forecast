@@ -162,13 +162,16 @@ training:
       dense_units: 128
 
   # -- Temporal Fusion Transformer (PyTorch Forecasting) --
+  # Architecture matches MSc thesis notebook exactly:
+  #   hidden_size=32, hidden_continuous_size=16 → 163K parameters
+  #   (previously hidden_size=64/hidden_continuous_size=32 → 833K params, ~4× slower)
   tft:
-    hidden_size: 64
+    hidden_size: 32              # Thesis notebook value (was 64 — caused 833K params)
     attention_head_size: 4
     dropout: 0.1
-    hidden_continuous_size: 32
+    hidden_continuous_size: 16   # Thesis notebook value (was 32)
     learning_rate: 0.001
-    max_epochs: 50
+    max_epochs: 20               # Notebook stopped at epoch 9 (patience=10); 20 is safe cap
     gradient_clip_val: 0.1
     batch_size: 128
 
@@ -191,7 +194,7 @@ evaluation:
 # ── Slow models flag ──────────────────────────────────────────────────────────
 # Models flagged as slow are skipped when --skip-slow is passed to scripts.
 # Actual training times recorded during MSc thesis (Apple Silicon MPS):
-#   tft      → 21,831 s  (~6 hours 4 min)   ← slowest
+#   tft      → 21,831 s  (~6 hours 4 min)  hidden_size=32, 163K params  ← slowest
 #   lstm     → 13,497 s  (~3 hours 45 min)
 #   cnn_lstm →  2,238 s  (~37 min)
 #   rf       →    116 s  (~2 min)
