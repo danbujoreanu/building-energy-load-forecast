@@ -10,6 +10,23 @@ MSc Artificial Intelligence · National College of Ireland · 2025
 
 ---
 
+## Conference Paper — AICS 2025
+
+> **Forecasting Energy Demand in Buildings: The Case for Trees over Deep Nets**
+> *Dan Alexandru Bujoreanu*
+> 33rd Irish Conference on Artificial Intelligence and Cognitive Science (AICS 2025)
+
+This research was accepted at **AICS 2025** in two tracks:
+
+- 📄 **Full Paper** — published in the [Springer CCIS Series](https://www.springer.com/series/7899) (peer-reviewed archival proceedings)
+- 📄 **Student Paper** — published in the DCU Press Companion Proceedings (dedicated student research track)
+
+The paper benchmarks tree-based models (Random Forest, LightGBM, XGBoost) against deep learning (LSTM, CNN-LSTM, GRU, TFT) for hourly building electricity load forecasting, and demonstrates that tree-based models consistently outperform deep nets on this tabular, high-autocorrelation time series — at a fraction of the training cost.
+
+See [`docs/PAPER_JOURNEY.md`](docs/PAPER_JOURNEY.md) for the full story: from 3 Jupyter notebooks to a production package to a peer-reviewed conference paper.
+
+---
+
 ## Overview
 
 This repository contains the research code for **short-term electricity load forecasting** across 45 Norwegian public buildings (schools and kindergartens, Drammen municipality). Multiple machine learning approaches are implemented, benchmarked, and compared — from classical regression and tree-based ensembles to deep sequence models (LSTM, CNN-LSTM, GRU) and the Temporal Fusion Transformer.
@@ -344,6 +361,23 @@ pytest tests/ -v --cov=src/energy_forecast
 ---
 
 ## Citation
+
+**Conference paper (AICS 2025 — preferred citation):**
+
+```bibtex
+@inproceedings{bujoreanu2025trees,
+  author    = {Dan Alexandru Bujoreanu},
+  title     = {Forecasting Energy Demand in Buildings:
+               The Case for Trees over Deep Nets},
+  booktitle = {Proceedings of the 33rd Irish Conference on Artificial
+               Intelligence and Cognitive Science (AICS 2025)},
+  series    = {Communications in Computer and Information Science},
+  publisher = {Springer},
+  year      = {2025},
+}
+```
+
+**MSc thesis:**
 
 ```bibtex
 @mastersthesis{bujoreanu2025energy,

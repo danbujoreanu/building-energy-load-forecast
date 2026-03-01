@@ -1,11 +1,11 @@
 # Research Roadmap
 
 **Dan Alexandru Bujoreanu — Building Energy Load Forecast**
-*MSc Artificial Intelligence, NCI Dublin 2025 → PhD-track research*
+*MSc Artificial Intelligence, NCI Dublin 2025 → Conference Paper (AICS 2025) → PhD-track research*
 
 This document tracks completed work and all prioritised future iterations,
-drawn directly from the MSc thesis (2025) and the 11 Follow-up Questions
-document that maps the research forward.
+drawn directly from the MSc thesis (2025), the AICS 2025 conference paper, and
+external feedback (AI Studio, AICS reviewers, SINTEF expert).
 
 ---
 
@@ -24,158 +24,159 @@ document that maps the research forward.
 
 ## Phase 1 — Completed ✅
 
+### Publication
+
+| Item | Detail |
+|------|--------|
+| ✅ MSc thesis | *Machine Learning Approaches for Building Energy Load Forecasting in Norwegian Public Buildings* — NCI Dublin, 2025 |
+| ✅ AICS 2025 Full Paper | *Forecasting Energy Demand in Buildings: The Case for Trees over Deep Nets* — Springer CCIS Series |
+| ✅ AICS 2025 Student Paper | Same paper — DCU Press Companion Proceedings (dual-track acceptance) |
+
 ### Codebase & Infrastructure
 
 | Item | Detail | Notes |
 |------|--------|-------|
-| ✅ Modularisation | Refactored 3 Jupyter notebooks → clean Python package (`src/energy_forecast/`) | **Q11 improvement item — done** |
+| ✅ Modularisation | Refactored 3 Jupyter notebooks → clean Python package (`src/energy_forecast/`) | Q11 improvement — done |
 | ✅ Config-driven design | Single `config/config.yaml` as source of truth for all parameters | Eliminates scattered magic numbers |
-| ✅ Cyclical encoding fix | Corrected period: hour=24, day=7 (was 23/6 in thesis notebooks) | **Q11 bug fix — resolved in new code** |
-| ✅ Test suite (19 tests) | `pytest tests/` — data, features, models, metrics | CI-validated, no raw data needed |
+| ✅ Cyclical encoding fix | Corrected period: hour=24, day_of_week=7 (was 23/6 in thesis notebooks) | Q11 bug fix — resolved |
+| ✅ DST-robust lag features | Added lag_167h/lag_169h (same-time ±1h weekly) to original thesis lags | Improves weekly pattern stability |
+| ✅ Min/max rolling stats | Added min/max to rolling statistics (thesis had mean/std only) | Tighter load-range bounds |
+| ✅ Temperature interaction features | `temp × hour_sin`, `temp × hour_cos` cross-terms | Captures time-varying thermal sensitivity |
+| ✅ Test suite (24 tests) | `pytest tests/` — data, features, models, metrics | CI-validated, no raw data needed |
 | ✅ GitHub Actions CI | Lint (ruff, black) + tests on Python 3.10 & 3.11 | Every push/PR |
-| ✅ `.gitignore` | Excludes 400MB+ processed CSVs, model checkpoints | Raw data only |
+| ✅ SHAP explainability | Beeswarm, bar, waterfall, heatmap — `--stages explain` | `evaluation/explainability.py` |
 
-### Models Implemented
+### Models — V2 Pipeline Results (H+1, 240,481 test samples, July 2021 – March 2022)
 
-| Model | Thesis Rank | MAE (kWh) | R² | Train Time |
-|-------|------------|-----------|-----|-----------|
-| ✅ Random Forest | 🥇 1 | 3.300 | 0.982 | ~2 min |
-| ✅ XGBoost | 🥈 2 | 3.419 | 0.982 | ~3s |
-| ✅ LightGBM | 🥉 3 | 3.578 | 0.980 | ~3s |
-| ✅ Stacking Ensemble (LGBM meta) | 4 | 3.582 | 0.978 | <1s |
-| ✅ Stacking Ensemble (Ridge meta) | 5 | 3.698 | 0.978 | <1s |
-| ✅ Lasso Regression | 7 | 4.201 | 0.973 | ~4s |
-| ✅ Ridge Regression | 8 | 4.215 | 0.973 | <1s |
-| ✅ TFT (Temporal Fusion Transformer) | 11 | 5.114 | 0.952 | ~6h |
-| ✅ Persistence (Lag 1h) | 10 | 4.561 | 0.959 | — |
-| ✅ Seasonal Persistence (Lag 24h) | 13 | 8.762 | 0.834 | — |
-| ✅ LSTM | 15 | 10.132 | 0.862 | ~3h 45m |
-| ✅ CNN-LSTM | 16 | 12.435 | 0.807 | ~37m |
-| ✅ GRU | Implemented | — | — | — |
+DL models (LSTM/GRU/CNN-LSTM) evaluated on 237,313 samples (72 lookback rows per building excluded).
+
+| Model | V2 MAE (kWh) | V2 R² | Thesis MAE (kWh) | Improvement |
+|-------|-------------|-------|-----------------|-------------|
+| ✅ Random Forest | **1.711** | 0.9947 | 3.300 | −48% |
+| ✅ Stacking Ensemble (Ridge meta) | 1.774 | 0.9953 | 3.698 | −52% |
+| ✅ LightGBM | 2.108 | 0.9938 | 3.578 | −41% |
+| ✅ XGBoost | 2.228 | 0.9931 | 3.419 | −35% |
+| ✅ Lasso Regression | 3.064 | 0.9873 | 4.201 | −27% |
+| ✅ Ridge Regression | 3.069 | 0.9874 | 4.215 | −27% |
+| ✅ LSTM | 3.582 | 0.9816 | 10.132 | −65% |
+| ✅ GRU | 3.947 | 0.9812 | — (new) | — |
+| ✅ CNN-LSTM | 4.572 | 0.9767 | 12.435 | −63% |
+| ✅ Mean Baseline | 22.691 | 0.4415 | — | — |
+| — | TFT | *fix applied, re-run needed* | 5.114 | — |
+
+> **V2 improvement sources:** DST-robust lags (167h/169h), min/max rolling stats, temp×hour interaction
+> features, and complete dataset (45 buildings vs 43 in thesis). The dominant predictor remains `lag_1h`
+> (r ≈ 0.977), which explains why DL models (feeding the same features) also improved substantially.
 
 ### Feature Engineering
 
 | Item | Detail |
 |------|--------|
 | ✅ Cyclical encoding | sin/cos for hour (24), day_of_week (7), month (12), day_of_year (365) |
-| ✅ Lag features | Target + temperature lags: 1h, 2h, 3h, 4h, 5h, 6h, 12h, 24h per building |
-| ✅ Rolling statistics | 6h/12h/24h/48h mean & std, applied per building |
-| ✅ 3-stage feature selection | Variance → Correlation (ρ>0.99) → LightGBM top-35 |
+| ✅ Lag features | Target + temperature at [1, 2, 3, 24, 25, 26, 48, 167, 168, 169] hours per building |
+| ✅ Rolling statistics | [mean, std, min, max] over [3, 6, 12, 24, 72, 168]-hour windows, per building |
+| ✅ 3-stage feature selection | Variance → Correlation (|ρ|>0.99) → LightGBM top-35 |
+| ✅ Correlation tie-breaking | Upper-triangle scan: for pair (A, B), B is always dropped — deterministic, documented |
 
 ---
 
-## Phase 2 — Next Iteration 🔴
+## Phase 2 — Next Iteration
 
-*These are the highest-impact items identified across all 11 follow-up questions.
-Recommended order: start with XAI (Q7) and Probabilistic Forecasting (Q3/Q5) as
-these are directly applicable to the current pipeline with minimal architecture change.*
+### 2A — Explainability / XAI (Q7) — Partially Complete
 
-### 2A — Explainability / XAI (Q7) 🔴
+| Item | Status | Detail |
+|------|--------|--------|
+| ✅ SHAP beeswarm, bar, waterfall | Done | Global + local explanation for RF/LightGBM/XGBoost |
+| 🟡 Model Card | Planned | Mitchell et al. (2019) format — intended use, metrics on peak vs normal days |
+| 🟡 Dataset Datasheet | Planned | Formal COFACTOR Drammen dataset provenance document |
+| 🟡 Per-building actual vs predicted | Planned | Visual trust-building for building managers |
+| 🟡 Error bands by hour of day | Planned | Show model accuracy range across the 24-hour cycle |
 
-The most impactful addition for both research and portfolio value.
+### 2B — H+24 Day-Ahead Evaluation 🔴
+
+The single most impactful research improvement identified by AI Studio and AICS reviewers.
+H+1 with lag_1h is "easy mode" — lag_1h alone achieves persistence-level accuracy (r=0.977).
+H+24 removes all lags < 24h, forcing models to rely on genuine temporal patterns.
 
 | Item | Detail | Effort |
 |------|--------|--------|
-| 🔴 SHAP beeswarm plot | Global feature importance — shows *direction* of impact (e.g., low temp → high load) | Low |
-| 🔴 SHAP force plot | Local explanation for any single prediction, especially peaks | Low |
-| 🔴 SHAP Dashboard | Interactive dashboard showing feature contributions | Medium |
-| 🟡 Model Card | Mitchell et al. (2019) format — intended use, metrics on peak vs normal days, known limitations | Medium |
-| 🟡 Dataset Datasheet | Formal documentation of COFACTOR Drammen dataset provenance | Low |
-| 🟡 Per-building actual vs predicted plots | Visual trust-building for building managers | Low |
-| 🟡 Error bands by hour of day | Show model accuracy range across the 24-hour cycle | Low |
+| 🔴 H+24 full pipeline run | Set `forecast_horizon: 24` + `sequence.horizon: 24` in config — pipeline auto-drops lags/rolling < 24h | Low (config change only) |
+| 🔴 H+24 model comparison | Same 9 models evaluated day-ahead — expected: trees vs DL gap narrows | Low |
+| 🔴 Paper: H+24 honest results | Publishable as journal extension (addresses R1 and R2 AICS reviewer critique) | Medium |
 
-**Implementation note:** `pip install shap` — works directly on trained RF/XGBoost/LightGBM.
-
-### 2B — Probabilistic Forecasting (Q3, Q4, Q5) 🔴
-
-The single theme that runs through Q2, Q3, Q4, Q5 — flagged explicitly by the thesis
-as the primary next iteration area. Referenced work: Jalal Kazempour (Crowley et al. 2024, 2025).
+### 2C — Probabilistic Forecasting (Q3, Q4, Q5) 🔴
 
 | Item | Detail | Effort |
 |------|--------|--------|
-| 🔴 Quantile regression (LightGBM) | Train with `objective='quantile'`, predict P10/P50/P90 intervals natively | Low |
+| 🔴 Quantile regression (LightGBM) | `objective='quantile'`, predict P10/P50/P90 natively | Low |
 | 🔴 Quantile regression (TFT) | TFT already supports quantile outputs | Low |
-| 🔴 Prediction interval metrics | Coverage (does P90 contain truth 90% of time?) + Width (sharpness) | Low |
-| 🟡 Custom peak-weighted loss | Higher loss weight for top-10% load hours — improve tail accuracy | Medium |
-| 🟡 Tail-aware evaluation metric | MAE computed only on top-10% load hours, alongside global MAE | Low |
-| 🟡 Event-based classification | Define threshold (e.g., >250 kWh = "Peak Event"), evaluate Recall + F2-Score | Medium |
+| 🔴 Prediction interval metrics | Coverage (does P90 contain truth 90%?) + Width (sharpness) | Low |
+| 🟡 Custom peak-weighted loss | Higher loss weight for top-10% load hours | Medium |
+| 🟡 Tail-aware evaluation | MAE computed only on top-10% load hours, alongside global MAE | Low |
 
-### 2C — Missing Weather Data / Data Quality (Q1) 🟡
+### 2D — Stacking / Ensemble Improvements (Q11)
 
-| Item | Detail | Effort |
-|------|--------|--------|
-| 🟡 Solar/wind imputation (MICE) | MICE on `Global_Solar_Horizontal_Radiation_W_m2` using Temperature, Hour, Month | Medium |
-| 🟡 MET Nordic spatial interpolation | Query MET Nordic API for nearest weather station data for each building | Medium |
-| 🔵 ERA5 reanalysis data | Meteorological reanalysis as fallback / synthetic weather source | High |
-| 🔵 Google WeatherNext | Probabilistic forecast models as direct weather input | High |
-| 🔵 Train on forecast vs observation | Use historical weather *forecasts* rather than observations — simulates real deployment | High |
+| Item | Status | Detail | Effort |
+|------|--------|--------|--------|
+| 🔄 OOF (Out-of-Fold) stacking | **In progress** | Replace fixed-val with TimeSeriesSplit k-fold OOF meta-features — unbiased meta-learner training | Medium |
+| ✅ Weighted Average Ensemble | Done | Implemented in `models/ensemble.py` | Done |
+| 🟡 Physics-informed constraints | Planned | Monotonic constraints for XGBoost/LightGBM: temp ↓ → load ↑ (Q4) | Low |
 
-**Context:** Solar radiation and wind speed had ~18% missing values and were excluded from thesis.
-Including them as features (after imputation) may improve model accuracy.
-
-### 2D — Stacking / Ensemble Improvements (Q11) 🟡
+### 2E — Missing Weather / Data Quality (Q1) 🟡
 
 | Item | Detail | Effort |
 |------|--------|--------|
-| 🟡 OOF (Out-of-Fold) stacking | Replace fixed validation set with k-fold OOF meta-features — reduces variance | Medium |
-| 🟡 Weighted Average Ensemble | Simple average of top-3 model predictions (was MAE 4.081 in thesis) | Low |
-| 🟡 Physics-informed constraints | Monotonic constraints for XGBoost/LightGBM: temperature ↓ → load ↑ (Q4) | Low |
+| 🟡 Solar radiation feature | Already loaded (`Global_Solar_Horizontal_Radiation_W_m2`); add to feature pool after imputation | Medium |
+| 🟡 Solar/wind imputation (MICE) | MICE on solar using Temperature, Hour, Month (18% missing) | Medium |
+| 🔵 MET Nordic spatial interpolation | Query MET Nordic API for nearest weather station per building | Medium |
+| 🔵 ERA5 reanalysis | Meteorological reanalysis as fallback / synthetic weather source | High |
 
 ---
 
-## Phase 3 — Architecture Extensions 🟡🔵
+## Phase 3 — Architecture Extensions
 
 ### 3A — Oslo Dataset Integration (Q6) 🟡
 
-The Oslo pipeline is ready. 48 buildings (schools), SINTEF/Oslobygg KF, CC BY 4.0.
+Pipeline-ready. 48 buildings (schools), SINTEF/Oslobygg KF, CC BY 4.0.
 DOI: [10.60609/2hvr-wc82](https://data.sintef.no/product/dp-679b0640-834e-46bd-bc8f-8484ca79b414)
 
 | Item | Detail | Effort |
 |------|--------|--------|
-| 🟡 Run pipeline on Oslo dataset | Switch `city: oslo` in config, run `--skip-slow` | Low |
+| 🟡 Run pipeline on Oslo | Switch `city: oslo` in config, run `--skip-slow` | Low |
 | 🟡 Cross-dataset comparison | Does a model trained on Drammen generalise to Oslo? | Medium |
-| 🟡 Building_ID embeddings | Replace one-hot encoding with learned dense vectors — capture building similarity | Medium |
-| 🔵 Cross-dataset transfer learning | Train on Drammen+Oslo combined, measure generalisation | High |
+| 🟡 Building_ID embeddings | Replace one-hot with learned dense vectors | Medium |
+| 🔵 Transfer learning | Train on Drammen+Oslo combined, measure generalisation | High |
 
 ### 3B — Hierarchical Forecasting (Q6) 🔵🎓
 
-This is the state-of-the-art approach that solves the pooled vs per-building trade-off.
-Referenced: Hierarchical BART (Chipman et al. 2010; Bruna 2023, NUI Maynooth PhD).
-
 | Item | Detail | Effort |
 |------|--------|--------|
-| 🔵 Hierarchical BART | Partial pooling: buildings borrow statistical strength from each other | Very High |
-| 🔵 Static building features | Use `floor_area`, `building_category` as static covariates | Medium |
-| 🔵 Local + global forecast output | Per-building prediction + portfolio aggregate for policymakers | High |
-| 🎓 Probabilistic hierarchical model | Naturally produces P10-P90 intervals at both local and portfolio level | Research-level |
+| 🔵 Hierarchical BART | Partial pooling: buildings borrow statistical strength | Very High |
+| 🔵 Static building features | `floor_area`, `building_category` as static covariates | Medium |
+| 🔵 Portfolio aggregate | Per-building + portfolio-level forecast for policymakers | High |
+| 🎓 Probabilistic hierarchical | P10-P90 at both local and portfolio level | Research-level |
 
 ### 3C — Simpler Interpretable Models (Q2) 🟡
 
-Models that offer transparency for operational settings and new buildings with limited data.
-
 | Item | Detail | Effort |
 |------|--------|--------|
-| 🟡 GAM (Generalised Additive Model) | Upgrade to Linear Regression — captures non-linear effects, more transparent than RF | Medium |
-| 🔵 Linear Quantile Regression | Point forecast → prediction interval, risk management | Medium |
-| 🔵 Dynamic Harmonic Regression | Automates seasonality handling (replaces manual sin/cos features) | High |
+| 🟡 GAM (Generalised Additive Model) | Upgrade to Linear Regression — non-linear, transparent | Medium |
+| 🔵 Linear Quantile Regression | Point forecast → prediction interval | Medium |
+| 🔵 Dynamic Harmonic Regression | Automates seasonality (replaces manual sin/cos) | High |
 
 ### 3D — Robustness / Production Readiness (Q4, Q8, Q9) 🔵
 
 | Item | Detail | Effort |
 |------|--------|--------|
-| 🔵 OOD detection (input monitoring) | Validate incoming weather forecast against training distribution — fallback to Linear if OOD | High |
-| 🔵 Rolling MAE monitoring | Calculate rolling 24h MAE post-prediction, alert if threshold exceeded | Medium |
-| 🔵 Scenario stress-testing | Feed trained model synthetic extreme weather (ERA5 historical anomalies) — find model break points | High |
-| 🔵 ONNX model export | Convert trained RF/XGBoost to ONNX for fast, framework-agnostic inference | Medium |
-| 🔵 FastAPI inference endpoint | REST API for live building-level predictions | High |
-| 🔵 Model quantization (16-bit) | Reduce parameter precision for CPU-efficient deployment | Medium |
-| 🔵 Docker deployment | Lightweight containerised service for periodic retraining | High |
+| 🔵 OOD detection | Validate incoming weather against training distribution | High |
+| 🔵 Rolling MAE monitoring | Alert if rolling 24h MAE exceeds threshold | Medium |
+| 🔵 ONNX export | Convert RF/XGBoost to ONNX for framework-agnostic inference | Medium |
+| 🔵 FastAPI inference endpoint | REST API for live per-building predictions | High |
+| 🔵 Docker deployment | Containerised service for periodic retraining | High |
 
 ---
 
 ## Phase 4 — PhD-Track Research 🎓
-
-*Items identified as viable research contributions in a part-time PhD framework.*
 
 | Item | Source | Strategic Value |
 |------|--------|----------------|
@@ -183,7 +184,7 @@ Models that offer transparency for operational settings and new buildings with l
 | 🎓 Probabilistic forecasting for demand response | Q3/Q5, Crowley et al. 2024 | Bridges to energy community grid services |
 | 🎓 OOD generalisation for extreme weather | Q4, Liu et al. 2023 | Applied ML safety research |
 | 🎓 Behind-the-Meter feature engineering | Q8 | PV/EV integration in building energy systems |
-| 🎓 Energy community dynamic pricing | Crowley et al. 2025 | Direct link to Kazempour/Mitridati research |
+| 🎓 Energy community dynamic pricing | Crowley et al. 2025 | Kazempour/Mitridati research link |
 | 🎓 RACI + governance framework | Q10 | Responsible AI for utility companies (ESB, EirGrid) |
 
 ---
@@ -192,17 +193,17 @@ Models that offer transparency for operational settings and new buildings with l
 
 | Bug | Status | Notes |
 |-----|--------|-------|
-| Cyclical encoding (23/6 vs 24/7) | ✅ Fixed in new code | Original notebooks had wrong period for hour/day — no impact on results as lag features dominated |
-| Fixed validation for Stacking | 🟡 Planned fix | OOF stacking is the correct approach; fixed-val was a deliberate training-time trade-off in thesis |
-| GRU results not in thesis Table 5 | 🟡 Needs evaluation | GRU is implemented but was not formally evaluated in thesis |
-| WeightedAverageEnsemble | 🟡 Planned | Thesis had this (MAE 4.081) but not yet in new codebase |
-| Two TFT variants | 🟡 Planned | Thesis ran TFT_MAE_Loss (8.58) and TFT_Comprehensive (5.11) — only one in code |
+| Cyclical encoding (23/6 vs 24/7) | ✅ Fixed | Original notebooks had wrong period — no impact on results as lag features dominated |
+| Fixed validation for Stacking | 🔄 In progress | OOF stacking being implemented this session |
+| GRU results not in thesis Table 5 | ✅ Fixed | GRU evaluated in V2 pipeline: MAE 3.947 kWh, R² 0.981 |
+| WeightedAverageEnsemble missing | ✅ Fixed | Implemented in `models/ensemble.py` |
+| TFT pytorch-lightning import | ✅ Fixed | Changed `pytorch_lightning` → `lightning.pytorch` for 2.x compatibility; needs validation run |
 
 ---
 
 ## Full Thesis Results Reference (Appendix 2.1)
 
-*Complete results from held-out test set, Apple Silicon MPS.*
+*Original held-out test set results, Apple Silicon MPS.*
 
 | Model | MAE (kWh) | RMSE (kWh) | CV(RMSE) % | R² | Train Time (s) |
 |-------|-----------|------------|------------|-----|----------------|
@@ -213,18 +214,30 @@ Models that offer transparency for operational settings and new buildings with l
 | Stacking (Ridge meta) | 3.698 | 7.051 | 15.86 | 0.978 | <1 |
 | Weighted Avg Ensemble | 4.081 | 7.841 | 17.63 | 0.973 | <1 |
 | Lasso Regression | 4.201 | 7.880 | 17.81 | 0.973 | 4 |
-| Linear Regression | 4.215 | 7.767 | 17.56 | 0.973 | <1 |
 | Ridge Regression | 4.215 | 7.767 | 17.56 | 0.973 | <1 |
 | Persistence (Lag 1h) | 4.561 | 9.587 | 21.67 | 0.959 | — |
 | TFT (Comprehensive) | 5.114 | 10.424 | 23.57 | 0.952 | 21,831 |
 | TFT (MAE Loss only) | 8.576 | 13.442 | 19.51 | 0.948 | 21,831 |
 | Seasonal Naive (24h) | 8.762 | 19.383 | 43.82 | 0.834 | — |
-| Seasonal Naive (168h) | 9.621 | 19.259 | 43.54 | 0.836 | — |
 | LSTM | 10.132 | 17.686 | 39.77 | 0.862 | 13,497 |
 | CNN-LSTM | 12.435 | 20.930 | 47.07 | 0.807 | 2,238 |
 
 **Key finding:** Classical tree-based models dominated. DL models consumed 100–7,000× more compute
 for significantly worse accuracy on this tabular hourly dataset.
+
+---
+
+## Key External Feedback Summary
+
+See `docs/AI_STUDIO_FEEDBACK.md` for full detail.
+
+| Source | Key Finding | Priority |
+|--------|------------|---------|
+| AI Studio | lag_1h is the true performance driver; H+1 = "easy mode"; H+24 is the honest evaluation | 🔴 HIGH |
+| AICS R1 (Full Paper) | DL given engineered features creates feature parity trap; DL should get raw sequences | 🔴 HIGH |
+| AICS R2 (Full Paper) | Single dataset limits generalisability; add Oslo for transfer learning | 🟡 MEDIUM |
+| AICS R3 (Student Paper) | Correlation drop rule unclear; bullet-point writing | ✅ Fixed |
+| SINTEF Expert | Tree models validated; solar radiation is a valid Phase 2 feature | 🟡 MEDIUM |
 
 ---
 
@@ -240,5 +253,5 @@ for significantly worse accuracy on this tabular hourly dataset.
 
 ---
 
-*Last updated: 2026-02-27*
+*Last updated: 2026-03-01*
 *Maintained by: Dan Alexandru Bujoreanu — dan.bujoreanu@gmail.com*

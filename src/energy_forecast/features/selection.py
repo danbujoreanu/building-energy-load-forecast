@@ -106,7 +106,23 @@ def _correlation_filter(
     X_test: pd.DataFrame,
     threshold: float = 0.99,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, list[str]]:
-    """Remove features that are pairwise-correlated above ``threshold``."""
+    """Remove features that are pairwise-correlated above ``threshold``.
+
+    **Tie-breaking rule (deterministic):**
+    The Pearson correlation matrix is computed on the training set and the
+    *upper triangle* (k=1) is examined.  For any pair (A, B) where
+    ``|corr(A, B)| > threshold``, column **B** (the *later* column in the
+    DataFrame column order) is marked for removal.
+
+    This means the *first* column of any correlated pair is always retained
+    and the *second* is dropped.  The rule is deterministic — no random
+    tie-breaking — and depends only on the order in which features appear in
+    the DataFrame (which is fixed by ``features/temporal.py``).
+
+    Practically, this tends to retain the *raw* or *earlier-engineered*
+    feature (e.g. ``lag_24h``) and drop a redundant variant (e.g.
+    ``lag_25h`` if they are near-perfectly correlated for a given dataset).
+    """
     corr_matrix = X_train.corr().abs()
     upper = corr_matrix.where(
         np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)

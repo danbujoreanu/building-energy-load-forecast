@@ -6,13 +6,30 @@ Ensemble methods that combine predictions from multiple base learners.
 Two implementations (both from MSc thesis):
 
 StackingEnsemble
-    Base learners → predictions on validation set → meta-features
-    Meta-learner (Ridge or LightGBM) trained on those meta-features.
-    Final prediction = meta-learner(base_preds on test).
-    Thesis results: Ridge MAE 3.698 kWh | LGBM MAE 3.582 kWh.
+    Base learners → meta-features → meta-learner trained on those features.
+    Final prediction = meta_learner(base_preds on test).
+
+    Two meta-feature generation strategies:
+
+    1. **Fixed-validation** (legacy, ``oof_folds: 0``):
+       Base models predict on X_val; meta-learner trained on those val predictions.
+       Thesis results: Ridge MAE 3.698 kWh | LGBM MAE 3.582 kWh.
+
+    2. **Out-of-Fold (OOF)** (default, ``oof_folds: 5``):
+       TimeSeriesSplit with k folds on the training set.  For each fold, base
+       models are cloned and retrained on the fold's training portion, then
+       predict on the fold's validation portion.  The OOF predictions stack to
+       form meta-features for the full training set (minus the first fold's
+       training rows).  This prevents the meta-learner from overfitting to a
+       single validation window and is the academically correct approach for
+       time-series stacking.
+
+       Only sklearn-compatible base models (those with a ``.estimator``
+       attribute pointing to an sklearn-API estimator) can be cloned.
+       DL models / TFT are automatically skipped during OOF folds.
 
 WeightedAverageEnsemble
-    Weights = softmax(1 / val_MAE) per model, normalised to sum=1.
+    Weights = (1 / val_MAE) per model, normalised to sum=1.
     Simple, interpretable, no additional training needed.
     Thesis result: MAE 4.081 kWh (Drammen test set, all 6 models).
 
@@ -47,6 +64,10 @@ class StackingEnsemble(BaseForecaster):
     so it matches the thesis naming convention:
         - "Stacking Ensemble (Ridge meta)"
         - "Stacking Ensemble (LGBM meta)"
+
+    Meta-feature generation is controlled by ``oof_folds`` in config:
+        - ``oof_folds > 0`` → time-aware OOF stacking on X_train (recommended)
+        - ``oof_folds == 0`` → legacy fixed-validation stacking on X_val
     """
 
     def __init__(
@@ -80,35 +101,71 @@ class StackingEnsemble(BaseForecaster):
         y_val: pd.Series | None = None,
         **kwargs: Any,
     ) -> "StackingEnsemble":
-        """Train the meta-learner on validation-set predictions."""
-        if X_val is None or y_val is None:
-            raise ValueError("StackingEnsemble requires X_val and y_val to train the meta-learner.")
+        """Train the meta-learner.
 
-        # ── Generate meta-features (base model predictions on val set) ─────────
-        meta_features = self._generate_meta_features(X_val)
+        Uses OOF stacking if ``oof_folds > 0`` (default), otherwise falls
+        back to the legacy fixed-validation approach.
+
+        Parameters
+        ----------
+        X_train, y_train:
+            Full training set.  Required for OOF stacking.
+        X_val, y_val:
+            Validation set.  Required only when ``oof_folds == 0``.
+        """
+        ens_cfg = self.cfg["training"]["ensemble"]
+        oof_folds = int(ens_cfg.get("oof_folds", 0))
+
+        if oof_folds > 0:
+            # ── OOF stacking ──────────────────────────────────────────────────
+            logger.info(
+                "Stacking ensemble: OOF mode with %d time-aware folds.", oof_folds
+            )
+            meta_features, meta_targets = self._oof_meta_features(
+                X_train, y_train, oof_folds
+            )
+        else:
+            # ── Legacy fixed-validation stacking ──────────────────────────────
+            if X_val is None or y_val is None:
+                raise ValueError(
+                    "StackingEnsemble requires X_val and y_val when oof_folds=0."
+                )
+            logger.info("Stacking ensemble: fixed-validation mode.")
+            meta_features = self._generate_meta_features(X_val)
+            meta_targets = y_val.values
+
         logger.info(
             "Meta-features shape: %s | training meta-learner on %d samples",
-            meta_features.shape, len(y_val),
+            meta_features.shape,
+            len(meta_targets),
         )
 
         # ── Fit meta-learner ──────────────────────────────────────────────────
-        ens_cfg = self.cfg["training"]["ensemble"]
         if ens_cfg["meta_learner"] == "lightgbm":
             self.meta_learner_ = _build_lgbm_meta(ens_cfg, self.cfg.get("seed", 42))
         else:
             self.meta_learner_ = Ridge(alpha=ens_cfg["ridge_alpha"])
 
-        self.meta_learner_.fit(meta_features, y_val.values)
-        logger.info("Stacking ensemble trained with %s meta-learner.", ens_cfg["meta_learner"])
+        self.meta_learner_.fit(meta_features, meta_targets)
+        mode = "OOF" if oof_folds > 0 else "fixed-val"
+        logger.info(
+            "Stacking ensemble trained with %s meta-learner (%s).",
+            ens_cfg["meta_learner"],
+            mode,
+        )
         return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         meta_features = self._generate_meta_features(X)
         return self.meta_learner_.predict(meta_features)
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # Internal helpers
+    # ──────────────────────────────────────────────────────────────────────────
+
     def _generate_meta_features(self, X: pd.DataFrame) -> np.ndarray:
-        """Stack base model predictions as columns."""
-        preds = {}
+        """Stack base model predictions as columns (used for val/test)."""
+        preds: dict[str, np.ndarray] = {}
         for name, model in self.base_models.items():
             try:
                 preds[name] = model.predict(X)
@@ -116,6 +173,112 @@ class StackingEnsemble(BaseForecaster):
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Base model '%s' failed to predict: %s", name, exc)
         return np.column_stack(list(preds.values()))
+
+    def _oof_meta_features(
+        self,
+        X_train: pd.DataFrame,
+        y_train: pd.Series,
+        oof_folds: int,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Generate OOF predictions using time-aware expanding-window splits.
+
+        The data is a multi-building panel with a MultiIndex of the form
+        ``(building_id, timestamp)``.  All buildings sharing the same timestamp
+        are always placed in the same fold, so temporal ordering is fully
+        preserved and there is no leakage across time.
+
+        Implementation
+        --------------
+        1. Extract unique timestamps from ``X_train.index`` (last level).
+        2. Apply ``sklearn.model_selection.TimeSeriesSplit`` to those timestamps.
+        3. For each fold:
+           a. Mask X_train rows by timestamp → fold train / fold val splits.
+           b. Clone each sklearn-compatible base model (via ``_clone_forecaster``).
+           c. Fit the clone on the fold-train portion.
+           d. Predict on the fold-val portion → fill the global OOF array.
+        4. Return rows where every model produced a prediction.
+
+        Notes
+        -----
+        - Only models with a ``.estimator`` attribute (``SklearnForecaster``
+          subclasses) can be cloned.  DL models are skipped with a warning.
+        - The first fold's training rows are never in any validation set and
+          are therefore excluded from the returned meta-features.  This is
+          standard OOF practice and typically represents 1/(k+1) ≈ 17% of
+          training data.
+
+        Returns
+        -------
+        meta_features : np.ndarray, shape (n_valid_rows, n_models)
+        meta_targets  : np.ndarray, shape (n_valid_rows,)
+        """
+        from sklearn.model_selection import TimeSeriesSplit
+
+        model_names = list(self.base_models.keys())
+        n_models = len(model_names)
+        n_rows = len(X_train)
+
+        # Timestamp level is always the last level of the MultiIndex.
+        timestamps = X_train.index.get_level_values(-1).unique().sort_values()
+        tss = TimeSeriesSplit(n_splits=oof_folds)
+
+        oof_preds = np.full((n_rows, n_models), np.nan)
+
+        for fold_idx, (tr_ts_positions, val_ts_positions) in enumerate(
+            tss.split(timestamps)
+        ):
+            tr_ts = set(timestamps[tr_ts_positions].tolist())
+            val_ts = set(timestamps[val_ts_positions].tolist())
+
+            level_vals = X_train.index.get_level_values(-1)
+            tr_mask = level_vals.isin(tr_ts)
+            val_mask = level_vals.isin(val_ts)
+
+            X_fold_tr = X_train[tr_mask]
+            y_fold_tr = y_train[tr_mask]
+            X_fold_val = X_train[val_mask]
+            y_fold_val = y_train[val_mask]
+
+            logger.info(
+                "OOF fold %d/%d: train=%d rows, val=%d rows",
+                fold_idx + 1,
+                oof_folds,
+                len(X_fold_tr),
+                len(X_fold_val),
+            )
+
+            val_positions = np.where(val_mask)[0]
+
+            for i, (mname, model) in enumerate(self.base_models.items()):
+                cloned = _clone_forecaster(model)
+                if cloned is None:
+                    logger.warning(
+                        "OOF: cannot clone model '%s' (not sklearn-compatible) — "
+                        "column %d will remain NaN.",
+                        mname,
+                        i,
+                    )
+                    continue
+                try:
+                    cloned.fit(X_fold_tr, y_fold_tr, X_fold_val, y_fold_val)
+                    fold_preds = cloned.predict(X_fold_val)
+                    oof_preds[val_positions, i] = fold_preds
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "OOF fold %d, model '%s' failed: %s", fold_idx + 1, mname, exc
+                    )
+
+        # Only keep rows where every column has a valid OOF prediction.
+        valid_mask = ~np.isnan(oof_preds).any(axis=1)
+        n_valid = int(valid_mask.sum())
+        logger.info(
+            "OOF complete: %d / %d training rows covered (%.1f%%).",
+            n_valid,
+            n_rows,
+            100.0 * n_valid / n_rows,
+        )
+
+        return oof_preds[valid_mask], y_train.values[valid_mask]
 
 
 class WeightedAverageEnsemble(BaseForecaster):
@@ -170,7 +333,9 @@ class WeightedAverageEnsemble(BaseForecaster):
         self.weights_ = {k: v / total for k, v in inv_maes.items()}
 
         for name, w in sorted(self.weights_.items(), key=lambda x: -x[1]):
-            logger.info("  Weight %-35s = %.4f  (val MAE=%.4f kWh)", name, w, maes[name])
+            logger.info(
+                "  Weight %-35s = %.4f  (val MAE=%.4f kWh)", name, w, maes[name]
+            )
 
         return self
 
@@ -190,14 +355,59 @@ class WeightedAverageEnsemble(BaseForecaster):
     @property
     def weights_df(self) -> pd.DataFrame:
         """Return weights as a tidy DataFrame, sorted descending."""
-        return pd.DataFrame(
-            {"model": list(self.weights_.keys()), "weight": list(self.weights_.values())}
-        ).sort_values("weight", ascending=False).reset_index(drop=True)
+        return (
+            pd.DataFrame(
+                {
+                    "model": list(self.weights_.keys()),
+                    "weight": list(self.weights_.values()),
+                }
+            )
+            .sort_values("weight", ascending=False)
+            .reset_index(drop=True)
+        )
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+
+def _clone_forecaster(model: BaseForecaster) -> BaseForecaster | None:
+    """Return an unfitted clone of a fitted ``SklearnForecaster``.
+
+    Uses ``sklearn.base.clone`` to create a fresh, unfitted copy of the
+    underlying estimator.  Returns ``None`` for model types that cannot be
+    cloned this way (e.g. DL models, TFT).
+
+    Parameters
+    ----------
+    model:
+        A fitted ``BaseForecaster`` instance.
+
+    Returns
+    -------
+    BaseForecaster | None
+        An unfitted clone, or ``None`` if cloning is not supported.
+    """
+    if not hasattr(model, "estimator"):
+        return None
+    try:
+        from sklearn.base import clone
+        from .sklearn_models import SklearnForecaster  # local import avoids cycles
+
+        cloned_estimator = clone(model.estimator)
+        return SklearnForecaster(cloned_estimator, name=model.name)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug(
+            "Could not clone model '%s': %s", getattr(model, "name", "?"), exc
+        )
+        return None
 
 
 def _build_lgbm_meta(ens_cfg: dict, seed: int) -> Any:
     try:
         import lightgbm as lgb
+
         return lgb.LGBMRegressor(
             n_estimators=100,
             learning_rate=0.05,

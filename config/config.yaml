@@ -176,6 +176,12 @@ training:
   ensemble:
     meta_learner: ridge    # "ridge" | "lightgbm"
     ridge_alpha: 1.0
+    # Out-of-fold stacking folds (0 = legacy fixed-validation approach).
+    # When > 0, TimeSeriesSplit with this many folds is used to generate OOF
+    # meta-features from X_train/y_train.  Only sklearn-compatible base models
+    # (Ridge, Lasso, RF, LightGBM, XGBoost) support OOF cloning; DL models
+    # are automatically excluded if present.
+    oof_folds: 5
 
 # ── Evaluation metrics ────────────────────────────────────────────────────────
 evaluation:
