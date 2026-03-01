@@ -61,7 +61,13 @@ class TFTForecaster(BaseForecaster):
         it builds its own TimeSeriesDataSet internally.
         """
         try:
-            import pytorch_lightning as pl
+            # pytorch-forecasting 1.3+ uses lightning.pytorch internally.
+            # Using pytorch_lightning (the legacy wrapper) causes an isinstance
+            # check failure in Trainer.fit() even though both expose LightningModule
+            # by the same name — they are different class objects.
+            # Using lightning.pytorch directly ensures the same LightningModule
+            # that TemporalFusionTransformer inherits from is the one Trainer checks.
+            import lightning.pytorch as pl
             import torch
             from pytorch_forecasting import TemporalFusionTransformer, TimeSeriesDataSet
             from pytorch_forecasting.data import GroupNormalizer
@@ -69,7 +75,7 @@ class TFTForecaster(BaseForecaster):
         except ImportError as e:
             raise ImportError(
                 "PyTorch Forecasting is required for TFT.\n"
-                "Install: pip install pytorch-forecasting pytorch-lightning"
+                "Install: pip install pytorch-forecasting lightning"
             ) from e
 
         tft_cfg  = self.cfg["training"]["tft"]
