@@ -1,16 +1,27 @@
-# From Three Notebooks to a Conference Paper
+# From Three Notebooks to a Conference Paper to a Production Package
 
-**Dan Alexandru Bujoreanu — NCI Dublin MSc AI 2025 → AICS 2025**
+**Dan Alexandru Bujoreanu — NCI Dublin MSc AI 2025 → AICS 2025 → V2 Production Package (2026)**
 
-This document tells the full story of this project: how a thesis born in Jupyter notebooks
-became a clean Python package, and how that package became a peer-reviewed conference paper
-at AICS 2025.
+This document tells the full story of this project in chronological order:
+
+| Phase | When | Output |
+|-------|------|--------|
+| 1. Original MSc thesis | Summer 2025 | 3 Jupyter notebooks, first results |
+| 2. TAI Dublin conference | June 2025 | Early ensemble results presented with Faithful Onwuegbuche |
+| 3. AICS 2025 conference paper | November–December 2025 | Peer-reviewed publication (Springer CCIS + DCU Press) |
+| 4. V2 production package | February–March 2026 | Clean Python package, refactored from notebooks post-publication |
+
+The notebooks came first. The paper was built from them. The production package is the
+post-publication engineering effort — refactoring the thesis code into something reproducible,
+extensible, and portfolio-ready.
 
 ---
 
-## The Starting Point: Three Jupyter Notebooks
+---
 
-The original MSc thesis code lived in three large Jupyter notebooks:
+## Phase 1: The Original Three Notebooks
+
+The MSc thesis code was written as three large Jupyter notebooks across the first half of 2025:
 
 | Notebook | Contents |
 |----------|----------|
@@ -24,7 +35,23 @@ data, logic, and output. The code worked. It could not easily be shared, reprodu
 
 ---
 
-## The Transformation: Notebooks → Python Package
+## Phase 2–3: The Conference Paper
+
+The notebooks were used to write the AICS 2025 paper, accepted in both the Springer CCIS
+Full Paper track and the DCU Press Student Paper track. The paper was presented at the 33rd
+Irish Conference on AI and Cognitive Science in December 2025.
+
+The paper's core finding emerged from the thesis results: despite the original goal of building
+a novel deep learning ensemble, the tree-based models (RF, XGBoost, LightGBM) outperformed
+all DL models on this tabular, high-autocorrelation dataset. This finding became the paper title:
+*"Forecasting Energy Demand in Buildings: The Case for Trees over Deep Nets."*
+
+An early version of the ensemble results was also presented at the TAI Dublin Conference
+(June 2025) with co-author Faithful Onwuegbuche.
+
+---
+
+## Phase 4: The Production Package — Notebooks → Python Package
 
 The V2 refactoring converted the notebooks into a clean, installable Python package following
 academic software engineering best practices from the MSc *Engineering and Evaluating AI Systems* module.
