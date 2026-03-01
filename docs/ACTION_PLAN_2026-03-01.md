@@ -116,6 +116,63 @@ Comparison of Tree Ensembles and Sequence Models"* — journal-level.
 
 ---
 
+## Production Deployment Architecture (Future Work)
+
+### The core design question
+A utility company, building manager, or demand response aggregator (e.g., Viotas) or data
+center operator doesn't run all models simultaneously. They need **inference tiering**:
+
+| Tier | Models | Latency | Use case |
+|------|--------|---------|----------|
+| Real-time (< 1ms) | LightGBM, RF | Sub-millisecond | Live dashboard, anomaly alert |
+| Near real-time (< 10ms) | XGBoost | Milliseconds | Hourly monitoring report |
+| Day-ahead batch (nightly) | LSTM, GRU, TFT | Minutes to hours (training); ms (inference) | H+24 demand forecast, DR bid |
+| Weekly/monthly retrain | All models | Hours | Concept drift correction |
+
+**Why this makes sense:**
+- RF/LightGBM inference on 35 features is ~0.1ms → can run every minute
+- TFT/LSTM *inference* is also fast (< 1ms); it's *training* that's slow
+- Therefore: **train heavy models less often, infer from them always**
+
+### Windowing / Online Learning (rolling retraining)
+
+Building energy patterns drift over time (new tenants, renovations, seasonal occupancy
+changes, new EV chargers). Static train/test splits don't capture this.
+
+**Proposed production retraining loop:**
+```
+every 30 days:
+    window = last 90 days of actual meter readings + weather
+    retrain RF, LightGBM on window (fast: ~2 min)
+    retrain LSTM, TFT on window (slow: scheduled overnight)
+    evaluate on held-out last 7 days within window (rolling walk-forward)
+    if MAE degrades > threshold → alert / trigger emergency retrain
+```
+
+**Key decisions for the paper/future work:**
+1. Window size: 30 days? 90 days? Full history (growing window) vs. fixed rolling window?
+2. Which models support incremental learning (LightGBM `init_model` for warm-start)?
+3. Walk-forward validation (expanding window) vs. rolling window back-test
+4. WeatherNext integration: replace oracle temperature with 4×daily forecast
+
+**Connection to SINTEF NSBI:**
+The Nordic Smart Building Initiative is the exact institutional use-case for a production
+system like this — 45-building Drammen fleet is already a real deployment candidate.
+
+### Inference API design (item #14 expanded)
+```
+POST /predict
+{
+  "building_id": "B001",
+  "horizon": 24,          # hours ahead
+  "model": "ensemble",    # "lgbm" | "rf" | "lstm" | "tft" | "ensemble"
+  "return_quantiles": true  # P10/P50/P90 if model supports it
+}
+→ { "predictions": [...24 values...], "p10": [...], "p90": [...] }
+```
+
+---
+
 ## Model Inventory — Target State
 
 | Model | Status | Notes |
@@ -133,6 +190,18 @@ Comparison of Tree Ensembles and Sequence Models"* — journal-level.
 | Stacking Ensemble (Ridge/LGBM meta) + OOF | ✅ Done | OOF validated March 1st 2026: MAE 1.744, RMSE 3.240, R² 0.9953 |
 | Weighted Avg Ensemble | ✅ Done | |
 | LightGBM quantile | 🔴 Planned | P10/P50/P90 |
+
+---
+
+## Session 11 Fixes (March 1st 2026 — evening)
+
+| Fix | Detail |
+|-----|--------|
+| `tensorflow-metal` installed | LSTM/GRU/CNN-LSTM were running on CPU — now Metal GPU active |
+| TFT hidden_size: 64→32 | Was 833K params (24h/run); now 242K params (~6-7h/run, matches thesis 163K) |
+| TFT logger: False→True | Epoch output was completely suppressed; now `_EpochLogger` writes one line/epoch |
+| H+24 confirmed as target | Current H+1 = fair tree/DL baseline; H+24 = paper's honest evaluation |
+| 35 features → all models | Confirmed from notebooks: trees (2D), DL (3D sequences), TFT (categorised) |
 
 ---
 
