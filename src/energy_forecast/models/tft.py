@@ -150,21 +150,33 @@ class TFTForecaster(BaseForecaster):
             sum(p.numel() for p in tft.parameters()),
         )
 
+        class _EpochLogger(pl.Callback):
+            """Write one clean log line per epoch via Python logging (not PL's own output)."""
+            def on_validation_epoch_end(self, trainer, pl_module):  # noqa: N802
+                ep      = trainer.current_epoch
+                metrics = {k: f"{v:.4f}" for k, v in trainer.callback_metrics.items()}
+                logger.info("TFT epoch %d | %s", ep, metrics)
+
         callbacks = [
             pl.callbacks.EarlyStopping(
                 monitor="val_loss",
                 patience=10,
                 mode="min",
+                verbose=True,  # prints "Metric val_loss improved..." to stdout
             ),
-            # LearningRateMonitor removed: requires a logger (logger=False above).
-            # LR reduction still occurs via ReduceLROnPlateau inside TFT's configure_optimizers.
+            # NOTE: LearningRateMonitor was removed — it requires logger != False.
+            # LR reduction still occurs via reduce_on_plateau_patience inside TFT's
+            # configure_optimizers (set via TemporalFusionTransformer.from_dataset()).
+            _EpochLogger(),
         ]
         trainer = pl.Trainer(
             max_epochs=tft_cfg["max_epochs"],
             gradient_clip_val=tft_cfg["gradient_clip_val"],
             callbacks=callbacks,
-            enable_progress_bar=False,  # True floods log files with \r updates; PyTorch Lightning uses \r like Keras
-            logger=False,
+            enable_progress_bar=False,  # avoids \r-per-batch flood in log files
+            logger=True,               # MUST be True: enables EarlyStopping verbose
+                                       # messages ("Metric val_loss improved ...").
+                                       # With logger=False those messages are suppressed.
         )
 
         logger.info("Training TFT (slow model — use --skip-slow during development) ...")
