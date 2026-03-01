@@ -207,17 +207,22 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
 
     results = []
     fitted_models: dict = {}
+    train_times: dict = {}   # {model_name: training_seconds}
 
     # ── Baselines ─────────────────────────────────────────────────────────────
     for model in [NaiveModel(), SeasonalNaiveModel(), MeanModel()]:
+        t0 = time.time()
         model.fit(X_train, y_train)
+        train_times[model.name] = round(time.time() - t0, 1)
         preds = model.predict(X_test)
         results.append(evaluate(y_test, preds, model.name))
         fitted_models[model.name] = model
 
     # ── Sklearn models ────────────────────────────────────────────────────────
     for name, model in build_sklearn_models(cfg).items():
+        t0 = time.time()
         model.fit(X_train, y_train, X_val, y_val)
+        train_times[model.name] = round(time.time() - t0, 1)
         preds = model.predict(X_test)
         results.append(evaluate(y_test, preds, model.name))
         fitted_models[model.name] = model
@@ -225,10 +230,10 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
     # ── Deep learning (optional, slow) ────────────────────────────────────────
     slow_models = cfg.get("slow_models", ["cnn_lstm", "tft"])
     if not skip_slow or "lstm" not in slow_models:
-        _train_dl_model("lstm", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models)
+        _train_dl_model("lstm", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models, train_times)
     if not skip_slow:
-        _train_dl_model("cnn_lstm", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models)
-        _train_dl_model("gru", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models)
+        _train_dl_model("cnn_lstm", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models, train_times)
+        _train_dl_model("gru", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models, train_times)
 
     # ── TFT (very slow) ───────────────────────────────────────────────────────
     # Condition simplifies to: run TFT when not skip_slow
@@ -236,7 +241,9 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
         try:
             from energy_forecast.models.tft import TFTForecaster
             tft = TFTForecaster(cfg)
+            t0 = time.time()
             tft.fit(X_train, y_train, X_val, y_val)
+            train_times["TFT"] = round(time.time() - t0, 1)
             preds = tft.predict(X_test)
 
             # TFT may return full-length preds (it uses training history as
@@ -271,7 +278,9 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
     if len(ensemble_base) >= 2:
         try:
             ensemble = StackingEnsemble(ensemble_base, cfg)
+            t0 = time.time()
             ensemble.fit(X_train, y_train, X_val, y_val)
+            train_times[ensemble.name] = round(time.time() - t0, 1)
             preds = ensemble.predict(X_test)
             results.append(evaluate(y_test, preds, ensemble.name))
         except Exception as exc:
@@ -279,6 +288,8 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
 
     # ── Save results ──────────────────────────────────────────────────────────
     comparison = compare_models(results)
+    # Attach training time (seconds) — join on Model name
+    comparison["train_time_s"] = comparison["Model"].map(train_times)
     comparison.to_csv(res_dir / "final_metrics.csv")
     logger.info("\n%s", comparison.to_string())
 
@@ -306,7 +317,7 @@ def _trim_dl_targets(y, lookback: int):
     return pd.concat(parts)
 
 
-def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted_models):
+def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted_models, train_times=None):
     """Helper to train a single DL architecture with error handling.
 
     DL models use a sliding-window approach (see build_sequences) and cannot
@@ -322,7 +333,10 @@ def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted
         return
     try:
         model = cls(cfg)
+        t0 = time.time()
         model.fit(X_tr, y_tr, X_v, y_v)
+        if train_times is not None:
+            train_times[model.name] = round(time.time() - t0, 1)
         preds = model.predict(X_te)
 
         # Align y_te: DL models cannot predict the first `lookback` steps per
