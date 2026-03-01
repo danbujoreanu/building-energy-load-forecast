@@ -162,7 +162,7 @@ class TFTForecaster(BaseForecaster):
             max_epochs=tft_cfg["max_epochs"],
             gradient_clip_val=tft_cfg["gradient_clip_val"],
             callbacks=callbacks,
-            enable_progress_bar=True,
+            enable_progress_bar=False,  # True floods log files with \r updates; PyTorch Lightning uses \r like Keras
             logger=False,
         )
 
