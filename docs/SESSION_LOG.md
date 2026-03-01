@@ -825,12 +825,72 @@ Expanded `_correlation_filter` docstring to explicitly answer AICS Reviewer 3 (S
 | ~~TFT pytorch-lightning 2.x incompatibility~~ | ✅ Fixed S7 | lightning.pytorch import |
 | ~~OOF stacking (fixed-val used instead)~~ | ✅ Fixed S8 | TimeSeriesSplit OOF, oof_folds: 5 |
 | ~~Feature correlation drop rule undocumented~~ | ✅ Fixed S8 | Docstring clarifies upper-triangle rule |
-| TFT not yet validated end-to-end on real data | 🔴 HIGH | Fix applied; needs overnight run |
+| TFT not yet validated end-to-end on real data | 🔴 HIGH | Fix applied; overnight run started S9 |
 | H+24 honest evaluation (separate experiment) | 🔴 HIGH | Set forecast_horizon: 24 in config |
 | Oslo dataset run (generalization proof) | 🟡 MEDIUM | Reviewer 2 explicitly requested |
 | Solar radiation feature (Phase 2) | 🟡 MEDIUM | SINTEF validated; already loaded in V2 |
 | Probabilistic forecasting (quantile regression) | 🔵 LOW | LightGBM quantile objective |
 | Per-building profiles not generated | 🔵 LOW | Run `generate_eda_charts.py --profiles` |
+
+---
+
+## Session 9 — 2026-03-01 (OOF Validation + TFT Overnight Run)
+
+### Objective
+Validate the OOF stacking implementation end-to-end and start the TFT overnight validation run.
+
+### Context
+Session continuation from Session 8. Pipeline PID 17892 (started in S8) was still running
+OOF fold 2/5 at context handoff. Session 9 picked it up and monitored through to completion.
+
+### OOF Stacking — Confirmed Results
+
+Run: `python scripts/run_pipeline.py --city drammen --skip-slow`
+Runtime: 28.0 minutes | Test samples: 240,481 | 44 buildings
+
+| Rank | Model | MAE (kWh) | RMSE | MAPE | R² |
+|------|-------|-----------|------|------|----|
+| 1 | Random Forest | **1.711** | 3.441 | 6.31% | 0.9947 |
+| 2 | Stacking Ensemble (Ridge meta, OOF) | **1.744** | **3.240** | 7.43% | **0.9953** |
+| 3 | LightGBM | 2.109 | 3.715 | 9.25% | 0.9938 |
+| 4 | XGBoost | 2.228 | 3.938 | 9.56% | 0.9931 |
+| 5 | Lasso | 3.064 | 5.322 | 13.95% | 0.9873 |
+| 6 | Ridge | 3.069 | 5.311 | 14.12% | 0.9874 |
+
+OOF coverage: **83.4%** (954,535 / 1,144,535 training rows) — correct; first fold has no history.
+
+**Key finding:** RF wins MAE (1.711 vs 1.744) but Stacking wins RMSE (3.240 vs 3.441)
+and R² (0.9953 vs 0.9947). Stacking reduces large-error outliers; RF is slightly better
+on average absolute error. Both are exceptional results.
+
+OOF fold timing (all 5 folds confirmed):
+- Fold 1: train=190,000 rows, val=191,104
+- Fold 2: train=381,104 rows, val=191,296
+- Fold 3: train=572,400 rows, val=191,023
+- Fold 4: train=763,423 rows, val=189,889
+- Fold 5: train=953,312 rows, val=191,223
+
+### Documentation Updated
+- `docs/ACTION_PLAN_2026-03-01.md` — Updated OOF status to validated + confirmed numbers
+- `outputs/results/final_metrics.csv` — Updated with OOF stacking results
+- `docs/SESSION_LOG.md` — This record
+
+### TFT Overnight Run
+After confirming OOF, started full pipeline for TFT validation:
+```bash
+python scripts/run_pipeline.py --city drammen \
+  2>&1 | tee outputs/logs/run_full_2026-03-01.log &
+```
+PID: see log. Estimated runtime: 6–8 hours (TFT is the bottleneck).
+Log: `outputs/logs/run_full_2026-03-01.log`
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `docs/ACTION_PLAN_2026-03-01.md` | OOF status → validated; results table updated |
+| `outputs/results/final_metrics.csv` | Final OOF stacking results saved |
+| `docs/SESSION_LOG.md` | This session record |
 
 ---
 
