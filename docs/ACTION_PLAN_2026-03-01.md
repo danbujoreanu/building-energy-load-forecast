@@ -77,6 +77,87 @@ Comparison of Tree Ensembles and Sequence Models"* — journal-level.
 
 ---
 
+## AI Studio Paradigm Parity Experiment Design (March 2026)
+
+This section documents the experiment design agreed with AI Studio in March 2026.
+It addresses the central critique from AICS R1 (76/100) and AI Studio:
+
+> *"Giving DL models engineered tabular features — including lag_1h — defeats their purpose.
+> The feature parity trap: trees are inherently better at tabular data, so DL will always
+> lose on their own ground. A fair comparison requires paradigm parity."*
+
+### The Two-Branch Architecture
+
+**Branch A — Tabular (Trees, causal H+24):**
+```
+Input features (all at t=0, no oracle future info):
+  • Lag features: lag_24h, lag_25h, lag_26h, lag_48h, lag_167h, lag_168h, lag_169h
+                  (all lags ≥ 24h — no oracle leakage)
+  • Rolling stats: anchored at t−24 (e.g. rolling_mean_24h uses data up to t−24)
+  • Cyclical time: hour_sin/cos, day_of_week_sin/cos, month_sin/cos, day_of_year_sin/cos
+  • Building ID: one-hot encoded (42 buildings)
+  • Known future covariates: observed temperature t+1..t+24 (oracle proxy for NWP;
+                              in production: WeatherNext or MET Nordic NWP forecast)
+
+Models: RF, LightGBM, XGBoost, Stacking (OOF, Ridge meta)
+Output: 24 separate regression heads (multi-output; one per horizon step)
+```
+
+**Branch B — Sequential (DL / TFT, raw look-back):**
+```
+Encoder input: raw 72-hour look-back sequences per building
+  • [load_kWh, temperature_C, solar_Wm2, wind_ms] — shape: (72, 4)
+  • NO engineered lag features; NO rolling statistics; NO time-of-day features
+  • Architecture advantage: LSTM/GRU/TFT learn temporal patterns from raw sequences
+
+Known future inputs (decoder side for TFT, concatenated for LSTM/GRU):
+  • weather forecast for t+1..t+24: [temperature_C, solar_Wm2]
+  • TFT: passed as time_varying_known_reals
+  • LSTM/GRU: concatenated to hidden state at each decoder step
+
+Models: LSTM, GRU, CNN-LSTM, TFT, PatchTST (planned)
+Output: 24-step multi-horizon (direct), shape: (n_samples, 24)
+        TFT + LightGBM quantile: P10/P50/P90 per horizon step
+```
+
+### Sequencing
+
+| Week | Task | Track |
+|------|------|-------|
+| Week 1 | Simple H+24 run (config change only, same 35 features minus oracle lags) | A |
+| Week 2 | Branch A implementation (≥24h lags + known future weather) | B |
+| Week 3 | Branch B raw sequence loader + DL multi-horizon head | B |
+| Week 4 | TFT known-future weather inputs + quantile loss | B |
+| Week 4-5 | PatchTST (architectural diversity) | B |
+| Week 5-6 | Probabilistic metrics, combined paper write-up | B |
+
+### Code Change Estimate
+
+~150-170 new lines across 3 files:
+
+| File | Change | Lines |
+|------|--------|-------|
+| `features/temporal.py` | Branch-aware feature builder: `paradigm=tabular` vs `paradigm=sequence` flag | ~40 |
+| `models/dl_base.py` or new `dl_sequence.py` | Raw sequence DataLoader (72×4 tensors); multi-output head (output=24) | ~80 |
+| `config/config.yaml` | Paradigm parity flags: `paradigm_parity: true`, `sequence_features: [load, temp, solar, wind]` | ~20 |
+| `run_pipeline.py` | Branch routing: pass correct feature set per model family | ~30 |
+
+> **Note:** The `forecast_horizon` guard already exists in `temporal.py`
+> (`lag_windows = [w for w in all_lag_windows if w >= horizon]`). The paradigm parity
+> branch builds on this — it's not a rewrite, it's an extension.
+
+### Why This Is the Journal Paper
+
+- Eliminates the feature parity trap from the AICS paper
+- Each model family receives its natural input: trees → engineered tabular; DL → raw sequences
+- Enables the first honest test: can TFT's attention mechanism beat RF's feature mastery when both are on home turf?
+- Probabilistic outputs (P10/P50/P90) add direct decision-support value for utility operators
+- Connects to production deployment: H+24 probabilistic forecast = demand response bid input
+
+---
+
+---
+
 ## Priority List
 
 ### 🔴 Immediate — Run now (no coding needed)
@@ -202,6 +283,36 @@ POST /predict
 | TFT logger: False→True | Epoch output was completely suppressed; now `_EpochLogger` writes one line/epoch |
 | H+24 confirmed as target | Current H+1 = fair tree/DL baseline; H+24 = paper's honest evaluation |
 | 35 features → all models | Confirmed from notebooks: trees (2D), DL (3D sequences), TFT (categorised) |
+
+### Why TFT Training Is Quiet (num_workers=0 bottleneck)
+
+**The machine sounds different during TFT vs Random Forest — here's why:**
+
+| Model | CPU usage | GPU usage | Machine sound |
+|-------|-----------|-----------|---------------|
+| Random Forest | 12 cores × 100% (`n_jobs=-1`) | N/A | Very loud (fan maxed) |
+| TFT (current) | 1 core × 96% (DataLoader bottleneck) | MPS: 30-50% (waiting for data) | Quiet |
+
+**Root cause:** `num_workers=0` in the PyTorch DataLoader means the data loading is
+*synchronous* — the CPU must finish loading each batch before the GPU can compute the next.
+PyTorch Lightning even warns about this explicitly in the log:
+
+```
+The 'train_dataloader' does not have many workers which may be a bottleneck.
+Consider increasing num_workers to 11.
+```
+
+The GPU is confirmed active (`GPU available: True (mps), used: True` in log), but it's
+spending ~50-70% of its time idle, waiting for the CPU to serve the next batch.
+
+**RF sounds loud because:** `n_jobs=-1` saturates all 12 CPU cores simultaneously —
+the CPU is the compute unit, and it's maxed. All 12 fans spin up.
+
+**TFT is quiet because:** Only 1 CPU core is active (the DataLoader thread), and
+the GPU is underutilised. The bottleneck is I/O, not compute.
+
+**Planned fix:** `num_workers=4` in TFT and DL DataLoaders (will not be applied while
+TFT is currently running — would require a restart).
 
 ---
 

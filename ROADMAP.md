@@ -98,11 +98,88 @@ The single most impactful research improvement identified by AI Studio and AICS 
 H+1 with lag_1h is "easy mode" — lag_1h alone achieves persistence-level accuracy (r=0.977).
 H+24 removes all lags < 24h, forcing models to rely on genuine temporal patterns.
 
+#### 2B.1 — Simple H+24 run (Track A — conference/short paper, 1 week effort)
+
+A fair, apples-to-apples comparison: same 35 features as H+1, minus lags < 24h.
+The `forecast_horizon` guard in `temporal.py` already handles this automatically.
+
 | Item | Detail | Effort |
 |------|--------|--------|
-| 🔴 H+24 full pipeline run | Set `forecast_horizon: 24` + `sequence.horizon: 24` in config — pipeline auto-drops lags/rolling < 24h | Low (config change only) |
-| 🔴 H+24 model comparison | Same 9 models evaluated day-ahead — expected: trees vs DL gap narrows | Low |
-| 🔴 Paper: H+24 honest results | Publishable as journal extension (addresses R1 and R2 AICS reviewer critique) | Medium |
+| 🔴 Config change only | Set `forecast_horizon: 24` + `sequence.horizon: 24` | < 1 min |
+| 🔴 Re-run `--skip-slow` | Trees + GRU + LSTM + Stacking evaluated H+24 | ~30 min |
+| 🔴 Paper update | Addresses AICS R1 ("H+1 is trivial") and AI Studio critique | Low |
+
+> **Expected outcome:** Tree models still dominate (access to 24h, 48h, 168h lags), but the
+> DL vs tree gap will narrow because `lag_1h` oracle is gone. First honest test of whether
+> LSTM/GRU add value beyond tree-based methods.
+
+#### 2B.2 — Paradigm-Parity H+24 (Track B — journal paper, 2-3 week effort)
+
+**Designed in collaboration with AI Studio (March 2026).** The key insight: giving DL models
+the same engineered tabular features as trees creates a *feature parity trap* — trees are
+inherently better at tabular data, so DL will always lose on their own ground.
+
+A proper comparison requires **paradigm parity**: each model family receives its natural input.
+
+**Branch A — Tabular (Trees):**
+- Input: engineered features, lags ≥ 24h only (`lag_24h`, `lag_25h`, `lag_26h`, `lag_48h`, `lag_167h`, `lag_168h`, `lag_169h`)
+- Rolling statistics anchored at t−24h (not t−0)
+- Known future covariates: weather forecast for next 24h (in production: NWP; in experiment: observed temperature used as oracle proxy with disclosure)
+- Output: 24 separate regression outputs, one per horizon step
+- Benefit: fully exploits feature engineering mastery; trees shine here
+
+**Branch B — Sequential (DL / TFT):**
+- Input: raw 72-hour look-back sequences [load, temperature, solar, wind] — NO engineered lags, NO rolling stats
+- Known future inputs: weather forecast for the next 24h (temperature, solar — TFT `time_varying_known_reals`)
+- Architecture: LSTM/GRU encode 72h history; TFT uses variable-selection + attention on raw sequences
+- Output: 24-step multi-horizon prediction (direct or iterative)
+- Benefit: DL gets to leverage sequence modelling strength; architecture advantage can emerge
+
+**Why this is the publishable journal result:**
+- Eliminates the feature parity trap from the AICS paper
+- PatchTST / TFT on raw sequences vs RF/LightGBM on engineered features — architecturally fair
+- Enables probabilistic output: TFT → P10/P50/P90 per horizon step
+
+| Item | Detail | Effort |
+|------|--------|--------|
+| 🔴 Branch A: H+24 tabular pipeline | Remove oracle lags, add weather forecast inputs for trees | ~1 day |
+| 🔴 Branch B: raw sequence loader | New DataLoader that outputs (72, 4) tensors — no feature engineering | ~2 days |
+| 🔴 DL multi-horizon output head | Change output from 1 to 24 units (LSTM/GRU/CNN-LSTM) | ~1 day |
+| 🔴 TFT known-future weather inputs | Configure `time_varying_known_reals` = [temperature, solar] for 24h window | ~1 day |
+| 🟡 PatchTST implementation | Add PatchTST to Branch B — benchmarks exceed Informer | 2-3 days |
+| 🟡 Probabilistic metrics (TFT + LightGBM) | P10/P50/P90 + coverage + sharpness metrics | 1 day |
+
+> **Code change estimate (AI Studio assessment):** ~150-170 new lines across 3 files:
+> `temporal.py` (branch-aware feature builder), `dl_models.py` (raw sequence loader +
+> multi-output head), `config.yaml` (paradigm parity flags). The forecast_horizon guard
+> already exists — this builds on it.
+
+### 2B.3 — Production Deployment Architecture (Track A + B prerequisite)
+
+H+24 is the real deployment scenario: utility companies and data centre operators need
+**day-ahead forecasts** to manage grid contracts, demand response bids, and peak shaving.
+
+**Inference tiering for production:**
+
+| Tier | Models | Latency | Use case |
+|------|--------|---------|----------|
+| Real-time (< 1ms) | LightGBM, RF | Sub-millisecond | Live dashboard, anomaly alert |
+| Near real-time (< 10ms) | XGBoost | Milliseconds | Hourly monitoring report |
+| Day-ahead batch (nightly) | LSTM, GRU, TFT | Train: hours; Infer: ms | H+24 demand forecast, DR bid |
+| Weekly / monthly retrain | All models | Hours | Concept drift correction |
+
+**Rolling window retraining (concept drift):**
+Building energy patterns drift over time (new tenants, renovations, EV chargers).
+Proposed production loop: retrain RF/LightGBM on last 90 days every 30 days;
+retrain LSTM/TFT overnight on schedule; alert if rolling MAE degrades > threshold.
+
+| Item | Detail | Effort |
+|------|--------|--------|
+| 🔵 Rolling window back-test | Walk-forward expanding window evaluation | Medium |
+| 🔵 FastAPI inference endpoint | `POST /predict` with building_id, horizon, model, return_quantiles | High |
+| 🔵 Docker deployment | Containerised service + periodic retraining scheduler | High |
+
+---
 
 ### 2C — Probabilistic Forecasting (Q3, Q4, Q5) 🔴
 
@@ -194,10 +271,14 @@ DOI: [10.60609/2hvr-wc82](https://data.sintef.no/product/dp-679b0640-834e-46bd-b
 | Bug | Status | Notes |
 |-----|--------|-------|
 | Cyclical encoding (23/6 vs 24/7) | ✅ Fixed | Original notebooks had wrong period — no impact on results as lag features dominated |
-| Fixed validation for Stacking | 🔄 In progress | OOF stacking being implemented this session |
+| Fixed validation for Stacking | ✅ Fixed | OOF stacking with TimeSeriesSplit (5 folds) validated March 1st 2026 — MAE 1.744, RMSE 3.240, R² 0.9953 |
 | GRU results not in thesis Table 5 | ✅ Fixed | GRU evaluated in V2 pipeline: MAE 3.947 kWh, R² 0.981 |
 | WeightedAverageEnsemble missing | ✅ Fixed | Implemented in `models/ensemble.py` |
-| TFT pytorch-lightning import | ✅ Fixed | Changed `pytorch_lightning` → `lightning.pytorch` for 2.x compatibility; needs validation run |
+| TFT pytorch-lightning import | ✅ Fixed | Changed `pytorch_lightning` → `lightning.pytorch` for 2.x compatibility |
+| TFT logger=False silenced all epoch output | ✅ Fixed | `logger=False` suppressed both EarlyStopping verbose + epoch logs; fixed to `logger=True` + `_EpochLogger` callback |
+| TFT hidden_size=64 (833K params, ~24h/run) | ✅ Fixed | Corrected to `hidden_size=32` (thesis value, 242K params, ~6-7h/run) |
+| tensorflow-metal missing → LSTM/GRU/CNN-LSTM on CPU | ✅ Fixed | Installed `tensorflow-metal 1.2.0`; GPU now visible to TF on Apple Silicon |
+| TFT num_workers=0 → GPU underutilised | 🟡 Known | PyTorch DataLoader bottleneck: 1 CPU core loads batches synchronously while GPU waits. Machine appears quiet (vs RF which uses 12 cores at 100%). Fix: `num_workers=4` in TFT + DL DataLoaders. Not yet applied (TFT currently running). |
 
 ---
 
@@ -234,10 +315,45 @@ See `docs/AI_STUDIO_FEEDBACK.md` for full detail.
 | Source | Key Finding | Priority |
 |--------|------------|---------|
 | AI Studio | lag_1h is the true performance driver; H+1 = "easy mode"; H+24 is the honest evaluation | 🔴 HIGH |
-| AICS R1 (Full Paper) | DL given engineered features creates feature parity trap; DL should get raw sequences | 🔴 HIGH |
-| AICS R2 (Full Paper) | Single dataset limits generalisability; add Oslo for transfer learning | 🟡 MEDIUM |
-| AICS R3 (Student Paper) | Correlation drop rule unclear; bullet-point writing | ✅ Fixed |
+| AI Studio | Feature parity ≠ paradigm parity — DL needs raw sequences, trees need engineered features | 🔴 HIGH |
+| AI Studio | H+24 paradigm parity: Branch A (trees, ≥24h lags) vs Branch B (DL, raw 72h sequences + known future weather) | 🔴 HIGH |
+| AICS R1 (Full Paper, 76/100) | DL given engineered features creates feature parity trap; DL should get raw sequences | 🔴 HIGH |
+| AICS R2 (Full Paper, 64/100) | Single dataset limits generalisability; add Oslo for transfer learning | 🟡 MEDIUM |
+| AICS R3 (Full Paper, 85/100) | Very clear presentation | ✅ Confirmed |
+| AICS R4 (Full Paper, 78/100) | Figure 3 not needed | ✅ Fixed |
+| AICS Student R2 (19/100) | Limited novelty, bullet-based writing | Accepted trade-off at conference level |
+| AICS Student R3 (87/100) | Aligns with trees-over-DL literature | Confirms positioning |
 | SINTEF Expert | Tree models validated; solar radiation is a valid Phase 2 feature | 🟡 MEDIUM |
+
+### AI Studio Paradigm Parity Experiment (March 2026)
+
+The detailed experiment design agreed with AI Studio for the journal paper (Track B):
+
+**Branch A — Trees (tabular, causal H+24):**
+```
+Features: lag_24h, lag_25h, lag_26h, lag_48h, lag_167h, lag_168h, lag_169h
+          rolling_mean_24h (anchored at t-24), rolling_mean_168h (anchored at t-168)
+          cyclical time features, building_id (one-hot)
+          known future: observed temperature t+1..t+24 (oracle proxy for NWP)
+Models:   RF, LightGBM, XGBoost, Stacking (OOF)
+Output:   24 separate point predictions (multi-output regressor)
+```
+
+**Branch B — Deep Learning / TFT (sequential, raw input):**
+```
+Encoder input: raw 72h look-back sequences → [load_kWh, temp_C, solar_Wm2, wind_ms]
+               NO engineered lag features; NO rolling statistics
+Known future:  weather forecast for t+1..t+24 → [temp_C, solar_Wm2] (TFT known_reals)
+Models:        LSTM, GRU, TFT, PatchTST (planned)
+Output:        24-step multi-horizon prediction (direct)
+               TFT + LightGBM: P10/P50/P90 probabilistic intervals
+```
+
+**Why this is the publishable journal result:**
+- Eliminates the feature parity trap criticised by AICS R1 and AI Studio
+- Each model family gets its natural input representation
+- Enables a fair architectural comparison: can TFT's attention mechanism beat RF's feature engineering when both are on home turf?
+- Probabilistic output (P10/P50/P90) adds direct decision-support value for utility operators
 
 ---
 
@@ -253,5 +369,5 @@ See `docs/AI_STUDIO_FEEDBACK.md` for full detail.
 
 ---
 
-*Last updated: 2026-03-01*
+*Last updated: 2026-03-01 (Session 11 — AI Studio paradigm parity experiment design added)*
 *Maintained by: Dan Alexandru Bujoreanu — dan.bujoreanu@gmail.com*
