@@ -731,6 +731,82 @@ Full details recorded in: **`docs/AI_STUDIO_FEEDBACK.md`** (created this session
 
 ---
 
+## Session 8 — 2026-03-01 (Documentation, OOF Stacking, AICS Writeup)
+
+### Objective
+Full documentation + code improvement sprint based on AICS 2025 acceptance and AI Studio feedback.
+Implement OOF stacking, update all project documents, create PAPER_JOURNEY.md GitHub writeup.
+
+### Context
+Continuing from Session 7. CLAUDE.md was already rewritten to correct stale config values.
+All external feedback had been recorded in `docs/AI_STUDIO_FEEDBACK.md`.
+Primary task list at session start: ROADMAP.md, README, PAPER_JOURNEY.md, OOF stacking, selection.py docs.
+
+### What Was Done
+
+#### ROADMAP.md — Complete rewrite
+- Added Phase 1 publication table (MSc thesis + AICS 2025 Full Paper + Student Paper)
+- Updated Phase 1 models table with V2 results alongside thesis results
+- Marked GRU as evaluated (V2: MAE 3.947 kWh, R² 0.981)
+- Marked SHAP explainability as ✅ complete
+- Marked WeightedAverageEnsemble as ✅ complete
+- Added Phase 2B: H+24 day-ahead evaluation as 🔴 HIGH priority
+- Added OOF stacking as 🔄 in progress
+- Added external feedback summary table (AI Studio, AICS reviewers, SINTEF)
+- Updated Known Bugs: GRU ✅, WeightedAvg ✅, OOF stacking 🔄, TFT ✅ fix applied
+- Updated last-updated date
+
+#### README.md — AICS 2025 section + dual BibTeX
+- Added "Conference Paper — AICS 2025" section at the top
+- Explains dual-track acceptance (Springer CCIS + DCU Press)
+- Links to PAPER_JOURNEY.md
+- Added conference paper BibTeX entry in Citation section (alongside thesis BibTeX)
+
+#### docs/PAPER_JOURNEY.md — New file
+GitHub writeup covering the full journey from 3 notebooks to conference paper:
+- Original notebook structure and limitations
+- Transformation to Three-Tier + Pipe-and-Filter architecture
+- Bugs fixed during refactoring (cyclical encoding, DL evaluation alignment)
+- Root causes of V2 improvement (DST lags, min/max rolling, interaction features)
+- AICS 2025 paper argument + reviewer feedback + what it means for next steps
+- Thesis vs V2 methodology comparison table
+- Weather oracle limitation disclosure
+
+#### OOF stacking — models/ensemble.py
+Replaced fixed-validation meta-learning with time-aware Out-of-Fold stacking:
+- New `_oof_meta_features()` method on `StackingEnsemble`
+- Uses `sklearn.model_selection.TimeSeriesSplit` on unique timestamps
+- Splits by timestamp (not row index) so all buildings at a given hour stay in the same fold
+- Clones each sklearn-compatible base model via new `_clone_forecaster()` helper
+- Fits clone on fold-train, predicts fold-val → populates global OOF array
+- Only rows covered by all model OOF predictions are used to train meta-learner
+- DL models (no `.estimator` attribute) are automatically skipped with a warning
+- Fully backward-compatible: `oof_folds: 0` in config → legacy fixed-val behaviour
+
+New config parameter: `training.ensemble.oof_folds: 5` (added to config.yaml).
+New helper: `_clone_forecaster(model)` — returns `SklearnForecaster` clone or `None`.
+Updated module docstring: explains both strategies with their trade-offs.
+
+#### selection.py — Correlation filter tie-breaking rule documented
+Expanded `_correlation_filter` docstring to explicitly answer AICS Reviewer 3 (Student Paper):
+- "Upper-triangle scan: for pair (A, B), column B (the later column) is always dropped"
+- Rule is deterministic, depends on feature column order from `temporal.py`
+- Tends to retain raw/earlier-engineered features over derived variants
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `ROADMAP.md` | Complete rewrite — V2 results, AICS, phase priorities |
+| `README.md` | Added AICS 2025 section + conference BibTeX |
+| `docs/PAPER_JOURNEY.md` | **New file** — notebooks→paper GitHub writeup |
+| `src/energy_forecast/models/ensemble.py` | OOF stacking implementation |
+| `src/energy_forecast/features/selection.py` | Correlation tie-breaking documented |
+| `config/config.yaml` | Added `oof_folds: 5` under `training.ensemble` |
+| `docs/SESSION_LOG.md` | This session record |
+
+---
+
 ## Pending Technical Debt
 
 | Issue | Priority | Notes |
@@ -747,14 +823,14 @@ Full details recorded in: **`docs/AI_STUDIO_FEEDBACK.md`** (created this session
 | ~~DL models not run (length mismatch bug)~~ | ✅ Fixed S7 | _trim_dl_targets(), all 3 DL done |
 | ~~TFT predict() used val_loader~~ | ✅ Fixed S7 | Rebuilt with continuing time_idx |
 | ~~TFT pytorch-lightning 2.x incompatibility~~ | ✅ Fixed S7 | lightning.pytorch import |
-| TFT not yet validated end-to-end on real data | 🟡 HIGH | Fix applied; needs overnight run |
-| H+24 honest evaluation (separate experiment) | 🟡 MEDIUM | Set forecast_horizon: 24 in config |
-| OOF stacking (fixed-val used instead) | 🟡 MEDIUM | ROADMAP improvement; k-fold cross-val |
+| ~~OOF stacking (fixed-val used instead)~~ | ✅ Fixed S8 | TimeSeriesSplit OOF, oof_folds: 5 |
+| ~~Feature correlation drop rule undocumented~~ | ✅ Fixed S8 | Docstring clarifies upper-triangle rule |
+| TFT not yet validated end-to-end on real data | 🔴 HIGH | Fix applied; needs overnight run |
+| H+24 honest evaluation (separate experiment) | 🔴 HIGH | Set forecast_horizon: 24 in config |
 | Oslo dataset run (generalization proof) | 🟡 MEDIUM | Reviewer 2 explicitly requested |
-| Solar radiation feature (Phase 2) | 🔵 LOW | SINTEF validated; already loaded in V2 |
+| Solar radiation feature (Phase 2) | 🟡 MEDIUM | SINTEF validated; already loaded in V2 |
 | Probabilistic forecasting (quantile regression) | 🔵 LOW | LightGBM quantile objective |
 | Per-building profiles not generated | 🔵 LOW | Run `generate_eda_charts.py --profiles` |
-| Feature correlation drop rule undocumented | 🔵 LOW | Reviewer 3 (Student): "which of pair dropped?" |
 
 ---
 
