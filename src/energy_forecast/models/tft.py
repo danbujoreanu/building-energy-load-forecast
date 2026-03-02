@@ -129,12 +129,14 @@ class TFTForecaster(BaseForecaster):
         )
 
         train_loader = training_dataset.to_dataloader(
-            train=True, batch_size=tft_cfg["batch_size"], num_workers=4,
-            persistent_workers=True,  # keep workers alive between epochs
+            train=True, batch_size=tft_cfg["batch_size"],
+            num_workers=0,   # macOS "spawn" multiprocessing adds IPC overhead that
+                             # hurts in-memory datasets — synchronous is faster here.
+                             # Linux/CUDA users can safely raise this to 4+.
         )
         val_loader = val_dataset.to_dataloader(
-            train=False, batch_size=tft_cfg["batch_size"] * 2, num_workers=4,
-            persistent_workers=True,
+            train=False, batch_size=tft_cfg["batch_size"] * 2,
+            num_workers=0,
         )
 
         # Store for test-time prediction (predict() must continue time_idx)
@@ -161,12 +163,45 @@ class TFTForecaster(BaseForecaster):
             sum(p.numel() for p in tft.parameters()),
         )
 
+        class _BatchProgressLogger(pl.Callback):
+            """Heartbeat every N batches — prevents radio silence during long epochs.
+
+            With enable_progress_bar=False the log is completely silent between
+            epoch-end callbacks.  A single epoch can take 20-45 min, giving the
+            operator no signal that the GPU is making progress.  This callback
+            writes a line every `log_every_n_batches` batches with:
+              - epoch / batch counters and % complete
+              - live training loss
+            so the operator can confirm forward progress and estimate time remaining.
+            """
+            def __init__(self, log_every_n_batches: int = 50):
+                self.n = log_every_n_batches
+
+            def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+                if (batch_idx + 1) % self.n != 0:
+                    return
+                total = trainer.num_training_batches
+                pct   = 100.0 * (batch_idx + 1) / total if total else 0.0
+                loss  = (
+                    outputs["loss"].item()
+                    if isinstance(outputs, dict) and "loss" in outputs
+                    else float("nan")
+                )
+                logger.info(
+                    "TFT | epoch %d | batch %d/%d (%.0f%%) | train_loss %.4f",
+                    trainer.current_epoch + 1,
+                    batch_idx + 1,
+                    total,
+                    pct,
+                    loss,
+                )
+
         class _EpochLogger(pl.Callback):
-            """Write one clean log line per epoch via Python logging (not PL's own output)."""
+            """Write one clean summary line at the end of each validation epoch."""
             def on_validation_epoch_end(self, trainer, pl_module):  # noqa: N802
                 ep      = trainer.current_epoch
                 metrics = {k: f"{v:.4f}" for k, v in trainer.callback_metrics.items()}
-                logger.info("TFT epoch %d | %s", ep, metrics)
+                logger.info("TFT epoch %d complete | %s", ep, metrics)
 
         callbacks = [
             pl.callbacks.EarlyStopping(
@@ -178,6 +213,7 @@ class TFTForecaster(BaseForecaster):
             # NOTE: LearningRateMonitor was removed — it requires logger != False.
             # LR reduction still occurs via reduce_on_plateau_patience inside TFT's
             # configure_optimizers (set via TemporalFusionTransformer.from_dataset()).
+            _BatchProgressLogger(log_every_n_batches=50),  # heartbeat every 50 batches
             _EpochLogger(),
         ]
         trainer = pl.Trainer(
@@ -247,8 +283,7 @@ class TFTForecaster(BaseForecaster):
         test_loader = test_dataset.to_dataloader(
             train=False,
             batch_size=self._tft_cfg_["batch_size"] * 2,
-            num_workers=4,
-            persistent_workers=True,
+            num_workers=0,
         )
 
         raw_preds = self.trainer_.predict(self.model_, test_loader)

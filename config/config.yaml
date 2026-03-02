@@ -173,7 +173,10 @@ training:
     learning_rate: 0.001
     max_epochs: 20               # Notebook stopped at epoch 9 (patience=10); 20 is safe cap
     gradient_clip_val: 0.1
-    batch_size: 128
+    batch_size: 512              # Increased from 128: 1.14M rows / 512 = 2,235 batches/epoch
+                                 # vs 8,941 batches at 128 (4× fewer batches, 4× faster epochs).
+                                 # Thesis used 128 but that gave 2.6h/epoch on this dataset.
+                                 # 512 is standard for MPS/GPU runs with large datasets.
 
   # -- Ensemble (stacking) --
   ensemble:
