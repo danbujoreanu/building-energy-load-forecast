@@ -28,11 +28,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
+import datetime
 from energy_forecast.utils import load_config, setup_logging, set_global_seed
 
 log_dir = ROOT / "outputs" / "logs"
 log_dir.mkdir(parents=True, exist_ok=True)
-setup_logging(log_file=log_dir / "run_tft_only.log")
+_today = datetime.date.today().isoformat()
+# Date-stamped log: run_tft_only_2026-03-02.log etc.
+# NOTE: Do NOT also redirect stdout to this file at the shell — setup_logging
+# already adds a FileHandler. Double-redirecting duplicates every log line.
+setup_logging(log_file=log_dir / f"run_tft_only_{_today}.log")
 logger = logging.getLogger(__name__)
 
 
