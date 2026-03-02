@@ -88,6 +88,11 @@ class TFTForecaster(BaseForecaster):
         df_val   = self._prepare_df(X_val, y_val, "val") if X_val is not None else df_train.iloc[:0]
 
         df_full = pd.concat([df_train, df_val]).reset_index(drop=True)
+        # Sort by building + time before assigning time_idx.
+        # pd.concat preserves the within-split order but does NOT globally sort,
+        # so cumcount() without sorting produces scrambled time indices which
+        # causes TimeSeriesDataSet to fail validation.
+        df_full = df_full.sort_values(by=["building_id", "timestamp"]).reset_index(drop=True)
         df_full["time_idx"] = df_full.groupby("building_id").cumcount()
 
         target_col = self.cfg["data"]["target_column"]
@@ -107,7 +112,11 @@ class TFTForecaster(BaseForecaster):
             max_prediction_length=seq_cfg["horizon"],
             time_varying_known_reals=time_varying_known,
             time_varying_unknown_reals=[target_col],
-            target_normalizer=GroupNormalizer(groups=["building_id"]),
+            target_normalizer=GroupNormalizer(
+                groups=["building_id"],
+                transformation="softplus",  # Thesis value: prevents NaN gradients when
+                center=True,                # target values are near zero (StandardScaler
+            ),                              # default causes loss errors on low-load periods)
             add_relative_time_idx=True,
             add_target_scales=True,
         )
@@ -120,10 +129,12 @@ class TFTForecaster(BaseForecaster):
         )
 
         train_loader = training_dataset.to_dataloader(
-            train=True, batch_size=tft_cfg["batch_size"], num_workers=0
+            train=True, batch_size=tft_cfg["batch_size"], num_workers=4,
+            persistent_workers=True,  # keep workers alive between epochs
         )
         val_loader = val_dataset.to_dataloader(
-            train=False, batch_size=tft_cfg["batch_size"] * 2, num_workers=0
+            train=False, batch_size=tft_cfg["batch_size"] * 2, num_workers=4,
+            persistent_workers=True,
         )
 
         # Store for test-time prediction (predict() must continue time_idx)
@@ -177,6 +188,10 @@ class TFTForecaster(BaseForecaster):
             logger=True,               # MUST be True: enables EarlyStopping verbose
                                        # messages ("Metric val_loss improved ...").
                                        # With logger=False those messages are suppressed.
+            accelerator="auto",        # explicitly request auto-detect: MPS on Apple
+            devices=1,                 # Silicon, CUDA on NVIDIA, CPU as fallback.
+                                       # Without this, PL sometimes silently falls back
+                                       # to CPU, making each epoch take hours.
         )
 
         logger.info("Training TFT (slow model — use --skip-slow during development) ...")
@@ -232,7 +247,8 @@ class TFTForecaster(BaseForecaster):
         test_loader = test_dataset.to_dataloader(
             train=False,
             batch_size=self._tft_cfg_["batch_size"] * 2,
-            num_workers=0,
+            num_workers=4,
+            persistent_workers=True,
         )
 
         raw_preds = self.trainer_.predict(self.model_, test_loader)

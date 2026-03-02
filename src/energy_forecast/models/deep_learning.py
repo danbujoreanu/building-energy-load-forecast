@@ -68,7 +68,10 @@ def build_sequences(
 
         for i in range(lookback, n - horizon + 1):
             X_seqs.append(X_b[i - lookback : i])
-            y_seqs.append(y_b[i])   # next-step target
+            if horizon == 1:
+                y_seqs.append(y_b[i])              # scalar — H+1 (current mode)
+            else:
+                y_seqs.append(y_b[i : i + horizon])  # vector — H+N multi-horizon
 
     return np.array(X_seqs, dtype=np.float32), np.array(y_seqs, dtype=np.float32)
 
@@ -106,7 +109,7 @@ class LSTMForecaster(BaseForecaster):
             tf.keras.layers.LSTM(dl_cfg["lstm"]["units"][1]),
             tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
             tf.keras.layers.Dense(dl_cfg["lstm"]["dense_units"], activation="relu"),
-            tf.keras.layers.Dense(1),
+            tf.keras.layers.Dense(seq_cfg["horizon"]),  # 1 for H+1; 24 for H+24
         ], name="LSTM")
         model.compile(optimizer="adam", loss="mse", metrics=["mae"])
 
@@ -178,7 +181,7 @@ class CNNLSTMForecaster(BaseForecaster):
             tf.keras.layers.LSTM(cnn_cfg["lstm_units"]),
             tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
             tf.keras.layers.Dense(cnn_cfg["dense_units"], activation="relu"),
-            tf.keras.layers.Dense(1),
+            tf.keras.layers.Dense(seq_cfg["horizon"]),  # 1 for H+1; 24 for H+24
         ], name="CNN_LSTM")
         model.compile(optimizer="adam", loss="mse", metrics=["mae"])
 
@@ -242,7 +245,7 @@ class GRUForecaster(BaseForecaster):
             tf.keras.layers.GRU(dl_cfg["gru"]["units"][1]),
             tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
             tf.keras.layers.Dense(dl_cfg["gru"]["dense_units"], activation="relu"),
-            tf.keras.layers.Dense(1),
+            tf.keras.layers.Dense(seq_cfg["horizon"]),  # 1 for H+1; 24 for H+24
         ], name="GRU")
         model.compile(optimizer="adam", loss="mse", metrics=["mae"])
 

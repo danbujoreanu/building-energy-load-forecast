@@ -220,7 +220,12 @@ class StackingEnsemble(BaseForecaster):
 
         # Timestamp level is always the last level of the MultiIndex.
         timestamps = X_train.index.get_level_values(-1).unique().sort_values()
-        tss = TimeSeriesSplit(n_splits=oof_folds)
+        # gap=168: drop 1 week of timestamps between each train/val boundary.
+        # Features like lag_168h and rolling_mean_168h are derived from the
+        # training window, so the first 168h of each val fold are correlated
+        # with the preceding training data. The gap prevents the meta-learner
+        # from exploiting this boundary leakage.
+        tss = TimeSeriesSplit(n_splits=oof_folds, gap=168)
 
         oof_preds = np.full((n_rows, n_models), np.nan)
 
