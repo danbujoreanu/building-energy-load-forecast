@@ -37,7 +37,7 @@ ENV/
 # ── Large processed data files ───────────────────────────────────────────────
 # Raw building files are kept; generated/merged files are not
 data/processed/
-data/raw/oslo/           # Downloaded via scripts/download_data.py (too large for git)
+data/raw/
 
 # ── Model weights (large binaries) ───────────────────────────────────────────
 outputs/models/
