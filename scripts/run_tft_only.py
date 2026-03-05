@@ -96,11 +96,23 @@ def main() -> None:
             )
 
     result = evaluate(y_tft, preds, "TFT")
+    # evaluate() returns key "R2" (not "R²") — the Unicode key only appears in
+    # compare_models() display formatting.  Using "R²" here causes a KeyError
+    # after a 6-hour training run (BUG-C1 from pipeline audit 2026-03-02).
     logger.info(
         "TFT | MAE=%6.4f | RMSE=%6.4f | MAPE=%6.2f%% | R²=%6.4f | n=%d | train_time=%.0fs",
-        result["MAE"], result["RMSE"], result["MAPE"], result["R²"],
+        result["MAE"], result["RMSE"], result["MAPE"], result["R2"],
         len(y_tft), train_time_s,
     )
+
+    # ── Save model checkpoint ─────────────────────────────────────────────────
+    # Lightning checkpoint preserves weights, optimizer state, and epoch number
+    # so training can be resumed or predictions re-run without re-training.
+    model_dir = ROOT / "outputs" / "models"
+    model_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = model_dir / f"tft_{_today}.ckpt"
+    tft.trainer_.save_checkpoint(str(checkpoint_path))
+    logger.info("TFT model checkpoint saved → %s", checkpoint_path)
 
     # ── Append to final_metrics.csv ───────────────────────────────────────────
     csv_path = res_dir / "final_metrics.csv"

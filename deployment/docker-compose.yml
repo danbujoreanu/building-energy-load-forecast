@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  inference-api:
+    build:
+      context: .
+      dockerfile: deployment/Dockerfile
+    container_name: energy-forecast-api
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount models folder dynamically so API updates when new models are saved locally without rebuilding
+      - ./outputs/models:/app/outputs/models
+    environment:
+      - LOG_LEVEL=INFO
+    restart: unless-stopped
+    # Use standard host networking or default bridge

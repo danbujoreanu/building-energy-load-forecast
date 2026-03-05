@@ -96,10 +96,14 @@ class TFTForecaster(BaseForecaster):
         df_full["time_idx"] = df_full.groupby("building_id").cumcount()
 
         target_col = self.cfg["data"]["target_column"]
-        time_varying_known = [
-            c for c in df_full.columns
-            if c not in ["building_id", "time_idx", target_col, "split"]
-        ]
+        # BUG-C3: "timestamp" must be excluded from time_varying_known_reals.
+        # It is a non-stationary monotonically increasing value — StandardScaler
+        # (or GroupNormalizer) fits to the training range, so test-set timestamps
+        # fall outside the training distribution causing OOD saturation in TFT
+        # activations.  time_idx already provides positional encoding; cyclical
+        # features (hour_sin, day_of_week_sin, …) already handle seasonality.
+        _EXCLUDE = {"building_id", "time_idx", target_col, "split", "timestamp"}
+        time_varying_known = [c for c in df_full.columns if c not in _EXCLUDE]
 
         training_dataset = TimeSeriesDataSet(
             df_full[df_full["split"] == "train"],
@@ -146,6 +150,7 @@ class TFTForecaster(BaseForecaster):
         )
         self._target_col_ = target_col
         self._tft_cfg_ = tft_cfg
+        self._seq_cfg_ = seq_cfg   # needed in predict() for horizon
 
         tft = TemporalFusionTransformer.from_dataset(
             training_dataset,
@@ -180,20 +185,29 @@ class TFTForecaster(BaseForecaster):
             def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
                 if (batch_idx + 1) % self.n != 0:
                     return
-                total = trainer.num_training_batches
-                pct   = 100.0 * (batch_idx + 1) / total if total else 0.0
-                loss  = (
+                total    = trainer.num_training_batches
+                pct      = 100.0 * (batch_idx + 1) / total if total else 0.0
+                # Loss function is TFT_MAE() so train_loss IS train_MAE.
+                train_mae = (
                     outputs["loss"].item()
                     if isinstance(outputs, dict) and "loss" in outputs
                     else float("nan")
                 )
+                # Best val_MAE seen so far (populated after each validation epoch).
+                # Falls back to sanity-check value until epoch 1 validation completes.
+                cb = trainer.callback_metrics
+                val_mae = (
+                    cb.get("val_MAE", cb.get("sanity_check_MAE", None))
+                )
+                val_str = f" | val_MAE {val_mae:.4f}" if val_mae is not None else ""
                 logger.info(
-                    "TFT | epoch %d | batch %d/%d (%.0f%%) | train_loss %.4f",
+                    "TFT | epoch %d | batch %d/%d (%.0f%%) | train_MAE %.4f%s",
                     trainer.current_epoch + 1,
                     batch_idx + 1,
                     total,
                     pct,
-                    loss,
+                    train_mae,
+                    val_str,
                 )
 
         class _EpochLogger(pl.Callback):
@@ -203,6 +217,17 @@ class TFTForecaster(BaseForecaster):
                 metrics = {k: f"{v:.4f}" for k, v in trainer.callback_metrics.items()}
                 logger.info("TFT epoch %d complete | %s", ep, metrics)
 
+        # ModelCheckpoint: save the best val_loss epoch, not just the last.
+        # Without this, Lightning auto-saves only the final epoch — if EarlyStopping
+        # triggers or training ends with a late degradation, the best weights are lost.
+        ckpt_cb = pl.callbacks.ModelCheckpoint(
+            monitor="val_loss",
+            mode="min",
+            save_top_k=1,
+            filename="tft-best-{epoch:02d}-{val_loss:.4f}",
+            verbose=True,
+        )
+
         callbacks = [
             pl.callbacks.EarlyStopping(
                 monitor="val_loss",
@@ -210,6 +235,7 @@ class TFTForecaster(BaseForecaster):
                 mode="min",
                 verbose=True,  # prints "Metric val_loss improved..." to stdout
             ),
+            ckpt_cb,
             # NOTE: LearningRateMonitor was removed — it requires logger != False.
             # LR reduction still occurs via reduce_on_plateau_patience inside TFT's
             # configure_optimizers (set via TemporalFusionTransformer.from_dataset()).
@@ -236,6 +262,8 @@ class TFTForecaster(BaseForecaster):
         self.model_   = tft
         self.trainer_ = trainer
         self._val_loader = val_loader
+        self.best_checkpoint_path_ = ckpt_cb.best_model_path
+        logger.info("Best checkpoint → %s", self.best_checkpoint_path_)
         return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
@@ -274,10 +302,15 @@ class TFTForecaster(BaseForecaster):
             .apply(_continuing_time_idx)
         )
 
+        # predict=False creates ALL valid sliding encoder/decoder windows through
+        # the test set.  With H+1: (N_test - max_encoder_length) windows per
+        # building — matches _trim_dl_targets(y_test, lookback).
+        # predict=True would return only ONE window per building (last position),
+        # giving just num_buildings predictions total — wrong for evaluation.
         test_dataset = TimeSeriesDataSet.from_dataset(
             self._training_dataset_,
             df_test,
-            predict=True,
+            predict=False,
             stop_randomization=True,
         )
         test_loader = test_dataset.to_dataloader(
@@ -286,8 +319,27 @@ class TFTForecaster(BaseForecaster):
             num_workers=0,
         )
 
-        raw_preds = self.trainer_.predict(self.model_, test_loader)
-        return np.concatenate([p.numpy().flatten() for p in raw_preds])
+        # BUG-FIX (2026-03-02): trainer_.predict() returns raw Lightning output
+        # dicts, not tensors — calling .numpy() on a dict crashes immediately.
+        # The correct API is pytorch-forecasting's model_.predict(), which:
+        #   1. Handles GroupNormalizer denormalisation internally → output in kWh
+        #   2. Returns a tensor of shape (n_samples, max_prediction_length)
+        #   3. Moves output to CPU automatically
+        # trainer_kwargs passes accelerator config so MPS/CUDA is used if available.
+        raw_preds = self.model_.predict(
+            test_loader,
+            return_y=False,
+            trainer_kwargs={
+                "accelerator": "auto",
+                "devices": 1,
+                "enable_progress_bar": False,
+                "logger": False,
+            },
+        )  # tensor: (n_samples, horizon), already denormalised to kWh
+        preds = raw_preds.cpu().numpy()
+        horizon = self._seq_cfg_.get("horizon", 1)
+        # BUG-C5: Do NOT blindly flatten H+24. For H+1, flatten to (n_samples,).
+        return preds.flatten() if horizon == 1 else preds
 
     # ------------------------------------------------------------------
     # Helper

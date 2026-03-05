@@ -139,7 +139,12 @@ class LSTMForecaster(BaseForecaster):
         X_seq, _ = build_sequences(
             X, y_placeholder, self._seq_cfg["lookback"], self._seq_cfg["horizon"]
         )
-        return self.model_.predict(X_seq, verbose=0).flatten()
+        raw = self.model_.predict(X_seq, verbose=0)  # (n_samples, horizon)
+        # BUG-C5: Do NOT blindly flatten.  For H+24, flat shape is (n_samples*24,)
+        # which mixes all 24 prediction steps and breaks evaluation.
+        # AI Studio verdict: return (n_samples, horizon) matrix; caller handles.
+        # H+1 special case: squeeze to 1-D for backward-compat with evaluate().
+        return raw.flatten() if self._seq_cfg["horizon"] == 1 else raw
 
 
 # ---------------------------------------------------------------------------
@@ -209,7 +214,8 @@ class CNNLSTMForecaster(BaseForecaster):
         X_seq, _ = build_sequences(
             X, y_placeholder, self._seq_cfg["lookback"], self._seq_cfg["horizon"]
         )
-        return self.model_.predict(X_seq, verbose=0).flatten()
+        raw = self.model_.predict(X_seq, verbose=0)  # (n_samples, horizon)
+        return raw.flatten() if self._seq_cfg["horizon"] == 1 else raw
 
 
 # ---------------------------------------------------------------------------
@@ -273,7 +279,8 @@ class GRUForecaster(BaseForecaster):
         X_seq, _ = build_sequences(
             X, y_placeholder, self._seq_cfg["lookback"], self._seq_cfg["horizon"]
         )
-        return self.model_.predict(X_seq, verbose=0).flatten()
+        raw = self.model_.predict(X_seq, verbose=0)  # (n_samples, horizon)
+        return raw.flatten() if self._seq_cfg["horizon"] == 1 else raw
 
 
 # ---------------------------------------------------------------------------
@@ -298,6 +305,7 @@ def _make_callbacks(dl_cfg: dict) -> list:
         tf.keras.callbacks.EarlyStopping(
             monitor="val_loss",
             patience=dl_cfg["early_stopping_patience"],
+            min_delta=dl_cfg.get("early_stopping_min_delta", 0.0),
             restore_best_weights=True,
             verbose=1,
         ),

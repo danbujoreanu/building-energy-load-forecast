@@ -189,6 +189,7 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
     from energy_forecast.models import NaiveModel, SeasonalNaiveModel, MeanModel, SklearnForecaster, StackingEnsemble
     from energy_forecast.models.sklearn_models import build_sklearn_models
     from energy_forecast.evaluation import compare_models, evaluate
+    from energy_forecast.evaluation.metrics import save_per_building_metrics
     from energy_forecast.visualization import plot_model_comparison, plot_predictions_vs_actual
 
     proc_dir  = Path(cfg["paths"]["processed"]) / "splits"
@@ -205,6 +206,12 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
     X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")
     y_test  = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
 
+    # Extract building_ids and timestamps for daily-peak and per-building metrics.
+    # y_test has a MultiIndex (building_id, timestamp); both levels are needed by
+    # evaluate() to compute daily_peak_mae and per-building breakdowns.
+    test_bids = y_test.index.get_level_values("building_id")
+    test_ts   = y_test.index.get_level_values("timestamp")
+
     results = []
     fitted_models: dict = {}
     train_times: dict = {}   # {model_name: training_seconds}
@@ -215,7 +222,8 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
         model.fit(X_train, y_train)
         train_times[model.name] = round(time.time() - t0, 1)
         preds = model.predict(X_test)
-        results.append(evaluate(y_test, preds, model.name))
+        results.append(evaluate(y_test, preds, model.name,
+                                building_ids=test_bids, timestamps=test_ts))
         fitted_models[model.name] = model
 
     # ── Sklearn models ────────────────────────────────────────────────────────
@@ -224,7 +232,8 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
         model.fit(X_train, y_train, X_val, y_val)
         train_times[model.name] = round(time.time() - t0, 1)
         preds = model.predict(X_test)
-        results.append(evaluate(y_test, preds, model.name))
+        results.append(evaluate(y_test, preds, model.name,
+                                building_ids=test_bids, timestamps=test_ts))
         fitted_models[model.name] = model
 
     # ── Deep learning (optional, slow) ────────────────────────────────────────
@@ -260,7 +269,10 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
                         f"y_test ({len(y_test)}) or trimmed y_test ({len(y_tft)})."
                     )
 
-            results.append(evaluate(y_tft, preds, "TFT"))
+            tft_bids = y_tft.index.get_level_values("building_id")
+            tft_ts   = y_tft.index.get_level_values("timestamp")
+            results.append(evaluate(y_tft, preds, "TFT",
+                                    building_ids=tft_bids, timestamps=tft_ts))
             fitted_models["TFT"] = tft
             logger.info("TFT  n_eval=%d", len(y_tft))
         except Exception as exc:
@@ -282,20 +294,112 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
             ensemble.fit(X_train, y_train, X_val, y_val)
             train_times[ensemble.name] = round(time.time() - t0, 1)
             preds = ensemble.predict(X_test)
-            results.append(evaluate(y_test, preds, ensemble.name))
+            results.append(evaluate(y_test, preds, ensemble.name,
+                                    building_ids=test_bids, timestamps=test_ts))
         except Exception as exc:
             logger.warning("Stacking ensemble failed: %s", exc)
 
     # ── Save results ──────────────────────────────────────────────────────────
-    comparison = compare_models(results)
-    # Attach training time (seconds) — join on Model name
-    comparison["train_time_s"] = comparison["Model"].map(train_times)
-    comparison.to_csv(res_dir / "final_metrics.csv")
-    logger.info("\n%s", comparison.to_string())
+    # Merge with existing final_metrics.csv if it exists to preserve Setup C / other runs
+    metrics_path = res_dir / "final_metrics.csv"
+    
+    # Standardize column naming: our new results use 'model' (lowercase)
+    comparison_to_save = comparison.copy()
+    if "Model" in comparison_to_save.columns:
+        comparison_to_save = comparison_to_save.rename(columns={"Model": "model"})
+        
+    if metrics_path.exists() and metrics_path.stat().st_size > 0:
+        try:
+            old_metrics = pd.read_csv(metrics_path, index_col=0)
+            # Find the model column (might be 'model' or 'Model')
+            model_col = "model" if "model" in old_metrics.columns else "Model"
+            
+            # Remove existing entries for the models we just ran to update them
+            new_model_names = comparison_to_save["model"].tolist()
+            old_metrics = old_metrics[~old_metrics[model_col].isin(new_model_names)]
+            
+            # Standardize old metrics column to lowercase 'model'
+            if model_col == "Model":
+                old_metrics = old_metrics.rename(columns={"Model": "model"})
+            
+            combined = pd.concat([old_metrics, comparison_to_save], ignore_index=True)
+            combined.to_csv(metrics_path)
+            logger.info("Merged results into %s", metrics_path)
+            # Use combined for plot/log below
+            comparison_final = combined
+        except Exception as e:
+            logger.warning("Failed to merge with existing metrics: %s. Overwriting.", e)
+            comparison_to_save.to_csv(metrics_path)
+            comparison_final = comparison_to_save
+    else:
+        comparison_to_save.to_csv(metrics_path)
+        comparison_final = comparison_to_save
+    
+    logger.info("\n%s", comparison_final.to_string())
+
+    # Per-building breakdown CSV (MISS-2): enables building-type analysis
+    save_per_building_metrics(results, res_dir / "per_building_metrics.csv")
 
     # ── Plots ─────────────────────────────────────────────────────────────────
     plot_model_comparison(comparison, metric="MAE", save_path=fig_dir / "model_comparison_mae.png")
     plot_model_comparison(comparison, metric="RMSE", save_path=fig_dir / "model_comparison_rmse.png")
+
+    # ── Save fitted models (MISS-9) ───────────────────────────────────────────
+    # Persist model artefacts so predictions can be regenerated without
+    # retraining.  Pattern varies by model family:
+    #   TFT        → Lightning .ckpt  (trainer_.save_checkpoint)
+    #   Keras DL   → .keras file      (model_.save)
+    #   Sklearn    → .joblib          (joblib.dump of model.estimator)
+    #   Ensemble   → .joblib          (joblib.dump of meta_learner_)
+    import datetime
+    import joblib as _joblib
+
+    _today = datetime.date.today().isoformat()
+    model_dir = Path(cfg["paths"]["outputs"]["models"])
+    model_dir.mkdir(parents=True, exist_ok=True)
+    city = cfg["city"]
+
+    for mname, model in fitted_models.items():
+        try:
+            safe_name = mname.replace(" ", "_").replace("(", "").replace(")", "")
+            stem = f"{city}_{safe_name}_{_today}"
+
+            if hasattr(model, "trainer_") and model.trainer_ is not None:
+                # TFT: Lightning trainer checkpoint — preserves weights + epoch
+                ckpt_path = model_dir / f"{stem}.ckpt"
+                model.trainer_.save_checkpoint(str(ckpt_path))
+                logger.info("Saved Lightning checkpoint → %s", ckpt_path)
+
+            elif hasattr(model, "model_") and model.model_ is not None:
+                # Keras DL (LSTM / CNN-LSTM / GRU)
+                keras_path = model_dir / f"{stem}.keras"
+                model.model_.save(str(keras_path))
+                logger.info("Saved Keras model → %s", keras_path)
+
+            elif hasattr(model, "estimator"):
+                # SklearnForecaster (Ridge, Lasso, RF, LightGBM, XGBoost)
+                pkl_path = model_dir / f"{stem}.joblib"
+                _joblib.dump(model.estimator, pkl_path)
+                logger.info("Saved sklearn estimator → %s", pkl_path)
+
+            elif hasattr(model, "meta_learner_") and model.meta_learner_ is not None:
+                # Stacking / WeightedAverage ensemble — save meta-learner
+                pkl_path = model_dir / f"{stem}_meta.joblib"
+                _joblib.dump(model.meta_learner_, pkl_path)
+                logger.info("Saved ensemble meta-learner → %s", pkl_path)
+
+            else:
+                # Baseline models (Naive, Seasonal Naive, Mean) are trivially
+                # re-fittable and have no persisted state worth saving.
+                logger.debug(
+                    "No save handler for '%s' (type=%s) — skipping.",
+                    mname, type(model).__name__,
+                )
+
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Could not save model '%s': %s", mname, exc)
+
+    logger.info("Model artefacts saved → %s", model_dir)
 
     logger.info("Stage 3 complete. Results → %s", res_dir / "final_metrics.csv")
 
@@ -303,10 +407,9 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
 def _trim_dl_targets(y, lookback: int):
     """Drop the first ``lookback`` rows per building from y.
 
-    Sliding-window DL models cannot produce a prediction for the first
-    ``lookback`` timesteps of each building (not enough history).  The
-    evaluate() call requires y_true and y_pred to have the same length,
-    so we trim the corresponding rows from y_true before comparing.
+    Used for H+1 only. For H+24 multi-step evaluation, use
+    _build_y_true_matrix() instead, which correctly handles building
+    boundaries and returns a 2-D (n_samples, horizon) target matrix.
     """
     import pandas as pd  # noqa: PLC0415 (deferred import OK here)
 
@@ -315,6 +418,36 @@ def _trim_dl_targets(y, lookback: int):
         y_b = y.xs(bid, level="building_id")
         parts.append(y_b.iloc[lookback:])
     return pd.concat(parts)
+
+
+def _build_y_true_matrix(y, lookback: int, horizon: int) -> "np.ndarray":
+    """Build 2-D y_true matrix aligned with DL sliding-window predictions.
+
+    For multi-step (H+24) evaluation, each prediction window k at position
+    ``lookback + k`` within building b covers horizon steps ahead::
+
+        y_true_matrix[global_k, h] = y_b[lookback + k + h]   h = 0..horizon-1
+
+    Building boundaries are strictly respected — windows never cross buildings.
+    The returned shape (n_samples, horizon) matches the shape returned by
+    LSTMForecaster.predict() / GRUForecaster.predict() / CNNLSTMForecaster.predict()
+    when horizon > 1, so evaluate() can directly compute per-horizon MAE.
+
+    Parameters
+    ----------
+    y        : MultiIndex Series (building_id, timestamp) — full y_test
+    lookback : Encoder look-back length (rows per building to skip at start)
+    horizon  : Number of future steps predicted per window
+    """
+    import numpy as np  # noqa: PLC0415
+    parts = []
+    for bid in y.index.get_level_values("building_id").unique():
+        y_b = y.xs(bid, level="building_id").values
+        n = len(y_b)
+        # Valid window starts: i = lookback .. n - horizon (inclusive)
+        for i in range(lookback, n - horizon + 1):
+            parts.append(y_b[i: i + horizon])
+    return np.array(parts, dtype=np.float32)  # (n_samples, horizon)
 
 
 def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted_models, train_times=None):
@@ -339,22 +472,45 @@ def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted
             train_times[model.name] = round(time.time() - t0, 1)
         preds = model.predict(X_te)
 
-        # Align y_te: DL models cannot predict the first `lookback` steps per
-        # building — trim those rows so len(y_te_aligned) == len(preds).
         lookback = cfg.get("sequence", {}).get("lookback", 72)
-        y_te_aligned = _trim_dl_targets(y_te, lookback)
+        horizon  = cfg.get("sequence", {}).get("horizon",  1)
 
-        if len(y_te_aligned) != len(preds):
-            logger.warning(
-                "%s prediction length mismatch: y=%d, preds=%d — skipping.",
-                arch.upper(), len(y_te_aligned), len(preds),
+        if horizon > 1:
+            # H+24 multi-step: build a 2-D y_true matrix (n_samples, horizon)
+            # that respects building boundaries. evaluate() handles 2-D vs 2-D
+            # correctly — computes global MAE + per-horizon MAE list.
+            y_true_2d = _build_y_true_matrix(y_te, lookback, horizon)
+            if y_true_2d.shape != preds.shape:
+                logger.warning(
+                    "%s shape mismatch: y_true=%s, preds=%s — skipping.",
+                    arch.upper(), y_true_2d.shape, preds.shape,
+                )
+                return
+            # building_ids/timestamps cannot be trivially aligned to the 2-D
+            # window grid, so daily_peak_mae and per-building metrics are
+            # skipped for DL H+24 (primary metrics MAE/RMSE/R² are still computed).
+            results.append(evaluate(y_true_2d, preds, model.name))
+            fitted_models[model.name] = model
+            logger.info(
+                "%s  n_windows=%d  horizon=%d  (2-D evaluation, building boundaries respected)",
+                model.name, len(preds), horizon,
             )
-            return
-
-        results.append(evaluate(y_te_aligned, preds, model.name))
-        fitted_models[model.name] = model
-        logger.info("%s  n_eval=%d (trimmed %d lookback rows per building)",
-                    model.name, len(y_te_aligned), lookback)
+        else:
+            # H+1 single-step: trim leading lookback rows per building.
+            y_te_aligned = _trim_dl_targets(y_te, lookback)
+            if len(y_te_aligned) != len(preds):
+                logger.warning(
+                    "%s prediction length mismatch: y=%d, preds=%d — skipping.",
+                    arch.upper(), len(y_te_aligned), len(preds),
+                )
+                return
+            dl_bids = y_te_aligned.index.get_level_values("building_id")
+            dl_ts   = y_te_aligned.index.get_level_values("timestamp")
+            results.append(evaluate(y_te_aligned, preds, model.name,
+                                    building_ids=dl_bids, timestamps=dl_ts))
+            fitted_models[model.name] = model
+            logger.info("%s  n_eval=%d (trimmed %d lookback rows per building)",
+                        model.name, len(y_te_aligned), lookback)
     except Exception as exc:
         logger.warning("%s training failed: %s", arch.upper(), exc)
 

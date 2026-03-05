@@ -265,7 +265,12 @@ class StackingEnsemble(BaseForecaster):
                     )
                     continue
                 try:
-                    cloned.fit(X_fold_tr, y_fold_tr, X_fold_val, y_fold_val)
+                    # BUG-C6: Do NOT pass val data during OOF fitting.
+                    # Passing X_fold_val triggers LightGBM/XGBoost early stopping
+                    # optimised on the exact fold we then predict on — artificially
+                    # inflating OOF accuracy (classic meta-learner leakage).
+                    # AI Studio verdict: use fixed n_estimators, disable early stopping.
+                    cloned.fit(X_fold_tr, y_fold_tr)
                     fold_preds = cloned.predict(X_fold_val)
                     oof_preds[val_positions, i] = fold_preds
                 except Exception as exc:  # noqa: BLE001

@@ -193,7 +193,9 @@ def _parse_building_file(
             "Timestamp format '%s' failed for %s — falling back to ISO8601 inference",
             ts_fmt, filepath.name,
         )
-        df["TimeStamp"] = pd.to_datetime(df["TimeStamp"], utc=True, infer_datetime_format=True)
+        # BUG-C4: infer_datetime_format was deprecated in pandas 2.2 and removed
+        # in pandas 3.0.  Pandas infers the format by default without the flag.
+        df["TimeStamp"] = pd.to_datetime(df["TimeStamp"], utc=True)
     df["TimeStamp"] = df["TimeStamp"].dt.tz_convert("Europe/Oslo")
 
     # ── Step 6: rename columns & coerce numeric ───────────────────────────────

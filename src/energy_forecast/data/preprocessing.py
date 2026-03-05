@@ -26,6 +26,8 @@ from typing import Any
 import pandas as pd
 import numpy as np
 
+from energy_forecast.data.imputation import impute_missing_weather, impute_missing_metadata
+
 logger = logging.getLogger(__name__)
 
 
@@ -70,6 +72,10 @@ def build_model_ready_data(
 
     # ── 4. Fill short weather gaps ────────────────────────────────────────────
     df = _fill_weather_gaps(df, weather_cols, max_hours=3)
+
+    # ── 4b. Impute remaining weather & metadata gaps via MICE ─────────────────
+    df = impute_missing_weather(df, weather_cols)
+    df = impute_missing_metadata(df)
 
     # ── 5. Drop rows where target is NaN ──────────────────────────────────────
     before = len(df)

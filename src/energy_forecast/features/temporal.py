@@ -81,14 +81,18 @@ def build_temporal_features(
             period = _CYCLICAL_PERIODS.get(col, 24)
             df = _add_cyclical(df, col, period)
 
-    # ── 2. Temperature × hour interaction features ────────────────────────────
-    # These cross-terms capture the interaction between outdoor temperature and
-    # time-of-day load patterns (e.g. morning warm-up amplified by cold weather).
-    # Included in the thesis feature set; selected by LightGBM importance.
+    # ── 2. Interaction features ───────────────────────────────────────────────
+    # Temperature × time-of-day: captures morning warm-up amplified by cold.
     if "Temperature_Outdoor_C" in df.columns and "hour_of_day_sin" in df.columns:
         df["temp_x_hour_sin"] = df["Temperature_Outdoor_C"] * df["hour_of_day_sin"]
     if "Temperature_Outdoor_C" in df.columns and "hour_of_day_cos" in df.columns:
         df["temp_x_hour_cos"] = df["Temperature_Outdoor_C"] * df["hour_of_day_cos"]
+    # Is_Weekend + temperature × weekend: captures lower weekday/weekend occupancy.
+    # Both features are in the thesis notebook and selected by LightGBM importance.
+    if "day_of_week" in df.columns:
+        df["Is_Weekend"] = (df["day_of_week"] >= 5).astype(int)
+        if "Temperature_Outdoor_C" in df.columns:
+            df["temp_x_is_weekend"] = df["Temperature_Outdoor_C"] * df["Is_Weekend"]
 
     # ── 3. Lag features (applied per building, horizon-aware) ─────────────────
     all_lag_windows: list[int] = feat_cfg.get("lag_windows", [1, 2, 3, 24, 25, 26, 48, 168])
@@ -175,10 +179,17 @@ def _add_rolling(
     windows: list[int],
     stats: list[str],
 ) -> pd.DataFrame:
-    """Add rolling window statistics for a single building group."""
+    """Add rolling window statistics for a single building group.
+
+    shift(1) is applied before rolling so that the rolling window at time t
+    covers [t-w, t-1] rather than [t-w+1, t].  Without the shift, the target
+    column at t would be included in its own rolling mean — classic target
+    leakage.  This matches the thesis notebook implementation.
+    """
     for col in sources:
         for w in windows:
-            roller = group[col].rolling(window=w, min_periods=1)
+            # shift(1) excludes the current timestep from its own rolling window
+            roller = group[col].shift(1).rolling(window=w, min_periods=1)
             if "mean" in stats:
                 group[f"{col}_roll_{w}h_mean"] = roller.mean()
             if "std" in stats:
