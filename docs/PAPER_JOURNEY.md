@@ -176,9 +176,16 @@ Trees beat deep nets on this dataset, for three compounding reasons:
 
 ---
 
-## What Comes Next
+### 1. March 2026: The Horizon Realization (H+1 vs H+24)
 
-Based on all feedback, the research roadmap in priority order:
+A massive breakthrough in the experimental framing occurred in March 2026. The Thesis and V2 pipeline evaluated **H+1** (Real-Time Balancing). In this setting, the model has access to the `lag_1h` feature, which is heavily auto-correlated (r=0.977) and dominates the prediction. This essentially acts as an "easy mode" for trees, severely handicapping DL models since the feature engineering has already solved the temporal puzzle.
+
+However, the true commercial test for utility operators is the **Day-Ahead Market (H+24)**. In this setting, no short-term lags (< 24h) are available. Evaluated at H+24, models must rely on genuine temporal representations rather than recent exact values. This necessitated the creation of the **Three-Way Comparison (Paradigm Parity)** for the Journal Paper:
+- **Setup A:** Trees on 35 Engineered Features (H+24)
+- **Setup B:** Deep Learning on 35 Engineered Features (H+24)
+- **Setup C:** Deep Learning on Raw Sequences (H+24)
+
+This clarifies that the project isn't just about finding one "best" model, but about building a *Menu of Solutions* tailored to the required horizon and latency constraints of specific utility and grid operational profiles.
 
 ### 1. H+24 honest evaluation (highest impact)
 
@@ -258,7 +265,34 @@ ROADMAP.md               — Research directions and phase tracking
 README.md                — Academic portfolio page (GitHub-facing)
 ```
 
+### 6. March 2026: The Hardware-Acceleration Discovery (ReLU vs. Tanh)
+
+A third significant discovery occurred during the execution of Setup B and C experiments. The original research (Thesis/Notebooks) utilized the **ReLU** (Rectified Linear Unit) activation function for LSTM and CNN-LSTM layers. This is standard practice in general deep learning to avoid vanishing gradients.
+
+However, during the V2 refactoring, it was discovered that switching to **Tanh** (the classical LSTM activation) triggered specialized hardware acceleration on **Apple Silicon (MPS/GPU)** and other optimized RNN kernels (e.g., cuDNN for NVIDIA). 
+
+| Aspect | ReLU (Thesis) | Tanh (Production V2) | Impact |
+| :--- | :--- | :--- | :--- |
+| **Hardware Kernel** | General Matrix Mult (GEMM) | Optimized LSTM Kernel | ~10x speedup observed |
+| **Training Time** | ~10–20 hours | ~1–2 hours | Enables fast cross-validation & tuning |
+| **Convergence** | Standard | Faster (due to bounded values) | Improved stability on noisy energy data |
+
+This insight highlights that the "performance" of an architecture is often inseparable from the physical hardware it runs on. By aligning the activation function with hardware capabilities, the DL models became computationally competitive with tree models in terms of training velocity.
+
 ---
 
-*Written: 2026-03-01*
+## Phase 5: The Journal Paper — Paradigm Parity (March 2026)
+
+The project is now evolving from a binary comparison (Trees vs. DL) into a rigorous **Three-Paradigm Benchmarking Study** intended for a high-impact Journal:
+
+1.  **Setup A: Tabular Tree Expert** (Engineered Features)
+2.  **Setup B: Hybrid Tabular-DL** (DL models on engineered features)
+3.  **Setup C: Sequence-SOTA** (PatchTST and DL on raw sequences)
+
+### Key Evolution: Stacking & Meta-Ensembles
+In this phase, we moved beyond individual models to a **Multi-Paradigm Ensemble**. By stacking the predictive power of Setup A (Trees) with Setup C (PatchTST), we aim to create a "best of both worlds" meta-model that leverages both the explicit domain knowledge in engineered features and the implicit temporal patterns extracted by Transformers.
+
+---
+
+*Last Updated: March 5, 2026*
 *Author: Dan Alexandru Bujoreanu — dan.bujoreanu@gmail.com*

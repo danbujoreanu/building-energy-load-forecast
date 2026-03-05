@@ -75,7 +75,7 @@ features:
   #
   # Default: 1  — reproduces thesis single-step-ahead evaluation exactly.
   # Change to 24 for honest next-day forecasting experiments.
-  forecast_horizon: 1
+  forecast_horizon: 24
 
   # Lag features (hours behind target).
   # Exact windows used in MSc thesis feature engineering notebook.
@@ -90,13 +90,16 @@ features:
   # Feature selection thresholds
   selection:
     variance_threshold: 0.0          # Remove zero-variance features
-    correlation_threshold: 0.99      # Remove highly correlated duplicates
+    correlation_threshold: 0.95      # Remove highly correlated duplicates
+                                     # 0.95 matches MSc thesis methodology exactly.
+                                     # 0.99 was too loose — features at 0.96-0.98 are
+                                     # near-duplicates that harm Ridge/Lasso stability.
     n_features_lgbm: 35              # Keep top-N by LightGBM importance
 
 # ── Sequence parameters (deep learning & TFT) ─────────────────────────────────
 sequence:
   lookback: 72     # Hours of history used as input (3 days)
-  horizon:   1     # Must match forecast_horizon. 1 = H+1 single-step evaluation
+  horizon:   24     # Must match forecast_horizon. 1 = H+1 single-step evaluation
                    # (same as features.forecast_horizon above)
 
 # ── Model training ────────────────────────────────────────────────────────────
@@ -140,8 +143,9 @@ training:
   # -- Deep learning (TensorFlow/Keras) --
   deep_learning:
     batch_size: 256
-    epochs: 50
+    epochs: 20                  # Hard cap: LSTM best at epoch ~10; prevents TF Metal GPU hang after 70+ min
     early_stopping_patience: 10
+    early_stopping_min_delta: 1.0  # Only count improvements > 1.0 as real; stops plateau-running
     reduce_lr_patience: 5
     reduce_lr_factor: 0.2
     min_lr: 1.0e-6

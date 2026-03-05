@@ -53,6 +53,7 @@ def build_sklearn_models(cfg: dict[str, Any]) -> dict[str, "SklearnForecaster"]:
             name="RandomForest",
         ),
         "lightgbm": _build_lgbm(t["lightgbm"], seed),
+        "lightgbm_quantile": _build_lgbm_quantile(t["lightgbm"], seed),
         "xgboost": _build_xgboost(t["xgboost"], seed),
     }
     return models
@@ -78,6 +79,10 @@ def _build_lgbm(lgbm_cfg: dict, seed: int) -> "SklearnForecaster":
     )
     return SklearnForecaster(model, name="LightGBM")
 
+
+def _build_lgbm_quantile(lgbm_cfg: dict, seed: int) -> "LightGBMQuantileForecaster":
+    """Build the specialised probabilistic forecaster outputting P10/P50/P90 quantiles."""
+    return LightGBMQuantileForecaster(lgbm_cfg, seed, name="LightGBM_Quantile")
 
 def _build_xgboost(xgb_cfg: dict, seed: int) -> "SklearnForecaster":
     """Build XGBoost regressor — MSc thesis rank 2 (MAE 3.42 kWh, ~3s train time)."""
@@ -154,3 +159,82 @@ class SklearnForecaster(BaseForecaster):
     @property
     def feature_importances_(self) -> np.ndarray | None:
         return getattr(self.estimator, "feature_importances_", None)
+
+
+class LightGBMQuantileForecaster(BaseForecaster):
+    """Specialised wrapper to train three LightGBM models for P10, P50, and P90 quantiles."""
+
+    def __init__(
+        self, 
+        lgbm_cfg: dict, 
+        seed: int, 
+        name: str = "LightGBM_Quantile", 
+        quantiles: list[float] = [0.1, 0.5, 0.9]
+    ) -> None:
+        self.name = name
+        self.lgbm_cfg = lgbm_cfg.copy()
+        self.seed = seed
+        self.quantiles = quantiles
+        self.models: dict[float, Any] = {}
+
+    def fit(
+        self,
+        X_train: pd.DataFrame,
+        y_train: pd.Series,
+        X_val: pd.DataFrame | None = None,
+        y_val: pd.Series | None = None,
+        **kwargs: Any,
+    ) -> "LightGBMQuantileForecaster":
+        try:
+            import lightgbm as lgb
+        except ImportError as e:
+            raise ImportError("lightgbm is required: pip install lightgbm") from e
+
+        for alpha in self.quantiles:
+            logger.info("Training %s for alpha=%s", self.name, alpha)
+            model = lgb.LGBMRegressor(
+                objective='quantile',
+                alpha=alpha,
+                n_estimators=self.lgbm_cfg["n_estimators"],
+                learning_rate=self.lgbm_cfg["learning_rate"],
+                max_depth=self.lgbm_cfg["max_depth"],
+                num_leaves=self.lgbm_cfg["num_leaves"],
+                min_child_samples=self.lgbm_cfg["min_child_samples"],
+                subsample=self.lgbm_cfg["subsample"],
+                colsample_bytree=self.lgbm_cfg["colsample_bytree"],
+                n_jobs=self.lgbm_cfg["n_jobs"],
+                random_state=self.seed,
+                verbosity=-1,
+            )
+            fit_params: dict = {}
+            if X_val is not None:
+                fit_params = {
+                    "eval_set": [(X_val.values, y_val.values)],
+                    "callbacks": [lgb.early_stopping(50, verbose=False)],
+                }
+            model.fit(X_train.values, y_train.values, **fit_params)
+            self.models[alpha] = model
+
+        logger.info("%s training complete.", self.name)
+        return self
+
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        """Returns the median prediction (P50) to satisfy standard evaluation frameworks."""
+        if 0.5 not in self.models:
+            raise ValueError("Median model (alpha=0.5) was not trained.")
+        return self.models[0.5].predict(X.values)
+
+    def predict_quantiles(self, X: pd.DataFrame) -> pd.DataFrame:
+        """Return a DataFrame with specific quantile bound predictions."""
+        preds = {}
+        for alpha, model in self.models.items():
+            label = f"P{int(alpha * 100)}"
+            preds[label] = model.predict(X.values)
+        return pd.DataFrame(preds, index=X.index)
+
+    @property
+    def feature_importances_(self) -> np.ndarray | None:
+        """Returns importances from the median model."""
+        if 0.5 in self.models:
+            return getattr(self.models[0.5], "feature_importances_", None)
+        return None

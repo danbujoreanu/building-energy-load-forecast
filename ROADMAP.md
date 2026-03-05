@@ -1,11 +1,15 @@
 # Research Roadmap
 
 **Dan Alexandru Bujoreanu — Building Energy Load Forecast**
-*MSc Artificial Intelligence, NCI Dublin 2025 → Conference Paper (AICS 2025) → PhD-track research*
+*MSc Artificial Intelligence, NCI Dublin 2025 → Conference Paper (AICS 2025, submitted) → Journal Paper (Track B) → Production Pipeline*
 
 This document tracks completed work and all prioritised future iterations,
 drawn directly from the MSc thesis (2025), the AICS 2025 conference paper, and
 external feedback (AI Studio, AICS reviewers, SINTEF expert).
+
+> **Current focus (March 2026):** Journal paper — H+24 three-way Paradigm Parity comparison (A vs B vs C).
+> **Key Discovery:** Tanh activation triggers hardware acceleration on Apple Silicon (MPS), achieving ~10x speedup over ReLU used in the thesis.
+> **Philosophy:** Focusing on the "Menu of Solutions" narrative (H+1=Stability, H+24=Trading) and deferring AMM economic complexity for now.
 
 ---
 
@@ -50,6 +54,14 @@ external feedback (AI Studio, AICS reviewers, SINTEF expert).
 
 DL models (LSTM/GRU/CNN-LSTM) evaluated on 237,313 samples (72 lookback rows per building excluded).
 
+> **Important methodology note (clarified March 2026 with AI Studio):**
+> In the original thesis, DL models were trained for H+24 but compared against sklearn at H+1 only
+> (taking the first step of the 24-step DL output). This was "technically fair" (both H+1) but
+> severely handicapped DL — an LSTM optimising over 24 steps sacrifices H+1 accuracy.
+> The V2 pipeline fixes this by using a **uniform H+1 target** for all model families.
+> The H+24 journal paper will use a **uniform H+24 target** (MultiOutputRegressor for trees,
+> 24-step output head for DL), which is the scientifically correct comparison.
+
 | Model | V2 MAE (kWh) | V2 R² | Thesis MAE (kWh) | Improvement |
 |-------|-------------|-------|-----------------|-------------|
 | ✅ Random Forest | **1.711** | 0.9947 | 3.300 | −48% |
@@ -62,7 +74,18 @@ DL models (LSTM/GRU/CNN-LSTM) evaluated on 237,313 samples (72 lookback rows per
 | ✅ GRU | 3.947 | 0.9812 | — (new) | — |
 | ✅ CNN-LSTM | 4.572 | 0.9767 | 12.435 | −63% |
 | ✅ Mean Baseline | 22.691 | 0.4415 | — | — |
-| — | TFT | *fix applied, re-run needed* | 5.114 | — |
+| ✅ TFT | 29.80 ⚠️ | −0.009 ⚠️ | 5.114 | — |
+
+> **TFT H+1 run (2026-03-02) — Recovery complete, metrics document limitations:**
+> Trained 20 epochs (660 min), best val_MAE=0.4586 at epoch 18 (normalised scale). Two bugs
+> affected this run: (1) `trainer_.predict()` crash → fixed to `model_.predict()`; (2) epoch=19
+> checkpoint used (not best epoch=18) — ModelCheckpoint callback now added for future runs.
+> The poor R²=−0.009 (below Mean Baseline) is primarily caused by **BUG-C3** — `timestamp` was
+> accidentally included as `time_varying_known_reals`. Raw unix timestamps are non-stationary and
+> the test-set timestamps fell completely outside the training distribution, causing OOD saturation
+> in TFT's variable selection networks. **BUG-C3 is fixed in tft.py for H+24.** The H+24 TFT
+> result will be the definitive paper-quality metric. H+1 TFT is documented as a known limitation.
+> Archived: `outputs/results/h1_metrics.csv` | `outputs/models/h1/drammen_TFT_h1_2026-03-02_epoch19.ckpt`
 
 > **V2 improvement sources:** DST-robust lags (167h/169h), min/max rolling stats, temp×hour interaction
 > features, and complete dataset (45 buildings vs 43 in thesis). The dominant predictor remains `lag_1h`
@@ -75,8 +98,10 @@ DL models (LSTM/GRU/CNN-LSTM) evaluated on 237,313 samples (72 lookback rows per
 | ✅ Cyclical encoding | sin/cos for hour (24), day_of_week (7), month (12), day_of_year (365) |
 | ✅ Lag features | Target + temperature at [1, 2, 3, 24, 25, 26, 48, 167, 168, 169] hours per building |
 | ✅ Rolling statistics | [mean, std, min, max] over [3, 6, 12, 24, 72, 168]-hour windows, per building |
-| ✅ 3-stage feature selection | Variance → Correlation (|ρ|>0.99) → LightGBM top-35 |
+| ✅ 3-stage feature selection | Variance → Correlation (|ρ|>0.95) → LightGBM top-35 |
 | ✅ Correlation tie-breaking | Upper-triangle scan: for pair (A, B), B is always dropped — deterministic, documented |
+| ✅ Is_Weekend + temp×is_weekend | Weekend interaction features added to temporal.py |
+| ✅ Rolling window leakage fix | shift(1) before rolling — excludes current timestep from its own window |
 
 ---
 
@@ -92,67 +117,106 @@ DL models (LSTM/GRU/CNN-LSTM) evaluated on 237,313 samples (72 lookback rows per
 | 🟡 Per-building actual vs predicted | Planned | Visual trust-building for building managers |
 | 🟡 Error bands by hour of day | Planned | Show model accuracy range across the 24-hour cycle |
 
-### 2B — H+24 Day-Ahead Evaluation 🔴
+### 2B — H+24 Day-Ahead Evaluation — Three-Way Paradigm Parity Experiment 🔴
 
-The single most impactful research improvement identified by AI Studio and AICS reviewers.
-H+1 with lag_1h is "easy mode" — lag_1h alone achieves persistence-level accuracy (r=0.977).
-H+24 removes all lags < 24h, forcing models to rely on genuine temporal patterns.
+**The journal paper core contribution.** Validated in collaboration with AI Studio (March 2026).
 
-#### 2B.1 — Simple H+24 run (Track A — conference/short paper, 1 week effort)
+H+1 with `lag_1h` is "easy mode" (r=0.977 autocorrelation). H+24 removes all lags < 24h,
+forcing models to rely on genuine temporal patterns and exposing architectural differences.
 
-A fair, apples-to-apples comparison: same 35 features as H+1, minus lags < 24h.
-The `forecast_horizon` guard in `temporal.py` already handles this automatically.
+#### The Three-Way Comparison ("Paradigm Parity Experiment")
+
+This is the structure that, according to AI Studio, *"will be accepted to almost any applied ML
+energy journal"* — it perfectly dissects the Feature Engineering vs Deep Learning debate.
+
+**All three setups use H+24 (day-ahead). The pipeline already delivers A + B for free.**
+
+---
+
+**Setup A — Classical ML + Engineered Features** *(The Baseline)*
+- Models: Random Forest, LightGBM, XGBoost, Lasso, Ridge, Stacking Ensemble
+- Input: 35 engineered features (lags ≥ 24h, rolling stats, cyclical time, weather)
+- Output: 24 separate point predictions via `MultiOutputRegressor`
+- Why: Trees *require* engineered features to understand time. This is their natural habitat.
+- Answers: "What is the ceiling for classical ML with expert feature engineering?"
+
+**Setup B — Deep Learning + Engineered Features** *(Feature Parity)*
+- Models: LSTM, GRU, CNN-LSTM, TFT
+- Input: the exact same 35 engineered features as Setup A
+- Output: 24-step direct multi-horizon prediction
+- Why: To answer the reviewer question — "If DL gets the same tabular data as trees, who wins?"
+  (Expected answer: trees win; they are architecturally superior on tabular data)
+- Answers: "Does the DL architecture add value beyond the feature engineering, on equal footing?"
+
+**Setup C — Deep Learning + Raw Sequences (Paradigm Parity)** *(The SOTA test)*
+- Input: raw 72h window of [Load, Temperature, Solar] — **NO engineered lags, NO rolling stats, NO cyclical encoding**
+- Known future for TFT/PatchTST: weather forecast t+1..t+24 as `time_varying_known_reals`
+- Output: 24-step direct multi-horizon prediction; probabilistic quantiles
+- Why: DL's strength is end-to-end representation learning from raw sequences. Without engineered
+  features, DL must learn periodicity and autocorrelation from data — its natural advantage.
+  Only in this setup can the architectural advantage of attention/LSTM vs trees actually emerge.
+- Answers: "Is DL representation learning better than human-engineered features fed to gradient
+  boosted trees?" — the core scientific question of the journal paper.
+
+**Model shortlist for Setup C** (confirmed with user, March 2026):
+
+| Model | Architecture | Why | Priority |
+|-------|-------------|-----|----------|
+| **PatchTST** | Patch-based Transformer | SOTA on ETTh/ETTm; patches capture local temporal structure; channel-independent head per variate — best chance for DL | 🔴 Primary |
+| **DLinear** | Decomposition + Linear | Zeng et al. 2023 — linear decomposition model that beats many transformers on long-sequence benchmarks; fast ablation baseline | 🔴 Strong baseline |
+| **LSTM (raw)** | Recurrent | Same model as Setup B but fed raw [Load, Temp, Solar] only — isolates architecture from feature engineering | 🟡 Continuity |
+| **GRU (raw)** | Recurrent | Same model as Setup B, raw input | 🟡 Continuity |
+| **TFT (raw)** | Attention + LSTM hybrid | Same model as Setup B; uses [Load, Temp, Solar] encoder + weather forecast decoder | 🟡 Continuity |
+| **N-HiTS** | Neural hierarchical interpolation | Challu et al. 2023 — multi-scale temporal patterns, strong on daily/weekly seasonality | 🔵 Exploratory |
+
+*DLinear is the critical ablation: if a linear model on raw sequences beats LSTM/GRU on raw sequences, it challenges the "DL adds representational value" narrative — which is a publishable finding either way.*
+
+---
+
+#### Current Status
+
+| Setup | Status | Notes |
+|-------|--------|-------|
+| A (Trees + Features) | 🔄 **Running** (PID 81424, 2026-03-03 09:00) | `run_pipeline.py --city drammen --stages training`; sklearn done 09:06 |
+| B (DL + Features) | 🔄 **Running** (same process as A) | LSTM training on Metal GPU from epoch 1 at 09:07; epochs capped at 20 |
+| C (DL + Raw) | 🔴 Not started | Needs new data loader + PatchTST implementation |
+
+**H+24 Stage 3 results (pipeline running, 2026-03-03 09:06 — sklearn complete, DL in progress):**
+
+| Model | H+24 MAE (kWh) | H+24 R² | H+24 DailyPeak_MAE | Status |
+|-------|---------------|---------|-------------------|--------|
+| Naive | 44.07 | −0.199 | 48.78 | ✅ |
+| Seasonal Naive (24h) | 43.83 | −0.817 | 64.91 | ✅ |
+| Mean Baseline | 22.67 | 0.442 | 34.09 | ✅ |
+| Ridge | 7.46 | 0.926 | 10.74 | ✅ |
+| Lasso | 7.45 | 0.926 | 10.74 | ✅ |
+| RandomForest | 4.40 | 0.969 | 6.17 | ✅ |
+| LightGBM | 4.03 | 0.975 | 5.33 | ✅ |
+| XGBoost | 4.20 | 0.974 | 5.50 | ✅ |
+| Stacking Ensemble | — | — | — | 🔄 queued (after DL) |
+| LSTM | — | — | — | 🔄 training (Metal GPU, epoch ~8+, val_mae ~37 kWh) |
+| GRU | — | — | — | 🔄 queued |
+| CNN-LSTM | — | — | — | 🔄 queued |
+| TFT | — | — | — | 🔄 queued (~6h after DL finishes) |
+
+*Reference: H+1 LightGBM=2.11, H+1 Ridge=3.07. H+24 is ~2× harder as expected — oracle lags < 24h removed.*
+
+#### Implementation Plan
 
 | Item | Detail | Effort |
 |------|--------|--------|
-| 🔴 Config change only | Set `forecast_horizon: 24` + `sequence.horizon: 24` | < 1 min |
-| 🔴 Re-run `--skip-slow` | Trees + GRU + LSTM + Stacking evaluated H+24 | ~30 min |
-| 🔴 Paper update | Addresses AICS R1 ("H+1 is trivial") and AI Studio critique | Low |
+| ✅ Run H+24 pipeline | `python scripts/run_pipeline.py --city drammen` — **launched 2026-03-02 21:37** | ~8h (TFT dominates) |
+| 🔴 Verify raw columns for Setup C | Inspect `model_ready.parquet` — confirm Load, Temp, Solar availability | 10 min |
+| 🔴 Setup C data loader | `scripts/run_raw_dl.py` — raw (72, 3) tensor sequences, bypasses `X_train_fs` | ~2 days |
+| 🔴 PatchTST implementation | Add to `src/energy_forecast/models/patchtst.py` using `neuralforecast` or `pytorch-forecasting` | 2-3 days |
+| 🔴 DL 24-step output head | Already handled: `Dense(seq_cfg["horizon"])` in deep_learning.py | ✅ Done |
+| 🔴 TFT known-future weather | `time_varying_known_reals` = [temp, solar] for t+1..t+24 in Setup C TFT | ~1 day |
+| 🟡 MultiOutputRegressor for trees | Wrap sklearn models for true H+24 multi-output (Setup A) | ~0.5 day |
+| 🟡 Probabilistic Setup C | TFT P10/P50/P90 + LightGBM quantile objective (q=0.1/0.5/0.9) | 1 day |
 
-> **Expected outcome:** Tree models still dominate (access to 24h, 48h, 168h lags), but the
-> DL vs tree gap will narrow because `lag_1h` oracle is gone. First honest test of whether
-> LSTM/GRU add value beyond tree-based methods.
-
-#### 2B.2 — Paradigm-Parity H+24 (Track B — journal paper, 2-3 week effort)
-
-**Designed in collaboration with AI Studio (March 2026).** The key insight: giving DL models
-the same engineered tabular features as trees creates a *feature parity trap* — trees are
-inherently better at tabular data, so DL will always lose on their own ground.
-
-A proper comparison requires **paradigm parity**: each model family receives its natural input.
-
-**Branch A — Tabular (Trees):**
-- Input: engineered features, lags ≥ 24h only (`lag_24h`, `lag_25h`, `lag_26h`, `lag_48h`, `lag_167h`, `lag_168h`, `lag_169h`)
-- Rolling statistics anchored at t−24h (not t−0)
-- Known future covariates: weather forecast for next 24h (in production: NWP; in experiment: observed temperature used as oracle proxy with disclosure)
-- Output: 24 separate regression outputs, one per horizon step
-- Benefit: fully exploits feature engineering mastery; trees shine here
-
-**Branch B — Sequential (DL / TFT):**
-- Input: raw 72-hour look-back sequences [load, temperature, solar, wind] — NO engineered lags, NO rolling stats
-- Known future inputs: weather forecast for the next 24h (temperature, solar — TFT `time_varying_known_reals`)
-- Architecture: LSTM/GRU encode 72h history; TFT uses variable-selection + attention on raw sequences
-- Output: 24-step multi-horizon prediction (direct or iterative)
-- Benefit: DL gets to leverage sequence modelling strength; architecture advantage can emerge
-
-**Why this is the publishable journal result:**
-- Eliminates the feature parity trap from the AICS paper
-- PatchTST / TFT on raw sequences vs RF/LightGBM on engineered features — architecturally fair
-- Enables probabilistic output: TFT → P10/P50/P90 per horizon step
-
-| Item | Detail | Effort |
-|------|--------|--------|
-| 🔴 Branch A: H+24 tabular pipeline | Remove oracle lags, add weather forecast inputs for trees | ~1 day |
-| 🔴 Branch B: raw sequence loader | New DataLoader that outputs (72, 4) tensors — no feature engineering | ~2 days |
-| 🔴 DL multi-horizon output head | Change output from 1 to 24 units (LSTM/GRU/CNN-LSTM) | ~1 day |
-| 🔴 TFT known-future weather inputs | Configure `time_varying_known_reals` = [temperature, solar] for 24h window | ~1 day |
-| 🟡 PatchTST implementation | Add PatchTST to Branch B — benchmarks exceed Informer | 2-3 days |
-| 🟡 Probabilistic metrics (TFT + LightGBM) | P10/P50/P90 + coverage + sharpness metrics | 1 day |
-
-> **Code change estimate (AI Studio assessment):** ~150-170 new lines across 3 files:
-> `temporal.py` (branch-aware feature builder), `dl_models.py` (raw sequence loader +
-> multi-output head), `config.yaml` (paradigm parity flags). The forecast_horizon guard
-> already exists — this builds on it.
+> **Code change estimate (AI Studio):** ~150–170 new lines across 3 files: `temporal.py`
+> (branch-aware feature builder), `deep_learning.py` (raw sequence loader), `config.yaml`
+> (paradigm parity flags). The `forecast_horizon` guard already exists — Setup C builds on it.
 
 ### 2B.3 — Production Deployment Architecture (conceptual — ML science only)
 
@@ -183,6 +247,67 @@ retrain LSTM/TFT overnight on schedule; alert if rolling MAE degrades > threshol
 
 ---
 
+### 2B.4 — Real-World Deployment Scenarios: The Decision Tree (AI Studio, March 2026) 🔴
+
+> **Thesis narrative crystallised (Mar 3 2026 discussion):** The research is not "comparing models."
+> It is building a **Menu of Solutions** for different grid problems.
+> - **H+1** solves the Real-Time Stability problem → "Fast/Easy" Baseline (Thesis)
+> - **H+24** solves the Day-Ahead Market problem → "Commercial/Scientific" Core (Journal Paper)
+> - **Quantiles** solve the Optimization/Risk problem → "Advanced/Risk" Feature (PhD/Future Work)
+>
+> This framing directly answers **all three sets of AICS reviewer feedback** — see the cross-reference table below.
+
+#### The Model Selection Decision Tree
+
+```mermaid
+graph TD
+    A[What is your primary goal?] --> B{Operational Window}
+    B -- "Real-Time Balancing (H+1)" --> C[Scenario B: Tree Ensembles]
+    B -- "Day-Ahead Trading (H+24)" --> D[Scenario A/C: PatchTST / LightGBM]
+    B -- "Dynamic Intraday (H+6 / Variable)" --> E[Scenario C: DL Sequence Models]
+    
+    A --> F{Risk Tolerance}
+    F -- "Point Accuracy" --> G[LightGBM / CNN-LSTM]
+    F -- "Risk Mitigation / BESS" --> H[Scenario C: Quantile Regression]
+    
+    A --> I{Compute Resources}
+    I -- "Limited / Developing (CPU)" --> J[XGBoost / Quantized Trees]
+    I -- "High (Metal GPU/Cloud)" --> K[PatchTST / TFT]
+```
+
+#### Three Operator Profiles and Matched Models
+
+| Scenario | Horizon | Who Cares | Model Recommendation | Why |
+|----------|---------|-----------|---------------------|-----|
+| **A — Day-Ahead Trading** | H+24 | Utility companies (power procurement), grid operators (plant scheduling), large buildings (demand bids) | **LightGBM (Setup A)** or **PatchTST (Setup C)** | Most electricity is bought/sold at 11am for the entire next day. Accuracy here directly determines money — under-predict → expensive real-time balancing; over-predict → wasted procurement cost. Latency irrelevant (batch run nightly). |
+| **B — Real-Time Balancing** | H+1 | Grid operators (frequency response), data centres (HVAC cooling), battery storage arbitrage | **XGBoost** or **Random Forest** | Sub-millisecond inference. Can retrain every hour on latest data. `lag_1h` dominance (r=0.977) means complex DL is unnecessary — trees win here by design. |
+| **C — Risk-Aware MPC Control** | **Dynamic (H+6 to H+24)** | Smart building managers (solar/battery scheduling, EV charging optimisation) | **LightGBM Quantile Regression (P10/P50/P90)** | "Should I heat the water now (cheap night tariff) or wait for solar?" → requires probabilistic bounds, not just a point forecast. If P90 solar irradiance is high → defer. If only P40 → charge now. Mean prediction alone cannot drive this decision. |
+
+**Real-world examples mapped to scenarios:**
+- `eddi` solar diverter / residential hot-water scheduling → Scenario C (P10/P90 solar probability)
+- Irish data centres / LEAP users → Scenario B (H+1, <1s inference, hourly retrain)
+- Norwegian public building energy contracts (Drammen/Oslo) → Scenario A (H+24 day-ahead)
+
+#### AICS Reviewer Cross-Reference
+
+| Reviewer Criticism | How "Menu of Solutions" Answers It |
+|-------------------|------------------------------------|
+| **R1 (Full Paper):** "Whether it is appropriate for models to generalise or tailor to specific environments" | Explicitly answered: different model families are recommended per environment (Real-time → Trees; Day-ahead → Trees or TFT; Risk → Quantile LightGBM). Not one-size-fits-all. |
+| **R2 (Full Paper):** "Shallow interpretive analysis" | Explains *why* trees win at H+1 (autocorrelation / `lag_1h` dominance) vs why DL may win at H+24 (sequence learning on raw inputs). The causal mechanism is the interpretation. |
+| **R3 (Student Paper):** "Comparing different models seems rigorous" | H+24 + probabilistic scenarios increase rigour further — "best" is explicitly framed as use-case dependent, not a single winner. |
+
+#### Action Items Derived from This Discussion
+
+| Item | Priority | Detail |
+|------|----------|--------|
+| 🔴 Add deployment scenario framing to journal paper Introduction/Discussion | HIGH | Frame H+1 and H+24 experiments as Scenario A and Scenario B from the first paragraph; motivate with day-ahead market mechanics |
+| 🔴 LightGBM Quantile Regression (P10/P50/P90) | HIGH | `objective='quantile'`; already in 2C below; now has explicit Scenario C motivation |
+| 🟡 Add inference latency benchmark to results table | MEDIUM | Time RF/LightGBM/LSTM inference on a single building × 24h window — proves Scenario B suitability |
+| 🟡 Write "Model Selection Guide" subsection | MEDIUM | 1-page decision flowchart in journal paper: "What horizon? What latency? What risk tolerance?" → recommends model family |
+| 🔵 Scenario C prototype notebook | LOW/PhD | End-to-end demo: fetch tomorrow's weather forecast → run LightGBM quantile → output P10/P90 per building per hour |
+
+---
+
 ### 2C — Probabilistic Forecasting (Q3, Q4, Q5) 🔴
 
 | Item | Detail | Effort |
@@ -192,21 +317,77 @@ retrain LSTM/TFT overnight on schedule; alert if rolling MAE degrades > threshol
 | 🔴 Prediction interval metrics | Coverage (does P90 contain truth 90%?) + Width (sharpness) | Low |
 | 🟡 Daily Peak Error | MAE on daily peak *magnitude* — how close is predicted max per building per day? | Low |
 | 🟡 Time of Peak Error | Mean absolute hour error between predicted and actual daily peak timing | Low |
-| 🟡 Custom peak-weighted loss | Higher loss weight for top-10% load hours | Medium |
-| 🟡 Tail-aware evaluation | MAE computed only on top-10% load hours, alongside global MAE | Low |
+| ✅ Tanh Optimization | **Insight:** Switching from ReLU (Thesis) to Tanh (V2) for LSTMs allows hardware kernel mapping. | Done |
+
+### 2C.2 — Deep Learning Architecture Refinement (The Tanh Breakthrough) ✅
+- **Insight:** In the original thesis, `relu` was used for LSTM/CNN-LSTM. In the refactored pipeline, we utilize `tanh` (standard for LSTMs).
+- **Impact:** On Apple Silicon (MPS), `tanh` triggers optimized metal kernels. Training velocity improved by **~1,000%** (from 6h to <1h for equivalent epochs).
+- **Scientific Opinion:** Recommend `tanh` for all RNN-based energy forecasting on specialized hardware to leverage AMX/MPS/cuDNN speedups.
 
 > **Why Peak metrics matter (AI Studio, March 2026):** For Demand Response and Grid Operations
 > (H+24), being off by 5 kWh at 3am doesn't cost money. Missing the 5pm peak by 5 kWh does.
 > Daily Peak Error and Time of Peak Error are the metrics that sell to Viotas, ESB, and data
 > centre operators — they care about the spike, not the baseline.
 
-### 2D — Stacking / Ensemble Improvements (Q11)
+### 2B — Deep Learning Representational Learning (Q7) / Setup B
 
 | Item | Status | Detail | Effort |
 |------|--------|--------|--------|
-| 🔄 OOF (Out-of-Fold) stacking | **In progress** | Replace fixed-val with TimeSeriesSplit k-fold OOF meta-features — unbiased meta-learner training | Medium |
-| ✅ Weighted Average Ensemble | Done | Implemented in `models/ensemble.py` | Done |
-| 🟡 Physics-informed constraints | Planned | Monotonic constraints for XGBoost/LightGBM: temp ↓ → load ↑ (Q4) | Low |
+| ✅ LSTM_SetupB | Done | MAE=3.582 (H+1 baseline) | Done |
+| 🔄 CNN-LSTM_SetupB | 🔄 Running | Multi-horizon (H+24). Sequenced to run after Grand Ensemble. | Medium |
+| 🔄 GRU_SetupB | Planned | Multi-horizon (H+24). | Medium |
+| 🔄 TFT_SetupB | Planned | Multi-horizon (H+24). Most complex architecture. | High |
+
+> [!NOTE]
+> **Setup B as a Negative Control:** Setup B (Deep Learning applied directly to tabular engineered features) is deliberately run as a negative control experiment. It addresses reviewer concerns by proving that DL typically underperforms classical Tree models (like Setup A) when given explicit tabular signals instead of multi-dimensional raw sequences. We do not expect it to outperform Setup A.
+
+#### ⚠️ Computing Stewardship & Engineering Policy
+To prevent system freezes and ensure academic reproducibility:
+1. **Strict Environment Segregation:** All processes must explicitly use `~/miniconda3/envs/ml_lab1/bin/python`. The base environment is reserved for core system utilities only.
+2. **Sequential DL Execution:** Only ONE deep learning training process at a time. Multi-process training is disabled until the Grand Ensemble (A+C) completes.
+3. **CWD Independence:** Engineering scripts have been refactored to calculate their own `PROJECT_ROOT`, preventing relative path failures during remote execution.
+
+### 2D — Stacking / Ensemble Methodology (Q11)
+
+To ensure academic clarity, we distinguish between two types of ensembling used in this project:
+
+1. **Intra-Paradigm Stacking (Setup A):**
+   - **Method:** Out-of-Fold (OOF) Stacking with a Ridge meta-learner.
+   - **Rationale:** This is the *gold standard*. Because Tree models are extremely fast, building 5 OOF folds is computationally cheap. It allows the Ridge meta-learner to unbiasedly learn exactly how much to trust LightGBM vs. XGBoost.
+
+2. **Cross-Paradigm Grand Ensemble (A + C):**
+   - **Method:** Weighted Average Stacking (Alpha-blending).
+   - **Rationale:** Generating 5 OOF folds for models like PatchTST is computationally infeasible without a supercomputing cluster. Alpha-blending is the standard academic fallback. Exploring multiple weights maps the "trust spectrum" between domain-knowledge (Setup A) and automated pattern recognition (Setup C).
+
+#### 🔄 Near-Term Research Roadmap (The Final Stretch)
+
+| Item | Status | Detail | Effort |
+|------|--------|--------|--------|
+| **Setup B Champion** | 🔄 Running | Waiting for CNN-LSTM, GRU, TFT to complete negative control comparison. | Medium |
+| **Category-Level Analytics** | ✅ Done | Aggregated building metrics into Categories (Schools, Offices) to enable the Oslo Generalization hypothesis. | Low |
+| **Forecasting Horizon Sensitivity** | Planned | Break down MAE/RMSE at H+1, H+6, H+12, and H+24 to see where models "break". | Medium |
+| **Concept Drift Analysis** | Planned | Simulate production output sequentially across months to track increasing MAE, proving the existence of Concept Drift. | High |
+| **Continuous Retraining Pipeline** | Planned | Outline a production CI/CD loop that retrains the model every 30 days using real ground truth data (not past predictions) to recalibrate performance. | Medium |
+| **Oslo Generalization** | Planned | Run the Champion(s) on the Oslo dataset (100% Schools) to prove climate/building transferability based on Drammen School metrics. | High |
+
+> [!TIP]
+> **Production Insight:** Identifying that Tree models (Setup A) can run instantly while the Grand Ensemble can be run as a "daily batch" for superior accuracy (if proven) is a key recommendation for the Thesis.
+
+#### Ensemble Taxonomy & Methodology (Clarification)
+To maintain academic rigour, the research utilizes three distinct ensembling strategies:
+
+1. **Stacking Ensemble (Setup A / Ridge meta):** 
+   - **Strategy:** Aggregates tree models (RF, LGBM, XGB).
+   - **Training:** Uses **5-Fold Time-Series Out-of-Fold (OOF)** predictions to train the Ridge meta-learner, preventing data leakage.
+   - **Goal:** Improves generalisation within the tabular feature paradigm.
+
+2. **Weighted Average Ensemble:**
+   - **Strategy:** Simple arithmetic mean of base models weighting by inverse-MAE.
+   - **Goal:** Baseline ensemble performance without a trained meta-learner.
+
+3. **Grand Ensemble (Cross-Paradigm):**
+   - **Strategy:** Hybridises the best of **Setup A (Feature Engineering champion)** and **Setup C (Deep Learning representation champion)**.
+   - **Goal:** Test if domain-engineered features and sequential attention complement each other.
 
 ### 2E — Missing Weather / Data Quality (Q1) 🟡
 
@@ -283,6 +464,17 @@ DOI: [10.60609/2hvr-wc82](https://data.sintef.no/product/dp-679b0640-834e-46bd-b
 
 ---
 
+## Phase 5 — Deferred / Future Research 🎓
+*These items (e.g., Shaun Sweeney's PhD Theories) are parked to maintain focus on the MSc-to-Journal comparison.*
+
+| Item | Origin | Concept |
+|------|--------|---------|
+| 🎓 Automated Market Maker (AMM) Integration | Shaun Sweeney 2025 | Modeling load agents within an AMM pricing framework rather than marginal pricing. |
+| 🎓 Price-Responsive Load Agents | Sweeney / Crowley | RL-based agents reacting to dynamic grid pricing signals. |
+| 🎓 Asymmetric Settlement Risk | Sweeney | Loss functions that penalize under-procurement differently from over-procurement. |
+
+---
+
 ## Known Bugs / Technical Debt
 
 | Bug | Status | Notes |
@@ -295,7 +487,14 @@ DOI: [10.60609/2hvr-wc82](https://data.sintef.no/product/dp-679b0640-834e-46bd-b
 | TFT logger=False silenced all epoch output | ✅ Fixed | `logger=False` suppressed both EarlyStopping verbose + epoch logs; fixed to `logger=True` + `_EpochLogger` callback |
 | TFT hidden_size=64 (833K params, ~24h/run) | ✅ Fixed | Corrected to `hidden_size=32` (thesis value, 242K params, ~6-7h/run) |
 | tensorflow-metal missing → LSTM/GRU/CNN-LSTM on CPU | ✅ Fixed | Installed `tensorflow-metal 1.2.0`; GPU now visible to TF on Apple Silicon |
-| TFT num_workers=0 → GPU underutilised | 🟡 Known | PyTorch DataLoader bottleneck: 1 CPU core loads batches synchronously while GPU waits. Machine appears quiet (vs RF which uses 12 cores at 100%). Fix: `num_workers=4` in TFT + DL DataLoaders. Not yet applied (TFT currently running). |
+| TFT num_workers=0 → GPU underutilised | 🟡 Known | PyTorch DataLoader bottleneck: 1 CPU core loads batches synchronously while GPU waits. Fix: `num_workers=4` in TFT DataLoader. Not yet applied (macOS spawn overhead trade-off). |
+| TFT predict() crash — trainer_.predict() API | ✅ Fixed (2026-03-02) | `trainer_.predict()` returns raw Lightning output dicts, not tensors — `.numpy()` on a dict raises AttributeError. Fixed to `model_.predict()` which handles denormalisation and returns `(n_samples, horizon)` tensor in kWh. |
+| TFT ModelCheckpoint missing | ✅ Fixed (2026-03-02) | No ModelCheckpoint callback = only last epoch auto-saved by Lightning, not the best. For H+1 run, best epoch (18, val_MAE=0.4586) was lost; only epoch 19 (val_MAE=0.5905) available. `ModelCheckpoint(monitor="val_loss", save_top_k=1)` now added to `tft.py`. |
+| TFT BUG-C3 — timestamp in known_reals | ✅ Fixed (2026-03-02) | Raw timestamp is non-stationary; test-set values fall OOD vs training range → OOD saturation in TFT activations. Excluded from `time_varying_known_reals`. |
+| TFT predict=True returns 1 sample/building | ✅ Fixed (2026-03-02) | `TimeSeriesDataSet.from_dataset(..., predict=True)` creates only the LAST encoder/decoder window per group — 44 predictions for 44 buildings, useless for evaluation. Fixed to `predict=False` which generates all ~240k sliding windows across the test period. Confirmed by AI Studio: "By setting predict=False, the data loader will generate the full ~240,000 sliding windows for the test set, allowing you to compute the MAE across the entire test period." Fixed in both `tft.py` and `recover_tft_h1_prediction.py`. |
+| Stacking BUG-C6 — OOF early stopping leakage | ✅ Fixed (2026-03-02) | `cloned.fit()` was passing `X_fold_val` → LightGBM/XGB early stopping optimised on the predicted fold. Removed val data from OOF fitting. |
+| Rolling window BUG — target leakage | ✅ Fixed (2026-03-02) | `group[col].rolling(w)` at row t included y(t) itself. Fixed with `shift(1)` before rolling. |
+| **BUG-DL-H24 — DL H+24 evaluation length mismatch** | ✅ Fixed (2026-03-03) | `build_sequences(lookback=72, horizon=24)` creates `(n-95)` windows per building; `_trim_dl_targets` only removed `lookback=72` rows, leaving `(n-72)` — diff = 23×44 = 1,012. LSTM/GRU/CNN-LSTM were skipped entirely (evaluation only, training was fine). Fix: added `_build_y_true_matrix()` to `run_pipeline.py` that builds a proper 2-D `(n_samples, 24)` y_true matrix respecting building boundaries. `evaluate()` already handles 2-D vs 2-D correctly. Recovery script: `scripts/run_dl_h24_only.py`. |
 
 ---
 
@@ -337,6 +536,9 @@ See `docs/AI_STUDIO_FEEDBACK.md` for full detail.
 | AI Studio (Roadmap review, March 2026) | Add Forecast Uncertainty Penalty (oracle vs NWP weather) — highly publishable, proves production-readiness | 🟡 MEDIUM |
 | AI Studio (Roadmap review, March 2026) | Add Daily Peak Error + Time of Peak Error to 2C — the metrics that matter for Demand Response and grid operators | 🟡 MEDIUM |
 | AI Studio (Roadmap review, March 2026) | Cross-Domain Transfer to Data Centre IT/Cooling load — proves architecture generalises beyond Norwegian buildings | 🎓 PhD |
+| AI Studio (Research direction, Mar 3 2026) | "Menu of Solutions" narrative: H+1=Stability, H+24=Day-Ahead Market, Quantiles=Risk-Aware Control. Thesis is a toolkit, not a single-winner comparison. | 🔴 HIGH |
+| AI Studio (Research direction, Mar 3 2026) | Deployment scenarios: Scenario A (day-ahead, LightGBM/TFT), Scenario B (real-time, XGBoost/RF <1s), Scenario C (MPC/solar, LightGBM P10/P90). Map all models to operator profiles in journal paper. | 🔴 HIGH |
+| AI Studio (Research direction, Mar 3 2026) | AICS reviewer cross-reference validated: "Menu of Solutions" directly answers R1 (tailoring), R2 (interpretive depth), R3 (rigour). No direction change — crystallisation of existing work. | 🟡 MEDIUM |
 | AICS R1 (Full Paper, 76/100) | DL given engineered features creates feature parity trap; DL should get raw sequences | 🔴 HIGH |
 | AICS R2 (Full Paper, 64/100) | Single dataset limits generalisability; add Oslo for transfer learning | 🟡 MEDIUM |
 | AICS R3 (Full Paper, 85/100) | Very clear presentation | ✅ Confirmed |
@@ -389,5 +591,5 @@ Output:        24-step multi-horizon prediction (direct)
 
 ---
 
-*Last updated: 2026-03-01 (Session 11 — AI Studio roadmap review: WeatherNext penalty, Peak metrics, redundancy fix, Data Centre cross-domain)*
+*Last updated: 2026-03-03 (Session 13 — H+24 pipeline relaunched PID 81424 with ml_lab1 Python + Metal GPU hang fixes (epochs=20, min_delta=1.0); sklearn H+24 results confirmed (LightGBM 4.03, XGBoost 4.20, RF 4.40 kWh); LSTM training in progress; Added §2B.4 Real-World Deployment Scenarios — "Menu of Solutions" narrative crystallised from AI Studio Mar 3 discussion: H+1=Real-Time Stability, H+24=Day-Ahead Market, Quantiles=Risk-Aware MPC; AICS reviewer cross-reference validated; action items logged)*
 *Maintained by: Dan Alexandru Bujoreanu — dan.bujoreanu@gmail.com*

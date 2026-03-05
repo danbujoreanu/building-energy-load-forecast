@@ -175,6 +175,7 @@ Output: 24-step multi-horizon (direct), shape: (n_samples, 24)
 | 4 | H+24 evaluation | Config change only, ~10 min run | Honest day-ahead forecast; removes lag_1h oracle |
 | 5 | PatchTST implementation | 2-3 days coding | Architectural diversity; outperforms Informer per benchmarks |
 | 6 | LightGBM quantile regression | < 1 day | P10/P50/P90 intervals, minimal code change |
+| **NEW** | **StandardScaler Leakage Test** | **1 hour** | **Add test asserting `StandardScaler` only continuous fits on `train` split, to prevent leakage during `PatchTST` raw sequence generation.** |
 
 ### 🟡 Medium priority
 
@@ -192,7 +193,7 @@ Output: 24-step multi-horizon (direct), shape: (n_samples, 24)
 | 11 | Oslo cross-dataset transfer learning | Train Drammen → test Oslo (vs. trained on Oslo) |
 | 12 | H+24 + paradigm parity | DL gets raw 72h sequences; trees get 35 engineered features |
 | 13 | Hierarchical BART | Partial pooling across buildings; PhD-track |
-| 14 | FastAPI + Docker deployment | REST API for live predictions |
+| 14 | FastAPI + Docker deployment | Tiny docker-compose REST API (`POST /predict`) to immediately prove Production Architecture |
 | 15 | Per-building profiles | `generate_eda_charts.py --profiles` |
 
 ---
@@ -233,7 +234,7 @@ every 30 days:
 **Key decisions for the paper/future work:**
 1. Window size: 30 days? 90 days? Full history (growing window) vs. fixed rolling window?
 2. Which models support incremental learning (LightGBM `init_model` for warm-start)?
-3. Walk-forward validation (expanding window) vs. rolling window back-test
+3. **Walk-forward validation vs Batch Re-training:** Ensure a clear distinction between online learning (continually updating model weights) and batch re-training (training a fresh model like LightGBM entirely on the window and swapping the artifact). Batch re-training is much safer for production constraints.
 4. WeatherNext integration: replace oracle temperature with 4×daily forecast
 
 **Connection to SINTEF NSBI:**
