@@ -80,15 +80,20 @@ The evaluation is structured as a **3-Way Paradigm Split**:
 *   **Setup B: Deep Learning (Tabular - Negative Control)** — DL models trained on the same 35 engineered features, proving DL struggles with tabular tabular representations compared to trees.
 *   **Setup C: Deep Learning (Sequential)** — SOTA sequence models (PatchTST) trained dynamically on raw 3D sequences (Load, Temp, Solar) with a 72h lookback bridging the entire paradigm.
 
-| Setup | Rank | Model | MAE (kWh) | R² | Train time | Note |
-|-------|------|-------|-----------|----|------------|------|
-| **Setup A** | 🥇 1 | **LightGBM** | **4.054** | **0.975** | ~13s | **Absolute Champion** |
-| Setup A | 2 | XGBoost | 4.197 | 0.973 | ~7s | - |
-| Setup A | 3 | Random Forest | 4.402 | 0.968 | ~6 min | - |
-| Setup A | 4 | Ridge Regression | 7.460 | 0.926 | <1s | Linear Baseline |
-| **Setup B** | — | DL (LSTM/TFT) | ~34.0 | - | ~1 h | *Struggles with tabular input* |
-| **Setup C** | 1 | **PatchTST** | **6.921** | **0.911** | ~50 min | **SOTA Sequence** |
-| Setup C | 2 | CNN / GRU | ~8.0 | 0.890 | ~20 min | - |
+| Setup | Paradigm | Rank | Model | MAE (kWh) | R² | Train Time | Activation | Note |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **Setup A** | **Classical ML + Features** | 🥇 1 | **LightGBM** | **4.029** | **0.975** | ~13 s | - | **Overall Champion** |
+| Setup A | Classical ML + Features | 2 | XGBoost | 4.197 | 0.973 | ~7s | - | - |
+| Setup A | Classical ML + Features | 3 | Random Forest | 4.402 | 0.968 | ~6 min | - | - |
+| Setup A | Classical ML + Features | 4 | Ridge Regression | 7.460 | 0.926 | <1 s | - | Linear Baseline |
+| **ENSEMBLE** | **Cross-Paradigm (A + C)** | - | **Weighted Stack (A90/C10)** | **4.106** | **0.974** | - | - | Best Ensemble Configuration |
+| **Setup C** | **DL + Raw Sequences** | 1 | **PatchTST** | **6.955** | **0.910** | ~50 min | - | **SOTA Sequence Champion** |
+| Setup C | DL + Raw Sequences | 2 | CNN-LSTM | 8.040 | 0.890 | ~11 min | ReLU, Tanh | - |
+| Setup C | DL + Raw Sequences | 3 | GRU | 8.080 | 0.880 | ~20 min | Tanh | - |
+| Setup C | DL + Raw Sequences | 4 | LSTM | 8.380 | 0.880 | ~19 min | Tanh | - |
+| **Setup B** | **DL + Features** | 1 | **CNN-LSTM** | **9.375** | **0.877** | ~11 min | ReLU, Tanh | Best Negative Control |
+| Setup B | DL + Features (Negative Control) | 2 | GRU | 9.639 | 0.867 | ~16 min | Tanh | - |
+| Setup B | DL + Features (Negative Control) | 3 | LSTM | 34.938 | -0.003 | ~48 min | Tanh | *Convergence Failure* |
 
 #### Ensembling: The "Trust Spectrum"
 
@@ -114,18 +119,18 @@ flowchart TD
     %% Data Preparation
     subgraph Phase1 [Phase 1: Data Preparation]
         A["Drammen & Oslo Ingestion"] --> B["Merge Metadata & Submeters"]
-        B --> C["MICE Imputation <br/> (ts.hour, ts.month covariates)"]
+        B --> C["MICE Imputation (ts.hour, ts.month covariates)"]
         C --> D["Model Ready Data"]
     end
 
     %% Paradigm Split
     subgraph Phase2 [Phase 2: The Paradigm Split]
         D --> E["Tabular Pathway"]
-        E --> F["Feature Engineering <br/> (Lags, Rolling, Cyclical)"]
-        F --> G["Feature Selection <br/> (35 Features)"]
+        E --> F["Feature Engineering (Lags, Rolling, Cyclical)"]
+        F --> G["Feature Selection (35 Features)"]
         
         D --> H["Sequential Pathway"]
-        H --> I["Raw 3D Windowing <br/> (72h Lookback)"]
+        H --> I["Raw 3D Windowing (72h Lookback)"]
         I --> J["Feature Scaling"]
         
         G:::highlight
@@ -133,26 +138,26 @@ flowchart TD
     end
 
     %% Modelling Paradigms
-    subgraph Phase3 [Phase 3: Modelling Paradigms (H+24)]
-        G --> K["Setup A: Classical ML <br/> (LGBM, XGBoost, RF, Ridge)"]
-        G --> L["Setup B: DL Tabular <br/> (LSTM, CNN-LSTM, GRU, TFT)"]
-        J --> M["Setup C: DL Sequence <br/> (PatchTST, LSTM, CNN-LSTM)"]
+    subgraph Phase3 [Phase 3: Modelling Paradigms H+24]
+        G --> K["Setup A: Classical ML (LGBM, XGBoost, RF, Ridge)"]
+        G --> L["Setup B: DL Tabular (LSTM, CNN-LSTM, GRU, TFT)"]
+        J --> M["Setup C: DL Sequence (PatchTST, LSTM, CNN-LSTM)"]
         
         L:::control
     end
 
     %% Ensembling & Output
     subgraph Phase4 [Phase 4: Ensembling & Output]
-        K --> N["Intra-Paradigm Stacking <br/> (OOF Ridge Meta-Learner)"]
-        K -.->|"Champion: LGBM"| O["Cross-Paradigm Grand Ensemble <br/> (Alpha-blended Weighted Average)"]
+        K --> N["Intra-Paradigm Stacking (OOF Ridge Meta-Learner)"]
+        K -.->|"Champion: LGBM"| O["Cross-Paradigm Grand Ensemble (Alpha-blended Weighted Average)"]
         M -.->|"Champion: PatchTST"| O
         
-        N --> P["H+24 Forecasts & Metrics <br/> (MAE, RMSE, Daily Peak Error)"]
+        N --> P["H+24 Forecasts & Metrics (MAE, RMSE, Daily Peak Error)"]
         O --> P
     end
 
     %% Notes
-    Note1["Note: Setup B acts as a Negative Control. <br/> Proving DL fails on non-sequential tabular features."]:::text
+    Note1["Note: Setup B acts as a Negative Control. Proving DL fails on non-sequential tabular features."]:::text
     Note1 -.- L
 ```
 
