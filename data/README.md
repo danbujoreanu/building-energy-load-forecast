@@ -2,6 +2,27 @@
 
 This directory contains raw building energy data for two Norwegian cities.
 
+## 📖 Detailed Datasets Description
+For comprehensive, scientific-level documentation of both datasets, the raw source files are located in `data/Detailed Datasets description`:
+- **Drammen:** `Drammen...Scientific_Data.pdf`
+- **Oslo:** `Oslo_README.txt`
+
+### 🔑 Unified Code Dictionary (Drammen & Oslo)
+Both datasets follow the same metadata structure and column naming convention established by the COFACTOR/SINTEF projects:
+
+**Metadata Headers:**
+- `Building_category`: `Sch` (School)
+- `Energy_label`: `A-G` (Efficiency rating)
+- `Central_heating_system`: `0` (No), `1` (Yes), `2` (Unknown)
+- `_heat_source` types: `EB` (Electric boiler), `DH` (District heating), `ASHP` / `GSHP` (Air/Ground source heat pump)
+
+**Time-Series Columns:**
+- `Electricity_Imported_Total_kWh` or `ElImp`: Target Variable (Imported grid electricity)
+- `Tout`: Outdoor temperature (°C)
+- `SolGlob`: Global Solar Horizontal Radiation (W/m2)
+- `WindSpd`: Wind speed (m/s)
+
+---
 ## Drammen (included)
 
 45 public school and kindergarten buildings from the COFACTOR project.

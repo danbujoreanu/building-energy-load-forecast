@@ -70,44 +70,33 @@ All models are evaluated on 240,481 hourly observations across 42 buildings in t
 | 12 | LSTM | 10.132 | 17.686 | 0.862 | ~3.75 h |
 | 13 | CNN-LSTM | 12.435 | 20.930 | 0.807 | ~37 min |
 
-#### Reproduced pipeline (2026) — expanded feature set (45/45 buildings)
+### 2026 H+24 Day-Ahead Evaluation: The Paradigm Parity Experiment
 
-The same evaluation protocol applied to an expanded feature set: adds DST-robust lags (167h, 169h), min/max rolling statistics, temperature × hour interaction terms, and the binary `central_heating_system` indicator. All 45 buildings are loaded, and the full thesis feature engineering methodology is reproduced from the original notebooks. Deep learning models evaluated on 237,313 samples (first 72 lookback rows per building excluded — no full history available for sliding-window sequence construction).
+To truly evaluate models for day-ahead market forecasting, the horizon was shifted from H+1 (where `lag_1h` dominated) to **H+24**. This prevents simple autoregression and forces models to learn deeper temporal and weather interactions. 
 
-| Rank | Model | MAE (kWh) | RMSE (kWh) | MAPE (%) | R² | vs. Thesis |
-|------|-------|-----------|------------|----------|----|------------|
-| 🥇 1 | **Random Forest** | **1.711** | 3.441 | **6.3** | 0.995 | −48% |
-| 🥈 2 | Stacking Ensemble (Ridge meta) | 1.774 | 3.249 | 7.4 | 0.995 | −52% |
-| 🥉 3 | LightGBM | 2.108 | 3.715 | 9.2 | 0.994 | −41% |
-| 4 | XGBoost | 2.228 | 3.938 | 9.6 | 0.993 | −35% |
-| 5 | Lasso Regression | 3.064 | 5.322 | 14.0 | 0.987 | −27% |
-| 6 | Ridge Regression | 3.069 | 5.311 | 14.1 | 0.987 | −27% |
-| 7 | LSTM | 3.582 | 6.435 | 18.5 | 0.982 | −65% |
-| 8 | GRU | 3.947 | 6.507 | 33.0 | 0.981 | — |
-| 9 | CNN-LSTM | 4.572 | 7.239 | 37.2 | 0.977 | −63% |
-| — | Mean Baseline | 22.691 | 35.331 | 127.8 | 0.442 | — |
-| — | Seasonal Naive (24 h) | 43.768 | 63.686 | 107.5 | −0.815 | — |
-| — | Naive (Lag 1h) | 44.088 | 51.803 | 599.1 | −0.201 | — |
+The evaluation is structured as a **3-Way Paradigm Split**:
 
-> **Note on DL model MAPE:** MAPE values for LSTM/GRU/CNN-LSTM are higher than sklearn because they are computed over the trimmed test set (which includes near-zero consumption hours that inflate MAPE). The R² values (0.977–0.982) confirm strong overall fit.
+*   **Setup A: Classical ML (Tabular)** — Trees/Linear models trained on 35 engineered features.
+*   **Setup B: Deep Learning (Tabular - Negative Control)** — DL models trained on the same 35 engineered features, proving DL struggles with tabular tabular representations compared to trees.
+*   **Setup C: Deep Learning (Sequential)** — SOTA sequence models (PatchTST) trained dynamically on raw 3D sequences (Load, Temp, Solar) with a 72h lookback bridging the entire paradigm.
 
-The MAE improvement over thesis is attributable to:
-1. **DST-aware lag features** — lag_167h and lag_169h (same-time yesterday ±1h) provide cleaner weekly patterns
-2. **Min/max rolling statistics** — tighter bounds on recent load range (thesis used these too but with a smaller feature pool)
-3. **Interaction features** — `temp × hour_sin/cos` capture time-varying temperature sensitivity
-4. **Complete dataset** — all 45 buildings contribute to training (two were previously excluded due to encoding issues)
-5. **DL model improvement** — richer feature set includes `lag_1h` (r=0.977), allowing sequence models to converge faster and generalise better than in the thesis
+| Setup | Rank | Model | MAE (kWh) | R² | Train time | Note |
+|-------|------|-------|-----------|----|------------|------|
+| **Setup A** | 🥇 1 | **LightGBM** | **4.054** | **0.975** | ~13s | **Absolute Champion** |
+| Setup A | 2 | XGBoost | 4.197 | 0.973 | ~7s | - |
+| Setup A | 3 | Random Forest | 4.402 | 0.968 | ~6 min | - |
+| Setup A | 4 | Ridge Regression | 7.460 | 0.926 | <1s | Linear Baseline |
+| **Setup B** | — | DL (LSTM/TFT) | ~34.0 | - | ~1 h | *Struggles with tabular input* |
+| **Setup C** | 1 | **PatchTST** | **6.921** | **0.911** | ~50 min | **SOTA Sequence** |
+| Setup C | 2 | CNN / GRU | ~8.0 | 0.890 | ~20 min | - |
 
-### Computational cost vs accuracy
+#### Ensembling: The "Trust Spectrum"
 
-| Model | MAE (kWh) | Approx. train time | Notes |
-|-------|-----------|-------------------|-------|
-| LightGBM | 2.108 | ~3 s | Best accuracy/cost ratio |
-| XGBoost | 2.228 | ~3 s | Closely competitive |
-| Random Forest | 1.711 | ~2 min | Best raw accuracy |
-| Ridge | 3.069 | <1 s | Linear baseline |
-| TFT | 5.114* | ~6 h | *Thesis result, DL pending re-run |
-| LSTM | 10.132* | ~3.75 h | *Thesis result |
+Following academic best practices, two distinct ensembling strategies were employed due to computational constraints:
+1. **Intra-Paradigm Stacking (Setup A):** 5-Fold **Out-of-Fold (OOF)** predictions generated from Trees, passed to a Ridge meta-learner.
+2. **Cross-Paradigm Grand Ensemble (A + C):** **Alpha-blended Weighted Stack** between LightGBM and PatchTST.
+
+**Finding:** Pure LightGBM outperformed the Grand Ensemble (MAE 4.106 vs 4.054). This proves that while PatchTST is powerful, its errors are positively correlated with LightGBM's, but its overall accuracy is lower on this specific dataset, making the domain-engineered features of Setup A the gold standard.
 
 ---
 
@@ -116,39 +105,55 @@ The MAE improvement over thesis is attributable to:
 The project implements a **Three-Tier Architecture** (Data / Application / Presentation) with a **Pipe-and-Filter** ML pipeline, following the design patterns studied in the MSc Engineering & Evaluating AI Systems module.
 
 ```mermaid
-graph TD
-    subgraph Presentation["Presentation Tier"]
-        SC[scripts/run_pipeline.py]
-        EDA[scripts/generate_eda_charts.py]
+flowchart TD
+    classDef default fill:#1a1a1a,stroke:#4a4a4a,stroke-width:2px,color:#fff;
+    classDef highlight fill:#2A5D8A,stroke:#4a4a4a,stroke-width:2px,color:#fff;
+    classDef control fill:#6e2b2b,stroke:#4a4a4a,stroke-width:2px,color:#fff;
+    classDef text fill:none,stroke:none,color:#fff;
+
+    %% Data Preparation
+    subgraph Phase1 [Phase 1: Data Preparation]
+        A["Drammen & Oslo Ingestion"] --> B["Merge Metadata & Submeters"]
+        B --> C["MICE Imputation <br/> (ts.hour, ts.month covariates)"]
+        C --> D["Model Ready Data"]
     end
 
-    subgraph Application["Application Tier — src/energy_forecast/"]
-        L[data/loader.py\nParse .txt and .csv files]
-        P[data/preprocessing.py\nClean · Validate · Impute]
-        SP[data/splits.py\nTrain · Val · Test splits]
-        T[features/temporal.py\nLag · Rolling · Cyclical · Interaction]
-        FS[features/selection.py\nVariance → Corr → LightGBM]
-        M[models/\nBaselines · sklearn · DL · TFT · Ensemble]
-        E[evaluation/metrics.py\nMAE · RMSE · MAPE · R²]
-        SH[evaluation/explainability.py\nSHAP beeswarm · bar · waterfall]
-        V[visualization/]
+    %% Paradigm Split
+    subgraph Phase2 [Phase 2: The Paradigm Split]
+        D --> E["Tabular Pathway"]
+        E --> F["Feature Engineering <br/> (Lags, Rolling, Cyclical)"]
+        F --> G["Feature Selection <br/> (35 Features)"]
+        
+        D --> H["Sequential Pathway"]
+        H --> I["Raw 3D Windowing <br/> (72h Lookback)"]
+        I --> J["Feature Scaling"]
+        
+        G:::highlight
+        J:::highlight
     end
 
-    subgraph Data["Data Tier"]
-        RAW[data/raw/drammen · oslo]
-        PROC[data/processed/]
-        OUT[outputs/results · figures]
-        CFG[config/config.yaml]
+    %% Modelling Paradigms
+    subgraph Phase3 [Phase 3: Modelling Paradigms (H+24)]
+        G --> K["Setup A: Classical ML <br/> (LGBM, XGBoost, RF, Ridge)"]
+        G --> L["Setup B: DL Tabular <br/> (LSTM, CNN-LSTM, GRU, TFT)"]
+        J --> M["Setup C: DL Sequence <br/> (PatchTST, LSTM, CNN-LSTM)"]
+        
+        L:::control
     end
 
-    SC --> L
-    L --> P --> SP --> T --> FS --> M --> E --> V --> OUT
-    M --> SH --> OUT
-    RAW --> L
-    CFG -.->|all parameters| L
-    CFG -.->|all parameters| T
-    CFG -.->|all parameters| M
-    SP --> PROC
+    %% Ensembling & Output
+    subgraph Phase4 [Phase 4: Ensembling & Output]
+        K --> N["Intra-Paradigm Stacking <br/> (OOF Ridge Meta-Learner)"]
+        K -.->|"Champion: LGBM"| O["Cross-Paradigm Grand Ensemble <br/> (Alpha-blended Weighted Average)"]
+        M -.->|"Champion: PatchTST"| O
+        
+        N --> P["H+24 Forecasts & Metrics <br/> (MAE, RMSE, Daily Peak Error)"]
+        O --> P
+    end
+
+    %% Notes
+    Note1["Note: Setup B acts as a Negative Control. <br/> Proving DL fails on non-sequential tabular features."]:::text
+    Note1 -.- L
 ```
 
 ---
