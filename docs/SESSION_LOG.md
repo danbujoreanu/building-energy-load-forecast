@@ -947,6 +947,7 @@ appends/updates TFT row in `outputs/results/final_metrics.csv`. Idempotent — s
 ---
 
 #### 2026-03-05 16:30 | Phase 3: Grand Ensemble Completed & Setup B Sequential Start
+- **Author:** Antigravity (Gemini 1.5 Pro)
 
 #### 🎯 Grand Ensemble Results (Cross-Paradigm A+C)
 The Grand Ensemble between **Setup A Champion (LightGBM)** and **Setup C Champion (PatchTST)** was completed with precise alignment. 
@@ -1036,8 +1037,14 @@ As validated by Google AI Studio, the old linear diagram (Data → Features → 
 
 *(A text-layout of this diagram has been saved to `docs/METHODOLOGY_ARCHITECTURE.md` for easy reference).*
 
-### Context
-Session continuation from Session 8. Pipeline PID 17892 (started in S8) was still running
+#### 2026-03-05 22:30 | Setup B Completion & Horizon H+24 Validation
+- **Author:** Antigravity (Gemini 1.5 Pro)
+- **TFT Halt:** The final PyTorch TFT model completed its 15 tabular epochs but logically failed length consistency `(246585 vs 241393)` sliding-window evaluation. Because CNN-LSTM `(9.3)` and GRU `(9.6)` already successfully proved the Setup B negative-control regression drop against Setup A, TFT was omitted to save engineering hours, matching AI Studio's instruction.
+- **Data Extracted:** Safely migrated all `lightning_logs/` and `outputs/` from the rogue `Thesis WIP` dir into the correct `building-energy-load-forecast` repo.
+- **Git State:** Versioned and committed the `H+24 Paradigm Parity` results showcasing Setup A (LightGBM ~4.0) entirely defeating both Setup B and Setup C (PatchTST ~6.9), rendering the cross-paradigm Alpha-Weighted Ensemble inferior to pure trees.
+
+### Objective
+Next step is the Oslo Generalization validation to satisfy AICS R2.
 OOF fold 2/5 at context handoff. Session 9 picked it up and monitored through to completion.
 
 ### OOF Stacking — Confirmed Results

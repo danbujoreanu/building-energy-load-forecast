@@ -105,10 +105,10 @@ def load_city_data(
     if not raw_dir.exists():
         raise FileNotFoundError(f"Raw data directory not found: {raw_dir}")
 
-    pattern = "*.txt" if city == "drammen" else "*.csv"
-    files = sorted(raw_dir.glob(pattern))
+    # Both datasets are now provided as .txt files
+    files = sorted(list(raw_dir.glob("*.txt")) + list(raw_dir.glob("*.csv")))
     if not files:
-        raise FileNotFoundError(f"No {pattern} files found in {raw_dir}")
+        raise FileNotFoundError(f"No building files (.txt or .csv) found in {raw_dir}")
 
     logger.info("Loading %d %s building files from %s", len(files), city, raw_dir)
 

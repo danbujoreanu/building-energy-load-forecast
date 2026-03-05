@@ -3,35 +3,30 @@ models.ensemble
 ===============
 Ensemble methods that combine predictions from multiple base learners.
 
-Two implementations (both from MSc thesis):
+Two implementations aligned with the H+24 Paradigm Split:
 
-StackingEnsemble
+StackingEnsemble (Intra-Paradigm Stacking for Setup A)
     Base learners → meta-features → meta-learner trained on those features.
     Final prediction = meta_learner(base_preds on test).
 
-    Two meta-feature generation strategies:
+    **Out-of-Fold (OOF)** (default, ``oof_folds: 5``) is the gold standard used
+    for Setup A (Tree models). TimeSeriesSplit is used on the training set. 
+    Base models are cloned, retrained on the fold's training portion, and 
+    predict on the validation portion to prevent overfitting.
 
-    1. **Fixed-validation** (legacy, ``oof_folds: 0``):
-       Base models predict on X_val; meta-learner trained on those val predictions.
-       Thesis results: Ridge MAE 3.698 kWh | LGBM MAE 3.582 kWh.
+    Because Tree models are extremely fast, building 5 OOF folds is computationally 
+    cheap. It allows the Ridge meta-learner to unbiasedly learn exactly how much 
+    to trust LightGBM vs. XGBoost. Deep Learning models are computationally
+    infeasible for OOF stacking without a cluster.
 
-    2. **Out-of-Fold (OOF)** (default, ``oof_folds: 5``):
-       TimeSeriesSplit with k folds on the training set.  For each fold, base
-       models are cloned and retrained on the fold's training portion, then
-       predict on the fold's validation portion.  The OOF predictions stack to
-       form meta-features for the full training set (minus the first fold's
-       training rows).  This prevents the meta-learner from overfitting to a
-       single validation window and is the academically correct approach for
-       time-series stacking.
+WeightedAverageEnsemble (Cross-Paradigm Grand Ensemble for A + C)
+    Weights predictions based on a predefined or inversely-proportional metric.
+    This includes Alpha-blending (e.g., 0.9 Setup A + 0.1 Setup C).
 
-       Only sklearn-compatible base models (those with a ``.estimator``
-       attribute pointing to an sklearn-API estimator) can be cloned.
-       DL models / TFT are automatically skipped during OOF folds.
-
-WeightedAverageEnsemble
-    Weights = (1 / val_MAE) per model, normalised to sum=1.
-    Simple, interpretable, no additional training needed.
-    Thesis result: MAE 4.081 kWh (Drammen test set, all 6 models).
+    This approach is mathematically necessary when computationally heavy models
+    (like PatchTST / TFT) cannot be generated via 5-fold OOF. By sweeping
+    alpha weights, we establish the 'trust spectrum' between domain-engineered
+    tabular features and raw autonomous pattern representations.
 
 This implements the Task Orchestration pattern: each ensemble coordinates
 independent base models without them knowing about each other.
