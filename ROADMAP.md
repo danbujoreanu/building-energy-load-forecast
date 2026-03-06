@@ -368,7 +368,7 @@ To ensure academic clarity, we distinguish between two types of ensembling used 
 | **Forecasting Horizon Sensitivity** | Planned | Break down MAE/RMSE at H+1, H+6, H+12, and H+24 to see where models "break". | Medium |
 | **Concept Drift Analysis** | Planned | Simulate production output sequentially across months to track increasing MAE, proving the existence of Concept Drift. | High |
 | **Continuous Retraining Pipeline** | Planned | Outline a production CI/CD loop that retrains the model every 30 days using real ground truth data (not past predictions) to recalibrate performance. | Medium |
-| **Oslo Generalization** | 🟡 In Progress | Run the Champion(s) on the Oslo dataset (100% Schools) to prove climate/building transferability based on Drammen School metrics. | High |
+| **Oslo Generalization** | ✅ Done | Run the Champion(s) on the Oslo dataset (100% Schools) to prove climate/building transferability based on Drammen School metrics. | High |
 
 > [!TIP]
 > **Production Insight:** Identifying that Tree models (Setup A) can run instantly while the Grand Ensemble can be run as a "daily batch" for superior accuracy (if proven) is a key recommendation for the Thesis.
@@ -416,8 +416,8 @@ DOI: [10.60609/2hvr-wc82](https://data.sintef.no/product/dp-679b0640-834e-46bd-b
 
 | Item | Detail | Effort |
 |------|--------|--------|
-| 🟡 Run pipeline on Oslo | Switch `city: oslo` in config, run `--skip-slow` | Low |
-| 🟡 Cross-dataset comparison | Does a model trained on Drammen generalise to Oslo? | Medium |
+| ✅ Run pipeline on Oslo | Switch `city: oslo` in config, run `--skip-slow` | Low |
+| ✅ Cross-dataset comparison | Does a model trained on Drammen generalise to Oslo? | Medium |
 | 🟡 Building_ID embeddings | Replace one-hot with learned dense vectors | Medium |
 | 🔵 Transfer learning | Train on Drammen+Oslo combined, measure generalisation | High |
 
