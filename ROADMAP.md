@@ -479,6 +479,7 @@ DOI: [10.60609/2hvr-wc82](https://data.sintef.no/product/dp-679b0640-834e-46bd-b
 
 | Bug | Status | Notes |
 |-----|--------|-------|
+| **Stacking Ensemble OOF drops rows** | Open | Stacking Ensemble OOF drops all rows if `LightGBM_Quantile` is included because of missing sklearn `clone()` compatibility generating NaNs. **Fix:** Explicitly add `LightGBM_Quantile` to the `_DL_NAMES` or an exclusion list in `run_pipeline.py` before passing models to `StackingEnsemble`. |
 | Cyclical encoding (23/6 vs 24/7) | ✅ Fixed | Original notebooks had wrong period — no impact on results as lag features dominated |
 | Fixed validation for Stacking | ✅ Fixed | OOF stacking with TimeSeriesSplit (5 folds) validated March 1st 2026 — MAE 1.744, RMSE 3.240, R² 0.9953 |
 | GRU results not in thesis Table 5 | ✅ Fixed | GRU evaluated in V2 pipeline: MAE 3.947 kWh, R² 0.981 |

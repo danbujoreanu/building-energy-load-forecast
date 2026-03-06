@@ -1059,9 +1059,10 @@ Next step is the Oslo Generalization validation to satisfy AICS R2.
   - XGBoost: MAE = 7.585 | R² = 0.9613
   - Random Forest: MAE = 7.708 | R² = 0.9567
 - **Conclusion:** AICS Reviewer 2's request for out-of-distribution demonstration is fulfilled. The tabular methodology generalises to the new geography without degrading explanation power (R² > 0.95).
-OOF fold 2/5 at context handoff. Session 9 picked it up and monitored through to completion.
+- **Bug Caught:** Identified that the pipeline logged a warning (`cannot clone model 'LightGBM_Quantile'`) which causes the `StackingEnsemble` to crash and skip building meta-features due to the `NaN` generation logic. Logged this in `ROADMAP.md` as Technical Debt for Claude Code to exclude `LightGBM_Quantile` from the meta-learner execution.
 
-### OOF Stacking — Confirmed Results
+### Context (History)
+OOF fold 2/5 at context handoff. Session 9 picked it up and monitored through to completion.
 
 Run: `python scripts/run_pipeline.py --city drammen --skip-slow`
 Runtime: 28.0 minutes | Test samples: 240,481 | 44 buildings
