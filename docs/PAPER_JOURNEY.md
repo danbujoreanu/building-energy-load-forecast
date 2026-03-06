@@ -292,6 +292,17 @@ The project is now evolving from a binary comparison (Trees vs. DL) into a rigor
 ### Key Evolution: Stacking & Meta-Ensembles
 In this phase, we moved beyond individual models to a **Multi-Paradigm Ensemble**. By stacking the predictive power of Setup A (Trees) with Setup C (PatchTST), we aim to create a "best of both worlds" meta-model that leverages both the explicit domain knowledge in engineered features and the implicit temporal patterns extracted by Transformers.
 
+### 7. March 2026: The Oslo Generalization (Phase 3A)
+
+AICS Reviewer 2 critiqued that the thesis results were "limited to a single dataset." To definitively address this, the entire **Setup A** champion methodology (LightGBM, XGBoost, Random Forest on engineered features) was executed completely unmodified on the **Oslo dataset** (48 schools, 2019-2023, ~3 million hourly records). 
+
+The results were a resounding success. Because the baseline loads of the Oslo schools were higher than Drammen, absolute errors scaled up proportionately as expected (e.g., LightGBM MAE ~7.4 kWh). Crucially, the **variance explained (R²) remained exceptionally strong**, proving true geographic generalizability:
+- **LightGBM:** R² = 0.963
+- **Random Forest:** R² = 0.956
+- **XGBoost:** R² > 0.95
+
+This formally answers the AICS reviewer: our *"Case for Trees"* champion methodology successfully and robustly transfers to an entirely new municipal portfolio without requiring deep learning architectures.
+
 ---
 
 *Last Updated: March 5, 2026*
