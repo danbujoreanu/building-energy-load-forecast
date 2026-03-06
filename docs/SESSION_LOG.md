@@ -1045,6 +1045,20 @@ As validated by Google AI Studio, the old linear diagram (Data → Features → 
 
 ### Objective
 Next step is the Oslo Generalization validation to satisfy AICS R2.
+
+#### 2026-03-05 23:45 | Oslo Generalization Pipeline (Transparent Execution)
+- **Author:** Antigravity (Gemini 1.5 Pro)
+- **Action:** Transitioned pipeline execution from obscured background-terminal instances to fully transparent log-driven execution to ensure Claude Code can audit the runtime output during handover.
+- **Process:** Killed previous undocumented execution. Created and launched `run_oslo.sh` to run the Oslo Setup A ML model training. 
+- **Visibility:** All pipeline outputs are actively streaming to **`outputs/logs/run_oslo_generalization.log`**. User and Claude Code can open this file to monitor the Cross-Validation metrics in real-time.
+
+#### 2026-03-06 00:05 | Oslo Generalization Complete (Phase 3A)
+- **Action:** Extracted final metrics from `outputs/results/final_metrics.csv` following the 3-Million-row pipeline sweep.
+- **Results:** 
+  - LightGBM: MAE = 7.415 | R² = 0.9630
+  - XGBoost: MAE = 7.585 | R² = 0.9613
+  - Random Forest: MAE = 7.708 | R² = 0.9567
+- **Conclusion:** AICS Reviewer 2's request for out-of-distribution demonstration is fulfilled. The tabular methodology generalises to the new geography without degrading explanation power (R² > 0.95).
 OOF fold 2/5 at context handoff. Session 9 picked it up and monitored through to completion.
 
 ### OOF Stacking — Confirmed Results
