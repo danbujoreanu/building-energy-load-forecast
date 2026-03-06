@@ -1061,6 +1061,11 @@ Next step is the Oslo Generalization validation to satisfy AICS R2.
 - **Conclusion:** AICS Reviewer 2's request for out-of-distribution demonstration is fulfilled. The tabular methodology generalises to the new geography without degrading explanation power (R² > 0.95).
 - **Bug Caught:** Identified that the pipeline logged a warning (`cannot clone model 'LightGBM_Quantile'`) which causes the `StackingEnsemble` to crash and skip building meta-features due to the `NaN` generation logic. Logged this in `ROADMAP.md` as Technical Debt for Claude Code to exclude `LightGBM_Quantile` from the meta-learner execution.
 - **Hotfix & Restart:** Created the code fix directly inside `scripts/run_pipeline.py`. Killed the frozen overnight process (PID 28329) which was running the old buggy code. Began a completely fresh execution of the Oslo Pipeline utilizing the fixed `StackingEnsemble` configuration. The training is running locally via `/miniconda3/envs/ml_lab1/bin/python` and outputting transparently to `outputs/logs/run_oslo_generalization_fixed.log`.
+
+#### 2026-03-06 12:45 | Scale Insights, Analytics, and Documentation (Pivot to Writing Phase)
+- **Analytics Script:** Developed and executed `scripts/analyze_building_types.py` (Apples-to-Apples school comparison) confirming that Oslo schools consistently hit $R² > 0.96$ locally on LightGBM. Scale difference ($\text{MAE}_{\text{Oslo}} \sim 7.4$ vs $\text{MAE}_{\text{Drammen}} \sim 4.0$) is directly governed by baseline load scale, not model performance.
+- **SHAP Explanation:** Initiated `python scripts/run_pipeline.py --city oslo --stages explain` explicitly to map the top feature-importances of the Oslo inference matrix to standard graphical artifacts in `outputs/figures/shap`.
+- **Preparation for Production:** Concluded the overarching empirical engineering phase (H+1 vs H+24 vs Setup A/B/C) effectively freezing all architecture scripts. Pivoting strictly into writing Phase V documentation outlining the API strategy, journal content generation, and Docker orchestration context.
 OOF fold 2/5 at context handoff. Session 9 picked it up and monitored through to completion.
 
 Run: `python scripts/run_pipeline.py --city drammen --skip-slow`
