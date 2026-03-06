@@ -283,9 +283,10 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
     # are incompatible with X_val for meta-feature generation.
     _DL_NAMES = {"LSTM", "GRU", "CNN-LSTM", "TFT"}
     _BASELINE_NAMES = {"Naive", "Seasonal Naive (24 h)", "Mean Baseline"}
+    _UNSUPPORTED_STACKING = {"LightGBM_Quantile"}
     ensemble_base = {
         k: v for k, v in fitted_models.items()
-        if k not in _BASELINE_NAMES and k not in _DL_NAMES
+        if k not in _BASELINE_NAMES and k not in _DL_NAMES and k not in _UNSUPPORTED_STACKING
     }
     if len(ensemble_base) >= 2:
         try:
@@ -299,6 +300,8 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
         except Exception as exc:
             logger.warning("Stacking ensemble failed: %s", exc)
 
+    comparison = compare_models(results)
+    
     # ── Save results ──────────────────────────────────────────────────────────
     # Merge with existing final_metrics.csv if it exists to preserve Setup C / other runs
     metrics_path = res_dir / "final_metrics.csv"
