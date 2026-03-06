@@ -27,4 +27,7 @@ The Grand Ensemble is an **Alpha-Blended Weighted Stack** between the champion o
 1. 🔄 **Finish Setup B Sequential Run:** The final "Negative Control" model, TFT, is currently epoching.
 2. ✅ **Category-Level Analytics:** `analyze_building_types.py` generated `category_level_metrics.csv` to prove Drammen Schools' performance (Targeting Reviewer 2).
 3. 🔄 **Migration Tidy-Up:** Move `lightning_logs` and outputs from `Thesis WIP 2026/` to `building-energy-load-forecast/` when TFT releases its file lock.
-4. 🔄 **Oslo Generalization:** Final experiment to prove model climate/building transferability using the new category grouping.
+4. ✅ **Oslo Generalization Complete:** Successfully proved model climate/building transferability natively across completely new data.
+   - **Stacking Ensemble (Ridge meta):** 1st place (MAE: 7.280 | R²: 0.9635)
+   - **LightGBM:** 2nd place (MAE: 7.415 | R²: 0.9630)
+   - *Result proves Setup A (Tabular ML) transfers beautifully to a new geographical location.*
