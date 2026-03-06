@@ -50,6 +50,7 @@ lightning_logs/
 
 # ── Generated outputs ─────────────────────────────────────────────────────────
 outputs/figures/
+outputs/logs/
 # outputs/results/ is committed (small CSVs with metrics)
 
 # ── macOS ─────────────────────────────────────────────────────────────────────
