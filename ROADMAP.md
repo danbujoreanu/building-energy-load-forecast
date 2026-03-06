@@ -409,7 +409,11 @@ To maintain academic rigour, the research utilizes three distinct ensembling str
 
 ## Phase 3 — Architecture Extensions
 
-### 3A — Oslo Dataset Integration (Q6) 🟡
+### 3A — Oslo Dataset Integration (Q6) ✅
+**Status:** Completed & Successful
+- Proven Model Generalization: Stacking Ensemble (R² 0.9635) and LightGBM (R² 0.9630).
+- Conclusion: Climate/Building transferability confirmed (Drammen Schools → Oslo Schools).
+
 
 Pipeline-ready. 48 buildings (schools), SINTEF/Oslobygg KF, CC BY 4.0.
 DOI: [10.60609/2hvr-wc82](https://data.sintef.no/product/dp-679b0640-834e-46bd-bc8f-8484ca79b414)

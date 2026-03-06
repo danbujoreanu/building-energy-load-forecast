@@ -1078,6 +1078,13 @@ Runtime: 28.0 minutes | Test samples: 240,481 | 44 buildings
 | 3 | LightGBM | 2.109 | 3.715 | 9.25% | 0.9938 |
 | 4 | XGBoost | 2.228 | 3.938 | 9.56% | 0.9931 |
 | 5 | Lasso | 3.064 | 5.322 | 13.95% | 0.9873 |
+
+#### 2026-03-06 13:10 | Data Integrity Audit and Log Descriptive Cleanup
+- **Critical Fix (Data Integrity):** Identified multi-city data contamination in `final_metrics.csv` and `per_building_metrics.csv`. Implemented city-prefixed names (`drammen_*.csv`, `oslo_*.csv`) across all evaluation and saving logic in `src/energy_forecast/evaluation/metrics.py` and `scripts/run_pipeline.py`.
+- **Metadata Protection:** Updated Stage 1 (EDA) logic to save city-prefixed metadata (`{city}_metadata.parquet`), preventing "Apples-to-Apples" analysis failures from cross-dataset overwrites.
+- **Log Sanitation:** Renamed generic output logs to more intuitive, descriptive identifiers (e.g., `setupC_raw_dl_evaluation.log`, `oslo_generalization_final_run.log`) for better debugging discoverability.
+- **Metrics Rebuild:** Initiated `scripts/rebuild_all_metrics.py` to transparently regenerate all city-specific results from saved model artifacts (`outputs/models/`) and freshly separated data splits, outputting a complete audit trail to `outputs/logs/metrics_rebuild_audit.log`.
+- **Analytics Updated:** Refactored `scripts/analyze_building_types.py` to use city-specific silos, ensuring category-level performance truly reflects independent municipal portfolios.
 | 6 | Ridge | 3.069 | 5.311 | 14.12% | 0.9874 |
 
 OOF coverage: **83.4%** (954,535 / 1,144,535 training rows) — correct; first fold has no history.

@@ -48,6 +48,7 @@ def evaluate(
     model_name: str = "model",
     building_ids: np.ndarray | pd.Series | None = None,
     timestamps: pd.Index | pd.Series | None = None,
+    city: str = "",
 ) -> dict[str, Any]:
     """Compute MAE, RMSE, MAPE, R² globally and optionally per building.
 
@@ -101,6 +102,8 @@ def evaluate(
             "horizon":     horizon,
             "horizon_mae": horizon_mae,
         }
+        if city:
+            result["city"] = city
         _log_result(result)
         return result
 
@@ -113,6 +116,8 @@ def evaluate(
         "R2":        _r2(y_true, y_pred),
         "n_samples": len(y_true),
     }
+    if city:
+        result["city"] = city
 
     # ── Daily Peak MAE (MISS-1) ───────────────────────────────────────────────
     if building_ids is not None and timestamps is not None:
@@ -131,14 +136,17 @@ def evaluate(
             mask = building_ids_arr == bid
             if mask.sum() < 2:
                 continue
-            per_building.append({
+            pb_entry = {
                 "building_id": int(bid),
                 "MAE":       _mae(y_true[mask], y_pred[mask]),
                 "RMSE":      _rmse(y_true[mask], y_pred[mask]),
                 "MAPE":      _mape(y_true[mask], y_pred[mask]),
                 "R2":        _r2(y_true[mask], y_pred[mask]),
                 "n_samples": int(mask.sum()),
-            })
+            }
+            if city:
+                pb_entry["city"] = city
+            per_building.append(pb_entry)
         result["per_building"] = per_building
 
     _log_result(result)
@@ -209,7 +217,7 @@ def save_per_building_metrics(
             logger.debug("No per_building data for model '%s' — skipping.", r.get("model", "?"))
             continue
         for pb in r["per_building"]:
-            rows.append({
+            row_dict = {
                 "model":       r["model"],
                 "building_id": pb["building_id"],
                 "MAE":         round(pb["MAE"],  4),
@@ -217,7 +225,10 @@ def save_per_building_metrics(
                 "MAPE":        round(pb["MAPE"], 4),
                 "R2":          round(pb["R2"],   4),
                 "n_samples":   pb["n_samples"],
-            })
+            }
+            if "city" in pb:
+                row_dict["city"] = pb["city"]
+            rows.append(row_dict)
 
     if not rows:
         logger.warning("save_per_building_metrics: no per_building data in any result.")

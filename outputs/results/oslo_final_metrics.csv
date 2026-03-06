@@ -1,0 +1,11 @@
+,city,model,MAE,RMSE,MAPE,R2,DailyPeak_MAE,n_samples,source
+0,oslo,LightGBM,7.415,13.518,16.28,0.9630,9.722,779423,oslo_generalization_final_run.log
+1,oslo,Stacking Ensemble (Ridge meta),7.280,13.437,15.72,0.9635,9.563,779423,oslo_generalization_final_run.log
+2,oslo,LightGBM_Quantile,7.345,14.492,14.45,0.9575,10.110,779423,oslo_generalization_final_run.log
+3,oslo,XGBoost,7.585,13.833,16.60,0.9613,10.118,779423,oslo_generalization_final_run.log
+4,oslo,RandomForest,7.708,14.634,15.56,0.9567,10.231,779423,oslo_generalization_final_run.log
+5,oslo,Ridge,15.174,24.432,32.58,0.8792,22.284,779423,oslo_generalization_final_run.log
+6,oslo,Lasso,15.159,24.430,32.51,0.8792,22.278,779423,oslo_generalization_final_run.log
+7,oslo,Mean Baseline,45.295,62.624,125.09,0.2063,60.900,779423,oslo_generalization_final_run.log
+8,oslo,Naive,55.343,72.514,177.11,-0.0642,66.135,779423,oslo_generalization_final_run.log
+9,oslo,Seasonal Naive (24 h),73.810,101.414,101.82,-1.0815,119.231,779423,oslo_generalization_final_run.log

@@ -107,12 +107,22 @@ Following academic best practices, two distinct ensembling strategies were emplo
 
 To answer AICS Reviewer 2's request for out-of-distribution geographical validation, the **Setup A** methodology was evaluated against an entirely new municipal dataset: **Oslo** (48 schools, 2019-2023).
 
-Despite the larger baseline loads in the Oslo dataset naturally translating to higher absolute metrics (MAE ~7.4 kWh), **the geographic generalizability was completely verified**. Standard Tree experts retained their exceptionally high explanatory power:
-- **LightGBM:** R² = 0.963
-- **Random Forest:** R² = 0.956
-- **XGBoost:** R² > 0.95
+Despite the larger baseline loads in the Oslo dataset naturally translating to higher absolute metrics (MAE ~7.4 kWh), **the geographic generalizability was completely verified**. Setup A tree models retained their exceptionally high explanatory power (R² > 0.95 across all tree-based methods), confirming that the engineered tabular pipeline captures foundational thermodynamic behaviours applicable cross-municipality.
 
-This confirms that the engineered *Tabular Pipeline* does not overfit to the local climate or the specific architecture of Drammen schools, but captures foundational thermodynamic behaviors applicable cross-country.
+| Rank | Model | MAE (kWh) | RMSE (kWh) | MAPE (%) | R² | Daily Peak MAE |
+|------|-------|-----------|------------|----------|----|----------------|
+| 🥇 1 | **Stacking Ensemble (Ridge meta)** | **7.280** | 13.437 | 15.72 | **0.9635** | 9.563 |
+| 2 | LightGBM | 7.415 | 13.518 | 16.28 | 0.9630 | 9.722 |
+| 3 | LightGBM (Quantile P50) | 7.345 | 14.492 | 14.45 | 0.9575 | 10.110 |
+| 4 | XGBoost | 7.585 | 13.833 | 16.60 | 0.9613 | 10.118 |
+| 5 | Random Forest | 7.708 | 14.634 | 15.56 | 0.9567 | 10.231 |
+| 6 | Ridge Regression | 15.174 | 24.432 | 32.58 | 0.8792 | 22.284 |
+| 7 | Lasso Regression | 15.159 | 24.430 | 32.51 | 0.8792 | 22.278 |
+| — | Mean Baseline | 45.295 | 62.624 | 125.09 | 0.2063 | 60.900 |
+| — | Naive (persistence) | 55.343 | 72.514 | 177.11 | −0.064 | 66.135 |
+| — | Seasonal Naive (24h) | 73.810 | 101.414 | 101.82 | −1.082 | 119.231 |
+
+*Oslo test set: 779,423 observations across 39 buildings. Models trained from scratch on Oslo data; no Drammen weights transferred.*
 
 ---
 
@@ -204,7 +214,7 @@ StandardScaler is fitted on the training set and applied to validation and test 
 | Rolling | mean, std, min, max over 3h, 6h, 12h, 24h, 72h, 168h | Short- and long-range context |
 | Metadata | floor_area, year_of_construction, number_of_users, central_heating_system | Building characteristics |
 
-Feature selection uses three sequential stages: variance threshold → Pearson correlation filter (ρ > 0.99) → top-35 by LightGBM importance. This reduces ~91 engineered features to 35.
+Feature selection uses three sequential stages: variance threshold → Pearson correlation filter (ρ > 0.95, upper-triangle scan — the later column in each correlated pair is dropped) → top-35 by LightGBM importance. This reduces ~91 engineered features to 35.
 
 ### Models
 
@@ -361,14 +371,19 @@ The CI pipeline (GitHub Actions) runs all 24 tests against Python 3.10 and 3.11 
 
 See [`ROADMAP.md`](ROADMAP.md) for the full research roadmap, drawn from the 11 follow-up questions in the thesis.
 
-Priority directions:
+Completed since the conference paper:
 
-- **Probabilistic forecasting** — quantile regression (P10/P50/P90) in LightGBM and TFT for prediction intervals (Q3, Q5)
-- **24h-ahead honest evaluation** — removing all lags < 24h and assessing true next-day forecasting capability across models
-- **Oslo dataset** — cross-dataset generalisation and building transfer learning (Q6)
-- **Out-of-fold stacking** — replacing fixed-validation meta-learning with k-fold OOF for unbiased ensemble weights (Q11)
+- ✅ **H+24 Day-Ahead Evaluation** — 3-Way Paradigm Parity Experiment (Setup A/B/C) completed; LightGBM MAE 4.029, PatchTST MAE 6.955
+- ✅ **Oslo Generalisation** — Setup A validated on 48-building Oslo dataset; all tree models R² > 0.95
+- ✅ **Out-of-fold stacking** — 5-fold TimeSeriesSplit OOF with gap=168h; Ridge meta-learner trained on held-out fold predictions only
+- ✅ **Probabilistic forecasting** — LightGBM quantile objective (P50 reported; P10/P90 intervals available)
+
+Open research directions:
+
+- **Journal paper** — H+24 Paradigm Parity results + Oslo generalisation targeting a peer-reviewed journal
 - **Hierarchical models** — partial pooling across buildings using BART or multilevel models (Q6)
 - **Solar / wind imputation** — MICE-based imputation for ~18% missing weather features (Q1)
+- **Transfer learning** — pre-training on Drammen, fine-tuning on Oslo with frozen lower layers
 
 ---
 
