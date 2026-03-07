@@ -1396,3 +1396,37 @@ Full Professor, Department of Wind and Energy Systems. Key paper directly adjace
 ---
 
 *Session log maintained by Claude Code. Always update this file at the end of each session.*
+
+## Session 20 — 2026-03-07 (Literature Deep-Dive, LinkedIn, Cloud Strategy)
+
+### Topics Covered
+- Ingested LinkedIn profile (Profile.pdf) — full career history reviewed
+- Deep-dived into 5 specific DTU Summer School 2025 posters + 5 additional adjacent ones
+- Located corresponding papers online for each poster topic
+- Copied 10 posters to `Thesis WIP 2026/Related_Literature/DTU_Summer_School_2025/`
+- Created `POSTER_NOTES.md` with paper links, summaries, and research thread analysis
+- Delivered LinkedIn profile update recommendations
+- Delivered AWS vs GCP cloud platform recommendation
+- Delivered PhD mimicry / structured independent research plan
+- Validated overall research direction
+
+### Posters Copied + Papers Found
+| Poster Author | Paper Title | Link |
+|---------------|------------|------|
+| Graham-McClone / Uturbey | Short-Term Probabilistic Forecasting via Hungarian Algorithm (SSRN 2025) | https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5244852 |
+| Ali Kaboli | PINN-based multi-zone EWH modeling for demand response (Applied Energy 2024) | https://www.sciencedirect.com/article/abs/pii/S0306261924024218 |
+| Pietro Favaro | Decision-Focused Learning for HVAC MIQP (arxiv:2501.14708, ACM e-Energy 2025) | https://arxiv.org/abs/2501.14708 |
+| Heidi Nielsen | Data-driven MPC for buildings (DTU/Energy and Buildings 2024) | https://orbit.dtu.dk/en/projects/data-driven-predictive-methods-in-energy-management-for-smart-bui |
+| Abhishek Tiwari | Irish Net Zero 2050 (npj Climate Action 2024) | https://www.nature.com/articles/s44168-024-00181-7 |
+| Jalal Faraji | Probabilistic forecast-based portfolio optimization (Applied Energy 2024) | https://www.sciencedirect.com/article/pii/S0306261923014733 |
+
+### Cloud Platform Decision
+- AWS conference demo (this week): AWS App Runner from ECR — ~$5 total, 10 min setup
+- Long-term research platform: GCP Cloud Run — true scale-to-zero, already using Google Stack
+- Do NOT use: SageMaker (~$72/month minimum), Vertex AI custom prediction, Fargate
+
+### PhD Mimicry Plan (4 sprints)
+1. Journal paper from existing results — Applied Energy / Energy and Buildings
+2. Horizon sensitivity (H+3/6/12/24/48) + weather uncertainty penalty
+3. Ireland CER dataset generalization
+4. Foundation model (Chronos) zero-shot + DFL ControlEngine (Favaro architecture)
