@@ -1344,3 +1344,55 @@ curl -X POST http://localhost:8000/control \
 ---
 
 *Session log maintained by Claude Code. Always update this file at the end of each session.*
+
+---
+
+## Session 19 — 2026-03-07 (Research Direction Survey & Literature Review)
+
+### Topics Covered
+- Identified correct Google Scholar researcher: **Jalal Kazempour** (DTU, not Jochen Cremer)
+- Literature survey on state-of-the-art building energy load forecasting (2024-2025)
+- Research direction guidance: journal paper, horizon sensitivity, Irish datasets, career positioning
+- LinkedIn positioning discussion for Phase 6 work
+
+### Jalal Kazempour (DTU)
+Full Professor, Department of Wind and Energy Systems. Key paper directly adjacent to user's project:
+- Crowley, Kazempour, Mitridati, Alizadeh (2025) — "Learning Prosumer Behavior in Energy Communities: Integrating Bilevel Programming and Online Learning" — arxiv:2501.18017, published in Applied Energy May 2025
+- Framework learns what BTM assets (PV, EV, battery, heat pump) each prosumer owns from observed load patterns using bilevel programming + online learning. Complementary to user's forecasting pipeline — user predicts load; Kazempour infers what equipment drives it.
+
+### State of the Art — Key Papers
+| Paper | Finding | Relevance |
+|-------|---------|-----------|
+| arxiv:2501.05000 (Jan 2025) | "Are DL models worth the effort?" — KNN/persistence competitive with LSTM when data <6 months | Directly supports user's trees>DL conclusion |
+| arxiv:2410.09487 (Oct 2024) | Foundation models (Chronos, TimesFM) competitive but TFS Transformers still lead for household forecasting | Chronos zero-shot baseline to add to Setup C |
+| Prophet-XGBoost-CatBoost (2024) | MAE 23.70, R²=0.97, <10s inference | Confirms hybrid GBT dominates production |
+
+### What Utilities Actually Deploy
+- Production standard: XGBoost/CatBoost/LightGBM for speed, hybrid LSTM+GBT for accuracy
+- Portuguese DSO: live GBT system covering thousands of load curves
+- Day-ahead (H+24): LightGBM with weather — directly matches user's champion
+- Short-term (<1h): XGBoost (<10s inference) — confirms trees-over-DL for real-time
+
+### Research Directions Logged
+1. Journal paper first (Applied Energy or Energy and Buildings) — Paradigm Parity H+24 + Oslo
+2. Horizon sensitivity (H+3, H+6, H+12, H+24, H+48) — config change, one afternoon
+3. Weather uncertainty penalty — replace oracle temp with Open-Meteo forecast, measure ΔMAE
+4. Ireland CER dataset — 6,435 households, 30-min, publicly available from CER/UCD
+5. Foundation model baseline (Chronos zero-shot) — add to Setup C comparison
+6. Kazempour BTM learning — PhD-track extension after journal paper
+
+### LinkedIn Positioning (Phase 6 additions)
+- Add "Probabilistic Energy Forecasting" and "Demand Response Automation" to skills
+- Post or article: "How I built a system that tells my hot-water heater whether to wait for solar" — engineering storytelling
+- Headline suggestion: "ML Engineer | Energy Forecasting | Building-Level Demand Response | NCI MSc AI 2025"
+
+### Ireland / ESB Context
+- ESB Networks completed national smart meter rollout 2024 (1.7M meters)
+- EIRGRID Demand Flexibility Service (DFS) — trialed 2022/23, live 2024 — wind excess → household load shift
+- SEAI BER database covers all rated Irish buildings (public)
+- CER Smart Metering Dataset: 6,435 Irish households — publicly available, next generalization step
+- Commercial players: Voltedge, Ecozen building on EIRGRID DFS data
+
+---
+
+*Session log maintained by Claude Code. Always update this file at the end of each session.*
