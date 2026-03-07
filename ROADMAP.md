@@ -468,6 +468,67 @@ DOI: [10.60609/2hvr-wc82](https://data.sintef.no/product/dp-679b0640-834e-46bd-b
 
 ---
 
+## Phase 6 — Real-World Cyber-Physical Systems 🔴
+
+*Translating the research pipeline into a deployable demand-response system.*
+*Motivated by AWS Conference (March 2026) and home automation use case (eddi hot-water diverter + Ecowitt weather station).*
+
+### 6A — Live Data Connectors 🔴
+
+| Item | Detail | Status |
+|------|--------|--------|
+| ✅ DataConnector ABC | Abstract interface: `fetch_last_n_hours(building_id, n_hours, city) → DataFrame` | Done |
+| ✅ CSVConnector | Reads from committed `model_ready.parquet` — works today, demo/test mode | Done |
+| ✅ OpenMeteoConnector | Free live weather + solar irradiance for Ireland/Norway — no API key required. `OpenMeteoConnector.for_city("dublin")` | Done |
+| 🔴 EcowittConnector | Personal weather station API (`api.ecowitt.net/api/v3/device/real_time`). **Pending: Ecowitt GW1100 hardware + API key** | Stub |
+| 🔵 MQTTConnector | MQTT subscriber for industrial sensor feeds. **Pending: MQTT broker** | Stub |
+
+### 6B — Probabilistic Control Engine 🔴
+
+| Item | Detail | Status |
+|------|--------|--------|
+| ✅ ForecastBundle | Dataclass holding P10/P50/P90 hourly load predictions (kWh) | Done |
+| ✅ EnvironmentState | Dataclass holding solar forecast (W/m²) + grid price (EUR/kWh) signals | Done |
+| ✅ ControlAction | Per-hour decision: `HEAT_NOW`, `DEFER_HEATING`, `PARTIAL_HEAT`, `ALERT_HIGH_DEMAND` + confidence + reasoning | Done |
+| ✅ ControlEngine | Rule-based demand-response controller: solar×price → setpoint logic | Done |
+| ✅ PriceConnector ABC | Interface: `get_day_ahead_prices(date) → list[float]` (24 hourly EUR/kWh values) | Done |
+| ✅ MockPriceConnector | Realistic Irish residential day-ahead curve (night 0.15, peak 0.40, off-peak 0.16) | Done |
+| 🔴 SEMOConnector | Irish day-ahead prices via ENTSO-E Transparency Platform API. **Pending: API token** | Stub |
+| ✅ DeviceConnector ABC | Interface: `send_command(action_type, building_id) → bool` | Done |
+| ✅ MockDeviceConnector | Logs commands to stdout — CI/demo safe | Done |
+| 🔴 MyEnergiConnector | eddi hot-water diverter via myenergi community API. `mode=1` boost, `mode=3` stop. Digest auth. **Pending: API key** | Stub |
+
+**Control Logic (ControlEngine.decide):**
+1. `P90_load > demand_headroom` → `ALERT_HIGH_DEMAND`
+2. `solar ≥ 150 W/m²` AND `price ≥ 0.28 EUR/kWh` → `DEFER_HEATING` (wait for PV)
+3. `price < 0.16 EUR/kWh` → `HEAT_NOW` (cheap off-peak window)
+4. Moderate solar + acceptable price → `PARTIAL_HEAT`
+5. Default → `HEAT_NOW` (safe baseline)
+
+**Entry points:**
+- `python deployment/live_inference.py --dry-run` — morning brief with mock data
+- `POST /control` FastAPI endpoint — returns per-hour decisions + morning brief text
+
+### 6C — Cloud Infrastructure 🟡
+
+> When the journal paper is submitted, the next milestone is hosting the inference endpoint on a cloud provider.
+> For the AWS conference, the story is: "one `docker-compose up`" — not live infra yet.
+
+| Component | AWS (Fargate) | GCP (Vertex AI) | Priority |
+|-----------|--------------|-----------------|---------|
+| Model serving | ECS Fargate + ECR | Vertex AI Endpoints | 🟡 |
+| Inference container | `docker push ECR → ECS Task Definition` | `gcloud ai endpoints deploy` | 🟡 |
+| Data store | S3 (parquet + model artefacts) | GCS bucket | 🟡 |
+| Scheduler | EventBridge (daily 06:00 UTC) | Cloud Scheduler | 🔵 |
+| Monitoring | CloudWatch MAE alarm | Vertex Model Monitoring | 🔵 |
+
+**Three critical components to bridge local Docker → cloud endpoint:**
+1. **Model registry** — push `outputs/models/*.joblib` to S3/GCS (not baked into the image)
+2. **Container registry** — `docker push` to ECR or Artifact Registry; ECS/Cloud Run pulls on deploy
+3. **Environment secrets** — API keys (ENTSO-E, Ecowitt, myenergi) via AWS Secrets Manager / GCP Secret Manager
+
+---
+
 ## Phase 5 — Deferred / Future Research 🎓
 *These items (e.g., Shaun Sweeney's PhD Theories) are parked to maintain focus on the MSc-to-Journal comparison.*
 

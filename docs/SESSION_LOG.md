@@ -1260,4 +1260,87 @@ Cleared the `data/processed/model_ready.parquet` cache and initiated the Setup C
 
 ---
 
+## Session 18 — 2026-03-07 (Phase 6: Cyber-Physical Control Layer)
+
+### Objective
+Design and implement the demand-response control layer — transitioning the research pipeline from batch CSV evaluation to a deployable system capable of reading live data signals and sending setpoints to real-world devices (myenergi eddi hot-water diverter, Ecowitt weather station).
+
+### Context
+- H+24 Paradigm Parity complete (LightGBM MAE 4.029, PatchTST MAE 6.955)
+- Oslo generalisation confirmed (all trees R² > 0.95)
+- User attending AWS conference next week — needs a tangible deployable portfolio artefact
+- User planning Ecowitt weather station purchase; has myenergi eddi
+
+### AI Studio Direction (March 2026)
+AI Studio recommended pivoting to a "Cyber-Physical System" — DataConnector (MQTT/API) + ControlEngine + cloud infra. Assessment:
+- ControlEngine and DataConnector ABC: aligned and buildable now — implemented
+- AWS Terraform: premature; deferred — Docker + architecture story sufficient for conference
+- WeatherNext (Google): not publicly available — used Open-Meteo (free, no key, covers Ireland/Norway)
+- Bord Gáis API: does not exist — used SEMO/ENTSO-E as reference stub
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `src/energy_forecast/control/__init__.py` | New package — demand-response control layer |
+| `src/energy_forecast/control/actions.py` | `ActionType` enum, `ForecastBundle`, `EnvironmentState`, `ControlAction` dataclasses |
+| `src/energy_forecast/control/controller.py` | `ControlEngine` — rule-based decision engine (solar×price→setpoint) |
+| `deployment/connectors.py` | `DataConnector`, `PriceConnector`, `DeviceConnector` ABCs + all implementations |
+| `deployment/live_inference.py` | Standalone morning brief script (CLI, dry-run safe) |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `deployment/app.py` | Added `/control` POST endpoint + `ControlResponse` Pydantic schema; refactored imports |
+| `deployment/requirements.txt` | Added `requests>=2.31.0`, `joblib>=1.4.0` |
+| `ROADMAP.md` | Added Phase 6 (Real-World Cyber-Physical Systems): 6A connectors, 6B control engine, 6C cloud infra |
+
+### Architecture Implemented
+
+```
+OpenMeteoConnector (solar/temp forecast, free API)
+      ↓
+CSVConnector (72h historical load from parquet)
+      ↓
+build_temporal_features() → scaler.transform()
+      ↓
+LightGBM.predict() → P10/P50/P90 (heuristic bounds ±15%)
+      ↓
+ControlEngine.decide(forecast, env, target_hours=[6,7,8])
+      ↓
+MockDeviceConnector.send_command("DEFER_HEATING")
+      ↓ (future: MyEnergiConnector → eddi mode=3 stop)
+```
+
+### Control Decision Logic
+1. P90 load > demand_headroom → `ALERT_HIGH_DEMAND`
+2. solar ≥ 150 W/m² AND price ≥ 0.28 EUR/kWh → `DEFER_HEATING`
+3. price < 0.16 EUR/kWh → `HEAT_NOW` (off-peak)
+4. Moderate solar + acceptable price → `PARTIAL_HEAT`
+5. Default → `HEAT_NOW`
+
+### Stub Connectors (pending real credentials)
+- `EcowittConnector` — Ecowitt cloud API; pending GW1100 hardware + API key
+- `SEMOConnector` — ENTSO-E Transparency Platform; pending token
+- `MyEnergiConnector` — myenergi eddi API (community-documented digest auth); pending serial + API key
+
+### AWS Conference Demo Command
+```bash
+python deployment/live_inference.py --dry-run
+# prints P10/P50/P90 per hour + DEFER_HEATING / HEAT_NOW decisions for 06:00–22:00
+
+# Or via FastAPI:
+curl -X POST http://localhost:8000/control \
+  -H "Content-Type: application/json" \
+  -d '{"building_id":"B001","city":"drammen","target_hours":[6,7,8],"dry_run":true}'
+```
+
+### Git State at End
+- Commit: `feat: add Phase 6 cyber-physical control layer`
+- Branch: main
+- New files: 5 created, 3 modified
+
+---
+
 *Session log maintained by Claude Code. Always update this file at the end of each session.*
