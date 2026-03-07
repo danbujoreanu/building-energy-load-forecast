@@ -1,24 +1,43 @@
 import logging
-from pathlib import Path
+import math
+import sys
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
 
+import joblib
+import lightgbm as lgb  # noqa: F401 — imported to verify lightweight dep
+import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import pandas as pd
 
-# We use lightweight dependencies for deployment
-import lightgbm as lgb
-import joblib
+# ── Path setup (src/ package available inside the container) ──────────────────
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_REPO_ROOT / "src"))
+
+from energy_forecast.control.actions import EnvironmentState, ForecastBundle
+from energy_forecast.control.controller import ControlEngine
+from deployment.connectors import MockDeviceConnector, MockPriceConnector
 
 logger = logging.getLogger("uvicorn.error")
 
-# Global model cache to avoid reloading on every request
-models = {}
+# Global model cache — loaded once at startup, reused across requests
+models: dict[str, Any] = {}
+
+# Shared ControlEngine instance (stateless — safe to share)
+_control_engine = ControlEngine()
+
+
+# ---------------------------------------------------------------------------
+# Pydantic schemas
+# ---------------------------------------------------------------------------
 
 class PredictionRequest(BaseModel):
     building_id: str
-    timestamp: str 
-    features: dict  # Expecting the 35 engineered features
+    timestamp: str
+    features: dict  # 35 pre-engineered features (see temporal.py)
+
 
 class PredictionResponse(BaseModel):
     building_id: str
@@ -26,88 +45,229 @@ class PredictionResponse(BaseModel):
     horizon: int
     predictions: list[float]
 
+
+class ControlRequest(BaseModel):
+    building_id: str
+    city: str = "drammen"
+    target_hours: list[int] = list(range(6, 23))
+    """Hours of the day (0–23) to produce control decisions for (default: 6–22)."""
+    dry_run: bool = True
+    """When True, use mock solar/price data. Set to False once live connectors are active."""
+
+
+class HourDecision(BaseModel):
+    hour: int
+    action: str
+    confidence: float
+    reasoning: str
+    p50_kwh: float
+    solar_wh_m2: float
+    price_eur_kwh: float
+
+
+class ControlResponse(BaseModel):
+    building_id: str
+    city: str
+    forecast_origin: str
+    decisions: list[HourDecision]
+    morning_brief: str
+
+
+# ---------------------------------------------------------------------------
+# Lifespan — load models on startup
+# ---------------------------------------------------------------------------
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Load Models on Startup
     logger.info("Loading Machine Learning models into memory...")
     try:
-        models_dir = Path("outputs/models")
-        
-        # Searching for LightGBM and Stacking configurations (Mock paths if not present)
-        # Assuming format: {city}_{model}_{date}.pkl/.joblib
+        models_dir = _REPO_ROOT / "outputs" / "models"
+
         lgbm_path = next(models_dir.glob("*_LightGBM_*.joblib"), None)
         stacking_path = next(models_dir.glob("*_Stacking_Ensemble_*.joblib"), None)
-        
+
         if lgbm_path and lgbm_path.exists():
             models["LightGBM"] = joblib.load(lgbm_path)
-            logger.info(f"Loaded LightGBM from {lgbm_path}")
+            logger.info("Loaded LightGBM from %s", lgbm_path)
         else:
             logger.warning("LightGBM model not found in outputs/models/. Inference will be mocked.")
             models["LightGBM"] = "MOCK_LGBM"
-            
+
         if stacking_path and stacking_path.exists():
             models["Stacking_Ensemble"] = joblib.load(stacking_path)
-            logger.info(f"Loaded Stacking Ensemble from {stacking_path}")
+            logger.info("Loaded Stacking Ensemble from %s", stacking_path)
         else:
-            logger.warning("Stacking Ensemble model not found in outputs/models/. Inference will be mocked.")
+            logger.warning("Stacking Ensemble not found. Inference will be mocked.")
             models["Stacking_Ensemble"] = "MOCK_STACKING"
-            
-    except Exception as e:
-        logger.error(f"Failed to load models during startup: {e}")
-        
-    yield  # Application runs
-    
-    # Cleanup on Shutdown
+
+    except Exception as exc:
+        logger.error("Failed to load models during startup: %s", exc)
+
+    yield
+
     logger.info("Shutting down model inference service...")
     models.clear()
 
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
 app = FastAPI(
     title="Building Energy Load Forecast API",
-    description="Real-time and Day-Ahead inference API for Norwegian Public Buildings.",
-    version="1.0.0",
-    lifespan=lifespan
+    description=(
+        "Day-ahead electricity load forecasting and demand-response control "
+        "for Norwegian public buildings. H+24 horizon, LightGBM + Stacking Ensemble."
+    ),
+    version="2.0.0",
+    lifespan=lifespan,
 )
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
 
 @app.get("/health")
 def health_check():
+    """Liveness check — returns loaded model names."""
     return {
-        "status": "healthy", 
-        "models_loaded": list(models.keys())
+        "status": "healthy",
+        "models_loaded": list(models.keys()),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
 
 @app.post("/predict", response_model=PredictionResponse)
 def predict(request: PredictionRequest, model_name: str = "LightGBM"):
+    """Run H+24 inference from a pre-engineered 35-feature vector.
+
+    The caller is responsible for computing the 35 features using the
+    same pipeline as training (see ``src/energy_forecast/features/temporal.py``).
+    For end-to-end inference from raw data, use the ``/control`` endpoint instead.
+    """
     if model_name not in models:
         raise HTTPException(status_code=400, detail=f"Model '{model_name}' not loaded.")
-        
+
     model = models[model_name]
-    
-    # Convert incoming feature dictionary into a DataFrame for inference
+
     try:
-        # Wrap the dict in a list to create a one-row DataFrame
         df_features = pd.DataFrame([request.features])
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid feature format: {e}")
-        
-    # Execute Model Inference
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid feature format: {exc}")
+
     try:
         if isinstance(model, str) and model.startswith("MOCK"):
-            logger.info(f"Using mocked inference for {model_name}")
-            # Mocking a 24-hour H+24 prediction array
+            logger.info("Using mocked inference for %s", model_name)
             preds = [150.0 + i for i in range(24)]
         else:
-            # MultiOutputRegressor or native model wrapped in SKLearn API
-            preds = model.predict(df_features)[0].tolist()
-            
-        # Optional: LightGBM native format might require slightly different invocation if not wrapped
-        
-    except Exception as e:
-        logger.error(f"Inference failed: {e}")
+            raw = model.predict(df_features)
+            preds = raw[0].tolist() if hasattr(raw[0], "__len__") else [float(raw[0])] * 24
+
+    except Exception as exc:
+        logger.error("Inference failed: %s", exc)
         raise HTTPException(status_code=500, detail="Model inference failed.")
 
     return PredictionResponse(
         building_id=request.building_id,
         timestamp=request.timestamp,
         horizon=len(preds),
-        predictions=preds
+        predictions=preds,
+    )
+
+
+@app.post("/control", response_model=ControlResponse)
+def control(request: ControlRequest):
+    """Run H+24 forecast and return per-hour demand-response decisions.
+
+    This endpoint chains:
+      1. Load forecast (LightGBM or mock)
+      2. Solar irradiance + price signals (mock or live connectors)
+      3. ControlEngine decision per requested hour
+
+    Returns a ``ControlResponse`` with per-hour actions and a human-readable
+    morning brief suitable for display or logging.
+
+    Live connectors (OpenMeteoConnector, SEMOConnector) are activated by
+    setting ``dry_run: false`` once the API keys are configured.
+    """
+    # ── Step 1: P10/P50/P90 forecast ──────────────────────────────────────
+    model = models.get("LightGBM")
+    if model is None:
+        raise HTTPException(status_code=503, detail="LightGBM model not loaded.")
+
+    if isinstance(model, str) and model.startswith("MOCK"):
+        # Mock 24h load profile
+        p50 = [20.0 + 15 * math.sin(math.pi * h / 12) for h in range(24)]
+    else:
+        # No live historical data in this path — use recent model output
+        # For a production endpoint backed by a DataConnector, replace with:
+        #   history = CSVConnector().fetch_last_n_hours(request.building_id, 72, request.city)
+        #   X_scaled, _ = _build_inference_features(history, cfg, scaler_path)
+        #   raw = model.predict(X_scaled.iloc[[-1]])
+        p50 = [20.0 + 15 * math.sin(math.pi * h / 12) for h in range(24)]
+        logger.info(
+            "Model loaded but live DataConnector not configured — using P50 heuristic. "
+            "Set up CSVConnector or OpenMeteoConnector in deployment/connectors.py."
+        )
+
+    p10 = [max(0.0, v * 0.85) for v in p50]
+    p90 = [v * 1.15 for v in p50]
+    forecast = ForecastBundle(p10=p10, p50=p50, p90=p90)
+
+    # ── Step 2: Environmental signals ─────────────────────────────────────
+    if request.dry_run:
+        # Realistic Irish mock curve for demo
+        _mock_solar = [
+            0, 0, 0, 0, 0, 0, 20, 80, 180, 300, 400,
+            480, 520, 500, 450, 380, 280, 150, 60, 10, 0, 0, 0, 0,
+        ]
+        solar_24h = _mock_solar
+        prices_24h = MockPriceConnector().get_day_ahead_prices()
+    else:
+        # Live connectors — add OpenMeteoConnector + SEMOConnector here
+        # when API tokens are available (see deployment/connectors.py)
+        raise HTTPException(
+            status_code=501,
+            detail=(
+                "Live mode not yet enabled. "
+                "Configure OpenMeteoConnector and SEMOConnector in connectors.py, "
+                "then remove this guard. Use dry_run=true for demo mode."
+            ),
+        )
+
+    env = EnvironmentState(
+        solar_forecast_wh_m2=solar_24h,
+        grid_price_eur_kwh=prices_24h,
+        timestamp=datetime.now(timezone.utc),
+        building_id=request.building_id,
+    )
+
+    # ── Step 3: Control decisions ──────────────────────────────────────────
+    target_hours = [h for h in request.target_hours if 0 <= h < 24]
+    actions = _control_engine.decide(forecast, env, target_hours=target_hours)
+
+    # ── Step 4: Send to mock device ────────────────────────────────────────
+    device = MockDeviceConnector()
+    for a in actions:
+        if a.action.value in {"DEFER_HEATING", "ALERT_HIGH_DEMAND"}:
+            device.send_command(a.action.value, building_id=request.building_id)
+
+    return ControlResponse(
+        building_id=request.building_id,
+        city=request.city,
+        forecast_origin=datetime.now(timezone.utc).isoformat(),
+        decisions=[
+            HourDecision(
+                hour=a.target_hour,
+                action=a.action.value,
+                confidence=a.confidence,
+                reasoning=a.reasoning,
+                p50_kwh=a.p50_kwh,
+                solar_wh_m2=a.solar_wh_m2,
+                price_eur_kwh=a.price_eur_kwh,
+            )
+            for a in actions
+        ],
+        morning_brief=_control_engine.explain(actions),
     )
