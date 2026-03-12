@@ -1430,3 +1430,56 @@ Full Professor, Department of Wind and Energy Systems. Key paper directly adjace
 2. Horizon sensitivity (H+3/6/12/24/48) + weather uncertainty penalty
 3. Ireland CER dataset generalization
 4. Foundation model (Chronos) zero-shot + DFL ControlEngine (Favaro architecture)
+
+## Session 21 — 2026-03-12 (AWS AI & Data Conference, Kilkenny)
+
+### Context
+User attended AWS AI and Data Conference, Lyrath Convention Centre, Kilkenny.
+Was at Scaling Secure Inference session when this session ran.
+
+### AWS Conference Prep Delivered
+- Full speaker priority map with specific ask per speaker (Fiona Simpson, Richie Jones,
+  Mark Andrews, Darragh Curran, Sasha Rubel, Catherine Quirke, Eric Mosley, Tobias Ternstrom)
+- 30-second and 2-minute thesis/startup pitch drafted
+- Session-by-session timeline built from agenda photo (IMG_7656.HEIC)
+
+### Day Plan (from agenda photo)
+| Time | Session | Track | Priority |
+|------|---------|-------|----------|
+| 11:30–12:15 | Scaling Secure Inference (Bedrock) | GenAI | Attended |
+| 12:15–13:00 | Investor Panel: What Gets a Yes? | Startup Loft | CRITICAL — startup funding intel |
+| 13:00–13:45 | Agentic AI in Customer Experience (Amazon Connect) | Exec | CRL use case |
+| 14:00–15:45 | Startup Networking: One-on-ones | Startup Loft | CRITICAL — pitch energy device |
+| 15:15–16:00 | How Intercom is Doubling Down on AI (Darragh Curran) | Exec | Irish startup CTO |
+| 16:05–16:50 | Agents Are As Good As Their Memory | Databases | Pipeline architecture |
+| 16:10–17:00 | Unlocking Europe's AI Potential | Exec | Policy/GDPR context |
+
+### Product Commercialisation Concept Developed
+- **Device**: Raspberry Pi-class hardware with P1 port adapter for ESB Networks smart meter
+- **Software**: LightGBM H+24 forecast (existing) + ControlEngine (existing) + SEMO price API (stub exists)
+- **Trigger**: CRU-mandated dynamic 30-min pricing from top 5 Irish suppliers — June 2026
+- **Gap**: No supplier-agnostic Irish smart meter device exists. Tibber not in Ireland.
+- **Model**: €99-149 device + €3.99/month subscription
+- **Savings**: €200-400/year per household with heat pump + EV
+- **Tech already built**: SEMOConnector stub, MyEnergiConnector stub, OpenMeteoConnector live,
+  ControlEngine, FastAPI/Docker deployment
+
+### Irish Startup Funding Path Identified
+| Fund | Amount | Stage |
+|------|--------|-------|
+| AWS Activate | $5K–$25K credits | Apply at conference today |
+| Enterprise Ireland HPSU Feasibility Grant | up to €35K | Idea-stage, incorporate first |
+| New Frontiers Programme | €15K stipend (Phase 2) | Pre-incubation + incubation |
+| Enterprise Ireland iHPSU | up to €1.2M | Post-validation, co-investment |
+| SFI Commercialisation Fund | up to €300K | Requires NCI academic partnership |
+
+### CRL Ltd (partner's company) Assessment
+- Company: CRL Business Solutions, Maynooth — recruitment, bookkeeping, payroll, consultancy
+- Current stack: Microsoft 365, HubSpot CRM, Sage payroll/accounting
+- AWS opportunity: Amazon Connect (recruitment contact centre), Bedrock (CV screening,
+  financial report generation), QuickSight (client dashboards)
+- Architecture: Keep Sage for compliance-critical payroll (PAYE/PRSI). Add Claude API
+  as intelligence layer on top for documents, analysis, reports. Not either/or.
+- Sage session attended: "Building Scalable Agentic AI Solutions at Sage with Amazon
+  Bedrock AgentCore" — relevant because Sage is building AI natively into CRL's
+  existing payroll/accounting software
