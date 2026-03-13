@@ -150,6 +150,7 @@ def _train_lightgbm(cfg: dict, splits: dict) -> tuple[np.ndarray, np.ndarray, fl
 def _train_cnnlstm_b(cfg: dict, splits: dict) -> tuple[np.ndarray, np.ndarray, float, float]:
     """Train CNN-LSTM (Setup B) on tabular features, return windowed preds."""
     import tensorflow as tf  # noqa: PLC0415
+
     from energy_forecast.models.deep_learning import CNNLSTMForecaster  # noqa: PLC0415
 
     lookback = cfg["sequence"]["lookback"]
@@ -175,7 +176,7 @@ def _train_cnnlstm_b(cfg: dict, splits: dict) -> tuple[np.ndarray, np.ndarray, f
 
     # Align shapes (CNN-LSTM may produce one fewer window than y_true_2d)
     min_val  = min(len(y_val_2d), len(val_preds_2d))
-    min_test = min(  # matched below when merging with LightGBM test preds
+    min_test = min(  # matched below when merging with LightGBM test preds  # noqa: F841
         len(val_preds_2d), len(y_val_2d)  # just for val_mae here
     )
 
@@ -198,6 +199,7 @@ def _train_patchtst(cfg: dict, splits: dict) -> tuple[np.ndarray, np.ndarray, fl
     already uses actual PatchTST predictions (computed during the main pipeline sweep).
     """
     import tensorflow as tf  # noqa: PLC0415
+
     from energy_forecast.models.deep_learning import CNNLSTMForecaster  # noqa: PLC0415
 
     lookback = cfg["sequence"]["lookback"]
@@ -307,7 +309,6 @@ def run_cross_setup_ensembles(city: str, include_patchtst: bool = False) -> None
         "LightGBM_SetupA": w_lgbm,
         "CNN-LSTM_SetupB": w_cnnlstm,
     }
-    from energy_forecast.evaluation import evaluate  # noqa: PLC0415
     res_ab = _blend_and_evaluate(
         preds_ab, weights_ab, y_test_2d_aligned,
         f"CrossEnsemble_A+B_{city}",

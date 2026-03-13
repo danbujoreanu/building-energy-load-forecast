@@ -23,10 +23,10 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-from energy_forecast.data.imputation import impute_missing_weather, impute_missing_metadata
+from energy_forecast.data.imputation import impute_missing_metadata, impute_missing_weather
 
 logger = logging.getLogger(__name__)
 

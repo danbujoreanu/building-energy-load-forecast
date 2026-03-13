@@ -17,7 +17,7 @@ def tabular_splits() -> dict:
         [np.repeat([1, 2], n // 2), np.tile(rng[:n // 2], 2)],
         names=["building_id", "timestamp"],
     )
-    X = pd.DataFrame(
+    X = pd.DataFrame(  # noqa: N806
         np.random.randn(n, 5),
         index=idx,
         columns=["f1", "f2", "f3", "f4", "f5"],
@@ -54,8 +54,9 @@ class TestBaselines:
 
 class TestSklearnModels:
     def test_ridge_fit_predict(self, tabular_splits):
-        from energy_forecast.models.sklearn_models import SklearnForecaster
         from sklearn.linear_model import Ridge
+
+        from energy_forecast.models.sklearn_models import SklearnForecaster
 
         model = SklearnForecaster(Ridge(alpha=1.0), name="Ridge")
         model.fit(tabular_splits["X_train"], tabular_splits["y_train"])
@@ -116,7 +117,7 @@ class TestMetrics:
         assert _mae(y, y) == pytest.approx(0.0)
 
     def test_compare_models_sorted(self):
-        from energy_forecast.evaluation.metrics import evaluate, compare_models
+        from energy_forecast.evaluation.metrics import compare_models, evaluate
 
         results = [
             evaluate(np.ones(10) * 10, np.ones(10) * 12, "ModelA"),

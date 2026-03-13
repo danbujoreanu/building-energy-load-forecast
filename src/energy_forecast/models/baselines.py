@@ -25,11 +25,11 @@ class NaiveModel(BaseForecaster):
 
     name = "Naive"
 
-    def fit(self, X_train, y_train, X_val=None, y_val=None, **kwargs):
+    def fit(self, X_train, y_train, X_val=None, y_val=None, **kwargs):  # noqa: N803
         self._last_value = float(y_train.iloc[-1])
         return self
 
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
+    def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
         return np.full(len(X), self._last_value)
 
 
@@ -41,13 +41,13 @@ class SeasonalNaiveModel(BaseForecaster):
     def __init__(self, season_length: int = 24) -> None:
         self.season_length = season_length
 
-    def fit(self, X_train, y_train, X_val=None, y_val=None, **kwargs):
+    def fit(self, X_train, y_train, X_val=None, y_val=None, **kwargs):  # noqa: N803
         # Keep the tail of training series to handle the first season_length predictions
         self._tail = y_train.values[-self.season_length :]
         self._full_train = y_train.copy()
         return self
 
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
+    def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
         lag_col = f"Electricity_Imported_Total_kWh_lag_{self.season_length}h"
         if lag_col in X.columns:
             return X[lag_col].values
@@ -62,7 +62,7 @@ class MeanModel(BaseForecaster):
 
     name = "Mean Baseline"
 
-    def fit(self, X_train, y_train, X_val=None, y_val=None, **kwargs):
+    def fit(self, X_train, y_train, X_val=None, y_val=None, **kwargs):  # noqa: N803
         if "building_id" in y_train.index.names:
             self._building_means = (
                 y_train.groupby(level="building_id").mean().to_dict()
@@ -73,7 +73,7 @@ class MeanModel(BaseForecaster):
             self._global_mean = float(y_train.mean())
         return self
 
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
+    def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
         if self._building_means and "building_id" in X.index.names:
             building_ids = X.index.get_level_values("building_id")
             return np.array([

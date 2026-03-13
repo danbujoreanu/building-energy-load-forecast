@@ -76,34 +76,34 @@ def make_splits(
                  "sh_heat_source", "dhw_heat_source", "notes"]
     feature_cols = [c for c in df.columns if c not in drop_cols]
 
-    X_train = df.loc[train_mask, feature_cols]
+    X_train = df.loc[train_mask, feature_cols]  # noqa: N806
     y_train = df.loc[train_mask, target]
-    X_val   = df.loc[val_mask,   feature_cols]
+    X_val   = df.loc[val_mask,   feature_cols]  # noqa: N806
     y_val   = df.loc[val_mask,   target]
-    X_test  = df.loc[test_mask,  feature_cols]
+    X_test  = df.loc[test_mask,  feature_cols]  # noqa: N806
     y_test  = df.loc[test_mask,  target]
 
     # ── Impute remaining NaN with training-set median (no data leakage) ──────
     # Weather gaps > 3 h and missing metadata are filled with column medians
     # computed from X_train only and then applied to val/test.
     train_medians = X_train.median()
-    X_train = X_train.fillna(train_medians)
-    X_val   = X_val.fillna(train_medians)
-    X_test  = X_test.fillna(train_medians)
+    X_train = X_train.fillna(train_medians)  # noqa: N806
+    X_val   = X_val.fillna(train_medians)  # noqa: N806
+    X_test  = X_test.fillna(train_medians)  # noqa: N806
 
     # ── Fit scaler on train only (avoid data leakage) ─────────────────────────
     scaler = StandardScaler()
-    X_train_scaled = pd.DataFrame(
+    X_train_scaled = pd.DataFrame(  # noqa: N806
         scaler.fit_transform(X_train),
         index=X_train.index,
         columns=X_train.columns,
     )
-    X_val_scaled = pd.DataFrame(
+    X_val_scaled = pd.DataFrame(  # noqa: N806
         scaler.transform(X_val),
         index=X_val.index,
         columns=X_val.columns,
     )
-    X_test_scaled = pd.DataFrame(
+    X_test_scaled = pd.DataFrame(  # noqa: N806
         scaler.transform(X_test),
         index=X_test.index,
         columns=X_test.columns,

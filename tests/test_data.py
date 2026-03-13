@@ -6,11 +6,9 @@ Uses synthetic mini-datasets so no actual building files are needed to run CI.
 
 from __future__ import annotations
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 import pytest
-from pathlib import Path
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -21,8 +19,8 @@ def sample_timeseries() -> pd.DataFrame:
     """Create a minimal synthetic MultiIndex (building_id, timestamp) DataFrame."""
     n = 200
     rng = pd.date_range("2022-01-01", periods=n, freq="h", tz="Europe/Oslo")
-    building_ids = np.repeat([6396, 6397], n // 2)
-    timestamps = np.tile(rng, 2)[:n * 2 // 2]
+    building_ids = np.repeat([6396, 6397], n // 2)  # noqa: F841
+    timestamps = np.tile(rng, 2)[:n * 2 // 2]  # noqa: F841
 
     idx = pd.MultiIndex.from_arrays(
         [np.repeat([6396, 6397], n), np.tile(rng, 2)],

@@ -26,7 +26,7 @@ import logging
 import time
 from pathlib import Path
 
-from energy_forecast.utils import load_config, setup_logging, set_global_seed
+from energy_forecast.utils import load_config, set_global_seed, setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +125,7 @@ def main() -> None:
 
 def _run_eda(cfg: dict) -> None:
     """Stage 1: Load raw data, preprocess, and save model-ready parquet."""
-    from energy_forecast.data import load_city_data, build_model_ready_data
+    from energy_forecast.data import build_model_ready_data, load_city_data
 
     city      = cfg["city"]
     raw_dir   = Path(cfg["paths"]["raw_data"][city])
@@ -145,9 +145,9 @@ def _run_eda(cfg: dict) -> None:
     # Generate EDA figures
     from energy_forecast.visualization import (
         plot_building_profiles,
-        plot_temperature_sensitivity,
-        plot_seasonal_patterns,
         plot_missing_data,
+        plot_seasonal_patterns,
+        plot_temperature_sensitivity,
     )
     fig_dir = Path(cfg["paths"]["outputs"]["figures"])
     plot_building_profiles(timeseries, save_path=fig_dir / "building_profiles.png")
@@ -161,8 +161,9 @@ def _run_eda(cfg: dict) -> None:
 def _run_features(cfg: dict) -> None:
     """Stage 2: Build temporal features and run feature selection."""
     import pandas as pd
-    from energy_forecast.features import build_temporal_features, select_features
+
     from energy_forecast.data import make_splits
+    from energy_forecast.features import build_temporal_features, select_features
 
     proc_dir = Path(cfg["paths"]["processed"])
     target   = cfg["data"]["target_column"]
@@ -173,11 +174,11 @@ def _run_features(cfg: dict) -> None:
     featured = build_temporal_features(model_ready, cfg, target)
     splits   = make_splits(featured, cfg, target, proc_dir)
 
-    X_tr, y_tr = splits["X_train"], splits["y_train"]
-    X_v,  y_v  = splits["X_val"],   splits["y_val"]
-    X_te, y_te = splits["X_test"],  splits["y_test"]
+    X_tr, y_tr = splits["X_train"], splits["y_train"]  # noqa: N806
+    X_v,  y_v  = splits["X_val"],   splits["y_val"]  # noqa: N806
+    X_te, y_te = splits["X_test"],  splits["y_test"]  # noqa: N806
 
-    X_tr, X_v, X_te, kept = select_features(X_tr, y_tr, X_v, X_te, cfg)
+    X_tr, X_v, X_te, kept = select_features(X_tr, y_tr, X_v, X_te, cfg)  # noqa: N806
 
     # Re-save selected splits
     splits_dir = proc_dir / "splits"
@@ -196,11 +197,17 @@ def _run_features(cfg: dict) -> None:
 def _run_training(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
     """Stage 3: Train all models, evaluate, and save results."""
     import pandas as pd
-    from energy_forecast.models import NaiveModel, SeasonalNaiveModel, MeanModel, SklearnForecaster, StackingEnsemble
-    from energy_forecast.models.sklearn_models import build_sklearn_models
+
     from energy_forecast.evaluation import compare_models, evaluate
     from energy_forecast.evaluation.metrics import save_per_building_metrics
-    from energy_forecast.visualization import plot_model_comparison, plot_predictions_vs_actual
+    from energy_forecast.models import (
+        MeanModel,
+        NaiveModel,
+        SeasonalNaiveModel,
+        StackingEnsemble,
+    )
+    from energy_forecast.models.sklearn_models import build_sklearn_models
+    from energy_forecast.visualization import plot_model_comparison
 
     proc_dir  = Path(cfg["paths"]["processed"]) / "splits"
     res_dir   = Path(cfg["paths"]["outputs"]["results"])
@@ -213,11 +220,11 @@ def _run_training(cfg: dict, skip_slow: bool = False, save_preds: bool = False) 
 
     logger.info("── Stage 3: Model Training ────────────────────────")
 
-    X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")
+    X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")  # noqa: N806
     y_train = pd.read_parquet(proc_dir / "y_train.parquet").squeeze()
-    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")
+    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
     y_val   = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
-    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")
+    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
     y_test  = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
 
     # Extract building_ids and timestamps for daily-peak and per-building metrics.
@@ -302,9 +309,9 @@ def _run_training(cfg: dict, skip_slow: bool = False, save_preds: bool = False) 
     # ── Stacking ensemble ─────────────────────────────────────────────────────
     # Sklearn models only — DL models return trimmed-length predictions that
     # are incompatible with X_val for meta-feature generation.
-    _DL_NAMES = {"LSTM", "GRU", "CNN-LSTM", "TFT"}
-    _BASELINE_NAMES = {"Naive", "Seasonal Naive (24 h)", "Mean Baseline"}
-    _UNSUPPORTED_STACKING = {"LightGBM_Quantile"}
+    _DL_NAMES = {"LSTM", "GRU", "CNN-LSTM", "TFT"}  # noqa: N806
+    _BASELINE_NAMES = {"Naive", "Seasonal Naive (24 h)", "Mean Baseline"}  # noqa: N806
+    _UNSUPPORTED_STACKING = {"LightGBM_Quantile"}  # noqa: N806
     ensemble_base = {
         k: v for k, v in fitted_models.items()
         if k not in _BASELINE_NAMES and k not in _DL_NAMES and k not in _UNSUPPORTED_STACKING
@@ -322,30 +329,30 @@ def _run_training(cfg: dict, skip_slow: bool = False, save_preds: bool = False) 
             logger.warning("Stacking ensemble failed: %s", exc)
 
     comparison = compare_models(results)
-    
+
     # ── Save results ──────────────────────────────────────────────────────────
     # Merge with existing final_metrics.csv if it exists to preserve Setup C / other runs
     metrics_path = res_dir / "final_metrics.csv"
-    
+
     # Standardize column naming: our new results use 'model' (lowercase)
     comparison_to_save = comparison.copy()
     if "Model" in comparison_to_save.columns:
         comparison_to_save = comparison_to_save.rename(columns={"Model": "model"})
-        
+
     if metrics_path.exists() and metrics_path.stat().st_size > 0:
         try:
             old_metrics = pd.read_csv(metrics_path, index_col=0)
             # Find the model column (might be 'model' or 'Model')
             model_col = "model" if "model" in old_metrics.columns else "Model"
-            
+
             # Remove existing entries for the models we just ran to update them
             new_model_names = comparison_to_save["model"].tolist()
             old_metrics = old_metrics[~old_metrics[model_col].isin(new_model_names)]
-            
+
             # Standardize old metrics column to lowercase 'model'
             if model_col == "Model":
                 old_metrics = old_metrics.rename(columns={"Model": "model"})
-            
+
             combined = pd.concat([old_metrics, comparison_to_save], ignore_index=True)
             combined.to_csv(metrics_path)
             logger.info("Merged results into %s", metrics_path)
@@ -358,7 +365,7 @@ def _run_training(cfg: dict, skip_slow: bool = False, save_preds: bool = False) 
     else:
         comparison_to_save.to_csv(metrics_path)
         comparison_final = comparison_to_save
-    
+
     logger.info("\n%s", comparison_final.to_string())
 
     # Per-building breakdown CSV (MISS-2): enables building-type analysis
@@ -376,6 +383,7 @@ def _run_training(cfg: dict, skip_slow: bool = False, save_preds: bool = False) 
     #   Sklearn    → .joblib          (joblib.dump of model.estimator)
     #   Ensemble   → .joblib          (joblib.dump of meta_learner_)
     import datetime
+
     import joblib as _joblib
 
     _today = datetime.date.today().isoformat()
@@ -444,7 +452,7 @@ def _trim_dl_targets(y, lookback: int):
     return pd.concat(parts)
 
 
-def _build_y_true_matrix(y, lookback: int, horizon: int) -> "np.ndarray":
+def _build_y_true_matrix(y, lookback: int, horizon: int) -> "np.ndarray":  # noqa: F821
     """Build 2-D y_true matrix aligned with DL sliding-window predictions.
 
     For multi-step (H+24) evaluation, each prediction window k at position
@@ -474,7 +482,7 @@ def _build_y_true_matrix(y, lookback: int, horizon: int) -> "np.ndarray":
     return np.array(parts, dtype=np.float32)  # (n_samples, horizon)
 
 
-def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted_models,
+def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted_models,  # noqa: N803
                     train_times=None, save_preds: bool = False, preds_dir: "Path | None" = None):
     """Helper to train a single DL architecture with error handling.
 
@@ -487,8 +495,12 @@ def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted
       - H+1  single-step: saves full 1-D error array
     Files saved as: {preds_dir}/{model.name}_h24_test_errors.npy
     """
-    from energy_forecast.models.deep_learning import LSTMForecaster, CNNLSTMForecaster, GRUForecaster
     from energy_forecast.evaluation import evaluate
+    from energy_forecast.models.deep_learning import (
+        CNNLSTMForecaster,
+        GRUForecaster,
+        LSTMForecaster,
+    )
 
     cls_map = {"lstm": LSTMForecaster, "cnn_lstm": CNNLSTMForecaster, "gru": GRUForecaster}
     cls = cls_map.get(arch)
@@ -552,7 +564,7 @@ def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted
         logger.warning("%s training failed: %s", arch.upper(), exc)
 
 
-def _save_error_array(preds_dir: "Path", model_name: str, errors: "np.ndarray") -> None:
+def _save_error_array(preds_dir: "Path", model_name: str, errors: "np.ndarray") -> None:  # noqa: F821
     """Save a 1-D test error array (y_true - y_pred) for the Diebold-Mariano test.
 
     File name: {model_name}_h24_test_errors.npy  (errors are signed: positive = over-prediction)
@@ -580,6 +592,7 @@ def _run_explain(cfg: dict) -> None:
         python scripts/run_pipeline.py --stages explain
     """
     import pandas as pd
+
     from energy_forecast.evaluation.explainability import explain_model
     from energy_forecast.models.sklearn_models import build_sklearn_models
 
@@ -588,11 +601,11 @@ def _run_explain(cfg: dict) -> None:
 
     logger.info("── Stage 4: SHAP Explainability ────────────────────")
 
-    X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")
+    X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")  # noqa: N806
     y_train = pd.read_parquet(proc_dir / "y_train.parquet").squeeze()
-    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")
+    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
     y_val   = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
-    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")
+    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
 
     # Refit tree models (fast — RF ~2min, XGB/LGBM ~3s each)
     tree_models = {

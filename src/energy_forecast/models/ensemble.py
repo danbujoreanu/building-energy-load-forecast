@@ -30,7 +30,7 @@ WeightedAverageEnsemble (Cross-Paradigm Grand Ensemble for A + C)
 
 This implements the Task Orchestration pattern: each ensemble coordinates
 independent base models without them knowing about each other.
-"""
+"""  # noqa: W291
 
 from __future__ import annotations
 
@@ -90,12 +90,12 @@ class StackingEnsemble(BaseForecaster):
 
     def fit(
         self,
-        X_train: pd.DataFrame,
+        X_train: pd.DataFrame,  # noqa: N803
         y_train: pd.Series,
-        X_val: pd.DataFrame | None = None,
+        X_val: pd.DataFrame | None = None,  # noqa: N803
         y_val: pd.Series | None = None,
         **kwargs: Any,
-    ) -> "StackingEnsemble":
+    ) -> StackingEnsemble:
         """Train the meta-learner.
 
         Uses OOF stacking if ``oof_folds > 0`` (default), otherwise falls
@@ -150,7 +150,7 @@ class StackingEnsemble(BaseForecaster):
         )
         return self
 
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
+    def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
         meta_features = self._generate_meta_features(X)
         return self.meta_learner_.predict(meta_features)
 
@@ -158,7 +158,7 @@ class StackingEnsemble(BaseForecaster):
     # Internal helpers
     # ──────────────────────────────────────────────────────────────────────────
 
-    def _generate_meta_features(self, X: pd.DataFrame) -> np.ndarray:
+    def _generate_meta_features(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
         """Stack base model predictions as columns (used for val/test)."""
         preds: dict[str, np.ndarray] = {}
         for name, model in self.base_models.items():
@@ -171,7 +171,7 @@ class StackingEnsemble(BaseForecaster):
 
     def _oof_meta_features(
         self,
-        X_train: pd.DataFrame,
+        X_train: pd.DataFrame,  # noqa: N803
         y_train: pd.Series,
         oof_folds: int,
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -234,10 +234,10 @@ class StackingEnsemble(BaseForecaster):
             tr_mask = level_vals.isin(tr_ts)
             val_mask = level_vals.isin(val_ts)
 
-            X_fold_tr = X_train[tr_mask]
+            X_fold_tr = X_train[tr_mask]  # noqa: N806
             y_fold_tr = y_train[tr_mask]
-            X_fold_val = X_train[val_mask]
-            y_fold_val = y_train[val_mask]
+            X_fold_val = X_train[val_mask]  # noqa: N806
+            y_fold_val = y_train[val_mask]  # noqa: F841
 
             logger.info(
                 "OOF fold %d/%d: train=%d rows, val=%d rows",
@@ -309,12 +309,12 @@ class WeightedAverageEnsemble(BaseForecaster):
 
     def fit(
         self,
-        X_train: pd.DataFrame,
+        X_train: pd.DataFrame,  # noqa: N803
         y_train: pd.Series,
-        X_val: pd.DataFrame | None = None,
+        X_val: pd.DataFrame | None = None,  # noqa: N803
         y_val: pd.Series | None = None,
         **kwargs: Any,
-    ) -> "WeightedAverageEnsemble":
+    ) -> WeightedAverageEnsemble:
         """Compute inverse-MAE weights from the validation set."""
         if X_val is None or y_val is None:
             raise ValueError(
@@ -344,7 +344,7 @@ class WeightedAverageEnsemble(BaseForecaster):
 
         return self
 
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
+    def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
         """Weighted average of base model predictions."""
         weighted_sum = np.zeros(len(X))
         for model_name, model in self.base_models.items():
@@ -398,6 +398,7 @@ def _clone_forecaster(model: BaseForecaster) -> BaseForecaster | None:
         return None
     try:
         from sklearn.base import clone
+
         from .sklearn_models import SklearnForecaster  # local import avoids cycles
 
         cloned_estimator = clone(model.estimator)

@@ -49,12 +49,12 @@ class TFTForecaster(BaseForecaster):
 
     def fit(
         self,
-        X_train: pd.DataFrame,
+        X_train: pd.DataFrame,  # noqa: N803
         y_train: pd.Series,
-        X_val: pd.DataFrame | None = None,
+        X_val: pd.DataFrame | None = None,  # noqa: N803
         y_val: pd.Series | None = None,
         **kwargs: Any,
-    ) -> "TFTForecaster":
+    ) -> TFTForecaster:
         """Train the TFT model.
 
         Note: TFT requires the full time-series (not pre-sliced windows) so
@@ -68,7 +68,7 @@ class TFTForecaster(BaseForecaster):
             # Using lightning.pytorch directly ensures the same LightningModule
             # that TemporalFusionTransformer inherits from is the one Trainer checks.
             import lightning.pytorch as pl
-            import torch
+            import torch  # noqa: F401
             from pytorch_forecasting import TemporalFusionTransformer, TimeSeriesDataSet
             from pytorch_forecasting.data import GroupNormalizer
             from pytorch_forecasting.metrics import MAE as TFT_MAE
@@ -102,7 +102,7 @@ class TFTForecaster(BaseForecaster):
         # fall outside the training distribution causing OOD saturation in TFT
         # activations.  time_idx already provides positional encoding; cyclical
         # features (hour_sin, day_of_week_sin, …) already handle seasonality.
-        _EXCLUDE = {"building_id", "time_idx", target_col, "split", "timestamp"}
+        _EXCLUDE = {"building_id", "time_idx", target_col, "split", "timestamp"}  # noqa: N806
         time_varying_known = [c for c in df_full.columns if c not in _EXCLUDE]
 
         training_dataset = TimeSeriesDataSet(
@@ -271,7 +271,7 @@ class TFTForecaster(BaseForecaster):
         logger.info("Best checkpoint → %s", self.best_checkpoint_path_)
         return self
 
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
+    def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
         """Predict on test data.
 
         Builds a TimeSeriesDataSet from X by continuing the time_idx from
@@ -351,7 +351,7 @@ class TFTForecaster(BaseForecaster):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _prepare_df(X: pd.DataFrame, y: pd.Series, split: str) -> pd.DataFrame:
+    def _prepare_df(X: pd.DataFrame, y: pd.Series, split: str) -> pd.DataFrame:  # noqa: N803
         df = X.copy()
         df[y.name or "target"] = y.values
         df["split"] = split

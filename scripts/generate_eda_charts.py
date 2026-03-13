@@ -46,16 +46,16 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from energy_forecast.data.loader import load_city_data
-from energy_forecast.visualization.eda_charts import (
+from energy_forecast.data.loader import load_city_data  # noqa: E402
+from energy_forecast.visualization.eda_charts import (  # noqa: E402
+    plot_acf_pacf,
+    plot_all_building_energy_profiles,
     plot_building_metadata_overview,
     plot_column_availability_heatmap,
     plot_missing_data_analysis,
-    plot_all_building_energy_profiles,
-    plot_temperature_vs_electricity_by_category,
-    plot_acf_pacf,
-    plot_seasonal_decomposition,
     plot_model_results_comparison,
+    plot_seasonal_decomposition,
+    plot_temperature_vs_electricity_by_category,
     plot_thesis_vs_pipeline_comparison,
 )
 

@@ -29,16 +29,16 @@ class BaseForecaster(ABC):
     @abstractmethod
     def fit(
         self,
-        X_train: pd.DataFrame,
+        X_train: pd.DataFrame,  # noqa: N803
         y_train: pd.Series,
-        X_val: pd.DataFrame | None = None,
+        X_val: pd.DataFrame | None = None,  # noqa: N803
         y_val: pd.Series | None = None,
         **kwargs: Any,
-    ) -> "BaseForecaster":
+    ) -> BaseForecaster:
         """Fit the model. Returns self for chaining."""
 
     @abstractmethod
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
+    def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
         """Return predictions as a 1-D numpy array aligned with X."""
 
     # ------------------------------------------------------------------
@@ -47,9 +47,9 @@ class BaseForecaster(ABC):
 
     def fit_predict(
         self,
-        X_train: pd.DataFrame,
+        X_train: pd.DataFrame,  # noqa: N803
         y_train: pd.Series,
-        X_test: pd.DataFrame,
+        X_test: pd.DataFrame,  # noqa: N803
         **kwargs: Any,
     ) -> np.ndarray:
         """Fit then predict in one call."""

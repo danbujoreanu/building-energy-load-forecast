@@ -169,7 +169,7 @@ def _dm_test_hln(e1: np.ndarray, e2: np.ndarray, h: int = 24) -> tuple[float, fl
     Returns (dm_stat, p_value_one_sided)
     """
     d = e1 ** 2 - e2 ** 2          # loss differential (squared error)
-    T = len(d)
+    T = len(d)  # noqa: N806
     d_mean = np.mean(d)
 
     # HAC variance estimate (Newey-West with h-1 lags)

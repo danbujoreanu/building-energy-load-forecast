@@ -15,7 +15,6 @@ import pandas as pd
 import pytest
 from sklearn.ensemble import RandomForestRegressor
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -27,18 +26,18 @@ def small_dataset():
     n_train, n_test = 100, 30
     cols = ["lag_1h", "temperature", "hour_of_day_sin"]
 
-    X_train = pd.DataFrame(rng.standard_normal((n_train, 3)), columns=cols)
+    X_train = pd.DataFrame(rng.standard_normal((n_train, 3)), columns=cols)  # noqa: N806
     y_train = pd.Series(
         5 + 2 * X_train["lag_1h"] - 1.5 * X_train["temperature"] + rng.normal(0, 0.1, n_train)
     )
-    X_test = pd.DataFrame(rng.standard_normal((n_test, 3)), columns=cols)
+    X_test = pd.DataFrame(rng.standard_normal((n_test, 3)), columns=cols)  # noqa: N806
     return X_train, X_test, y_train
 
 
 @pytest.fixture
 def fitted_rf(small_dataset):
     """Return a fitted RandomForestRegressor wrapped in a mock SklearnForecaster."""
-    X_train, _, y_train = small_dataset
+    X_train, _, y_train = small_dataset  # noqa: N806
     rf = RandomForestRegressor(n_estimators=5, max_depth=3, random_state=42)
     rf.fit(X_train.values, y_train.values)
 
@@ -47,7 +46,7 @@ def fitted_rf(small_dataset):
         def __init__(self, est, name):
             self.estimator = est
             self.name = name
-        def predict(self, X):
+        def predict(self, X):  # noqa: N803
             return self.estimator.predict(X.values)
 
     return MockForecaster(rf, "RandomForest")
@@ -75,7 +74,7 @@ class TestSHAPExplainer:
             pytest.skip("shap not installed")
 
         from energy_forecast.evaluation.explainability import SHAPExplainer
-        X_train, _, _ = small_dataset
+        X_train, _, _ = small_dataset  # noqa: N806
         explainer = SHAPExplainer(fitted_rf, X_train)
         assert explainer.model_name == "RandomForest"
         assert len(explainer.feature_names_) == 3
@@ -88,7 +87,7 @@ class TestSHAPExplainer:
             pytest.skip("shap not installed")
 
         from energy_forecast.evaluation.explainability import SHAPExplainer
-        X_train, X_test, _ = small_dataset
+        X_train, X_test, _ = small_dataset  # noqa: N806
         explainer = SHAPExplainer(fitted_rf, X_train)
         sv = explainer.compute(X_test)
         assert sv.values.shape == (len(X_test), X_test.shape[1])
@@ -101,7 +100,7 @@ class TestSHAPExplainer:
             pytest.skip("shap not installed")
 
         from energy_forecast.evaluation.explainability import SHAPExplainer
-        X_train, X_test, _ = small_dataset
+        X_train, X_test, _ = small_dataset  # noqa: N806
         explainer = SHAPExplainer(fitted_rf, X_train)
         explainer.compute(X_test)
         top = explainer.get_top_features(n=3)
@@ -121,7 +120,7 @@ class TestSHAPExplainer:
             pytest.skip("shap not installed")
 
         from energy_forecast.evaluation.explainability import explain_model
-        X_train, X_test, _ = small_dataset
+        X_train, X_test, _ = small_dataset  # noqa: N806
 
         explainer = explain_model(
             fitted_rf,

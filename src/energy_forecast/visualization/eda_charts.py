@@ -31,13 +31,13 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 
 import matplotlib
+
 matplotlib.use("Agg")
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
-import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -213,7 +213,7 @@ def plot_column_availability_heatmap(
     fig_w = max(14, len(cov_df.columns) * 0.7)
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
 
-    cmap = sns.color_palette(["#e74c3c", "#f39c12", "#2ecc71"], as_cmap=True)
+    cmap = sns.color_palette(["#e74c3c", "#f39c12", "#2ecc71"], as_cmap=True)  # noqa: F841
     sns.heatmap(
         cov_df,
         ax=ax,
@@ -295,7 +295,7 @@ def plot_missing_data_analysis(
     y_labels = [f"{bid}\n({_CAT_LABELS.get(cat_map.get(bid, '?'), '?')[:3]})"
                 for bid in bld_ser.index]
 
-    bars2 = ax2.bar(
+    bars2 = ax2.bar(  # noqa: F841
         range(len(bld_ser)), bld_ser.values,
         color=colors_b, edgecolor="white", width=0.7,
     )
@@ -612,7 +612,7 @@ def plot_model_results_comparison(
         df = df.reset_index()
     df = df.sort_values("MAE", ascending=True).reset_index(drop=True)
 
-    BASELINE_KEYWORDS = {"Naive", "Baseline", "Persistence", "Seasonal"}
+    BASELINE_KEYWORDS = {"Naive", "Baseline", "Persistence", "Seasonal"}  # noqa: N806
     def is_baseline(name: str) -> bool:
         return any(kw.lower() in name.lower() for kw in BASELINE_KEYWORDS)
 
@@ -805,7 +805,7 @@ def plot_thesis_vs_pipeline_comparison(
     """
     # Linear and ensemble models — excluded from side-by-side chart by default
     # to keep the comparison focused on tree-based models present in both runs
-    ORACLE_ARTIFACT_MODELS = {
+    ORACLE_ARTIFACT_MODELS = {  # noqa: N806
         "Ridge", "Lasso",
         "Stacking Ensemble (Ridge meta)", "Stacking Ensemble (LGBM meta)",
     }

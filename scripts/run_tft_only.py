@@ -28,8 +28,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-import datetime
-from energy_forecast.utils import load_config, setup_logging, set_global_seed
+import datetime  # noqa: E402
+
+from energy_forecast.utils import load_config, set_global_seed, setup_logging  # noqa: E402
 
 log_dir = ROOT / "outputs" / "logs"
 log_dir.mkdir(parents=True, exist_ok=True)
@@ -46,18 +47,17 @@ def main() -> None:
     set_global_seed(cfg.get("seed", 42))
 
     import pandas as pd
-    import numpy as np
 
     proc_dir = ROOT / "data" / "processed" / "splits"
     res_dir  = ROOT / "outputs" / "results"
     res_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("Loading pre-computed feature-selected splits …")
-    X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")
+    X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")  # noqa: N806
     y_train = pd.read_parquet(proc_dir / "y_train.parquet").squeeze()
-    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")
+    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
     y_val   = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
-    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")
+    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
     y_test  = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
     logger.info(
         "Splits loaded — train: %d rows | val: %d rows | test: %d rows",
@@ -65,8 +65,8 @@ def main() -> None:
     )
 
     # ── TFT training ─────────────────────────────────────────────────────────
+    from energy_forecast.evaluation import evaluate
     from energy_forecast.models.tft import TFTForecaster
-    from energy_forecast.evaluation import evaluate, compare_models
 
     tft = TFTForecaster(cfg)
     logger.info("Starting TFT training — this will take 2–6 hours …")

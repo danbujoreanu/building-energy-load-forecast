@@ -10,11 +10,12 @@ to verify the 80% theoretical confidence interval.
 
 import logging
 from pathlib import Path
-import pandas as pd
-import numpy as np
 
-from energy_forecast.utils import load_config, setup_logging, set_global_seed
+import numpy as np
+import pandas as pd
+
 from energy_forecast.models.sklearn_models import _build_lgbm_quantile
+from energy_forecast.utils import load_config, set_global_seed, setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +29,13 @@ def main():
     logger.info("============================================================")
 
     proc_dir = Path(cfg["paths"]["processed"]) / "splits"
-    
+
     logger.info("Loading feature-selected data splits...")
-    X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")
+    X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")  # noqa: N806
     y_train = pd.read_parquet(proc_dir / "y_train.parquet").squeeze()
-    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")
+    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
     y_val   = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
-    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")
+    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
     y_test  = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
 
     # Model Initialization
@@ -47,7 +48,7 @@ def main():
     # Predictions
     logger.info("Generating probabilistic confidence intervals (P10, P50, P90)...")
     quantiles_df = model.predict_quantiles(X_test)
-    
+
     # Calculate Coverage Metrics
     # Nominal coverage for P10 to P90 is exactly 80% (0.90 - 0.10)
     y_true = y_test.values
@@ -66,7 +67,7 @@ def main():
     logger.info("============================================================")
     logger.info("Probabilistic Evaluation Results (Test Set, N=%d)", len(y_true))
     logger.info("------------------------------------------------------------")
-    logger.info(f"Target Nominal Coverage (P10 to P90): 80.00%")
+    logger.info("Target Nominal Coverage (P10 to P90): 80.00%")
     logger.info(f"Actual PICP (Coverage Probability)  : {picp:.2f}%")
     logger.info(f"PINAW (Normalized Average Width)    : {pinaw:.2f}%")
     logger.info("============================================================")

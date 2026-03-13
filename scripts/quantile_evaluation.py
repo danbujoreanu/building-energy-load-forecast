@@ -146,9 +146,8 @@ def evaluate_city(city: str) -> dict:
 
     Returns a dict with all aggregate results for this city.
     """
-    import yaml
-    from energy_forecast.utils import load_config, set_global_seed
     from energy_forecast.models.sklearn_models import LightGBMQuantileForecaster
+    from energy_forecast.utils import load_config, set_global_seed
 
     logger.info("=" * 60)
     logger.info("Quantile evaluation — %s", city.upper())
@@ -172,11 +171,11 @@ def evaluate_city(city: str) -> dict:
         df = pd.read_parquet(path)
         return df.squeeze() if as_series else df
 
-    X_train = _load("X_train_fs")
+    X_train = _load("X_train_fs")  # noqa: N806
     y_train = _load("y_train", as_series=True)
-    X_val   = _load("X_val_fs")
+    X_val   = _load("X_val_fs")  # noqa: N806
     y_val   = _load("y_val", as_series=True)
-    X_test  = _load("X_test_fs")
+    X_test  = _load("X_test_fs")  # noqa: N806
     y_test  = _load("y_test", as_series=True)
 
     logger.info(
