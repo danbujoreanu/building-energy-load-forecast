@@ -1,0 +1,11 @@
+model,setup,paradigm,mae_h1,r2_h1,mae_h24,r2_h24,degradation_factor,note
+LightGBM,A,Trees + Features,2.108,0.9938,4.029,0.9752,1.91,H+24 champion; most horizon-robust tree
+XGBoost,A,Trees + Features,2.228,0.9931,4.197,0.9737,1.88,
+RandomForest,A,Trees + Features,1.711,0.9947,4.402,0.9686,2.57,H+1 champion; largest tree degradation factor
+Ridge,A,Linear + Features,3.069,0.9874,7.46,0.9261,2.43,
+Lasso,A,Linear + Features,3.064,0.9873,7.448,0.926,2.43,
+Stacking,A,Ensemble (Setup A),1.744,0.9953,,,,H+1 stacking champion; H+24 not evaluated (Setup A only)
+CNN-LSTM,B,DL + Features (Negative Control),4.572,0.9767,9.375,0.8772,2.05,
+GRU,B,DL + Features (Negative Control),3.947,0.9812,9.639,0.867,2.44,
+LSTM,B,DL + Features (Negative Control),3.582,0.9816,34.938,-0.0039,9.75,Convergence failure at H+24 (loss diverged)
+Mean Baseline,—,Baseline,22.691,0.4415,22.673,0.4424,1.0,Reference baseline
