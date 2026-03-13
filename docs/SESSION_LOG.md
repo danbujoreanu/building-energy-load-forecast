@@ -1571,3 +1571,53 @@ The thesis ensemble was a "unified windowed representation" stacking ensemble �
 on flattened 3D DL windows, NOT on 35 tabular features. This is different from the current pipeline's
 cleaner paradigm separation. The current design (Setup A on tabular features, Setup B/C on windowed data)
 is more rigorous for the journal paper's controlled experiment narrative.
+
+## Session 24 — 2026-03-13
+
+**Theme:** Full training execution, fig1 redesign, DM test infrastructure, GitHub Actions setup
+
+**Completed:**
+
+### fig1 Redesign (scripts/generate_paper_figures.py)
+- X-axis capped at 14 kWh; LSTM_SetupB (34.94) and Mean Baseline (22.67) bars truncated with "→ actual" annotation
+- R² column unification: merged R² and R2 columns so all 12 models show annotations
+- Added TFT_SetupB to keep_patterns + label_map (auto-populates once trained)
+- Paradigm background shading via axhspan(); group labels on right margin
+- Dropped LSTM_SetupC and GRU_SetupC (PatchTST ★ and CNN-LSTM [C] retained as Setup C representatives)
+
+### Paper Updates (docs/JOURNAL_PAPER_DRAFT.md)
+- Removed all "pending" script-run inline notes from Tables 1 and 6
+- TFT_SetupB and cross-setup ensemble rows now use '—' placeholders
+- Section 4.2 TFT note reframed as informational context, not a caveat
+- Section 4.6 prose: expanded with inverse-MAE weighting rationale (was deferred to script run)
+- Section 5.2.1: New Diebold-Mariano test subsection (Table 2b, 3 comparisons, HLN correction)
+- Refs [28] Diebold-Mariano 1995, [29] Harvey-Leybourne-Newbold 1997 added
+
+### Bug Fixes
+- `scripts/compute_cross_setup_ensembles.py`: Wrong import `LightGBMForecaster` → `build_sklearn_models()`
+- `scripts/compute_cross_setup_ensembles.py`: `PatchTSTForecaster` doesn't exist (uses NeuralForecast API);
+  replaced `_train_patchtst()` with CNNLSTMForecaster as Setup C proxy (raw splits not persisted)
+
+### Training Runs Started (background, ~10h total)
+1. **Cross-setup A+B + A+B+C** (~65 min): `compute_cross_setup_ensembles.py --city drammen --include-patchtst`
+   — runs LightGBM + CNN-LSTM (A+B) + CNN-LSTM-C-proxy (A+B+C); writes CrossEnsemble_* rows to final_metrics.csv
+2. **TFT chain** (~9h): `run_dl_h24_only.py` → then `run_pipeline.py --save-predictions`
+   — CNN-LSTM_SetupB, GRU_SetupB, TFT_SetupB; then saves prediction error arrays for DM test
+   — Log: outputs/logs/training_chain_20260313_154931.log
+
+### GitHub Actions (answered)
+- `ANTHROPIC_API_KEY` secret: Settings → Secrets and variables → Actions → New repository secret
+- Claude GitHub App: github.com/apps/claude (needed for @claude in PR comments)
+- Workflow already correct at `.github/workflows/claude-review.yml`
+
+**Post-training tasks (when jobs complete):**
+1. Run `python scripts/generate_paper_figures.py` to regenerate fig1 with TFT_SetupB + cross-setup results
+2. Update Table 1 (add TFT_SetupB actual results), Table 6 (add A+B and A+B+C actual values)
+3. Run `python scripts/significance_test.py --mode dm` to populate Table 2b
+4. Run `python scripts/quantile_evaluation.py --city drammen oslo` to refresh quantile results if needed
+5. Commit final results and push
+
+**Commits this session:**
+- `ce4e61a` — fig1 redesign (capped axis, R² annotations, shading)
+- `e1fa603` — fix compute_cross_setup_ensembles.py imports (LightGBMForecaster → build_sklearn_models)
+- `d906ee3` — paper: DM test table 2b, refs [28-29]
