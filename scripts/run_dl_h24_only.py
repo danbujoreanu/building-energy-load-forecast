@@ -29,9 +29,8 @@ import tensorflow as tf  # noqa: E402
 
 tf.get_logger().setLevel('ERROR')
 
-from energy_forecast.data.splits import make_splits  # noqa: E402
 from energy_forecast.evaluation import evaluate  # noqa: E402
-from energy_forecast.models.deep_learning import CNNLSTMForecaster, GRUForecaster  # noqa: E402
+from energy_forecast.models.deep_learning import CNNLSTMForecaster, GRUForecaster  # noqa: E402, F401
 from energy_forecast.models.tft import TFTForecaster  # noqa: E402
 from energy_forecast.utils import load_config, set_global_seed  # noqa: E402
 
@@ -56,14 +55,12 @@ def main():
 
     set_global_seed(cfg.get("seed", 42))
 
-    city = cfg.get("city", "drammen")  # noqa: F841
+    city = cfg.get("city", "drammen")
     lookback = cfg["sequence"]["lookback"]
     horizon = cfg["sequence"]["horizon"]
-    target_col = cfg["data"]["target_column"]
 
     # Paths
-    proc_dir = PROJECT_ROOT / "data/processed"
-    model_ready_path = proc_dir / "model_ready.parquet"
+    splits_dir = PROJECT_ROOT / "data/processed/splits"
     model_dir = PROJECT_ROOT / "outputs/models"
     results_dir = PROJECT_ROOT / "outputs/results"
 
@@ -71,15 +68,25 @@ def main():
     logger.info("  SEQUENTIAL DL RECOVERY: SETUP B (H+24 PARADIGM)")
     logger.info("=" * 60)
     logger.info(f"Project Root: {PROJECT_ROOT}")
+    logger.info(f"City: {city}")
     logger.info("-" * 60)
 
-    if not model_ready_path.exists():
-        logger.error(f"Data not found at {model_ready_path}. Run pipeline first.")
-        return
-
-    # Load and split
-    df = pd.read_parquet(model_ready_path)
-    splits = make_splits(df, cfg, target_col)
+    # Load the pre-saved city splits (feature-selected, 35 features, correct city data)
+    # These are identical to the splits used by run_pipeline.py for the authoritative results.
+    city_prefix = f"{city}_"
+    split_keys = {
+        "X_train": "X_train_fs", "y_train": "y_train",
+        "X_val":   "X_val_fs",   "y_val":   "y_val",
+        "X_test":  "X_test_fs",  "y_test":  "y_test",
+    }
+    splits = {}
+    for local_key, file_stem in split_keys.items():
+        fpath = splits_dir / f"{city_prefix}{file_stem}.parquet"
+        if not fpath.exists():
+            logger.error("Split file not found: %s", fpath)
+            return
+        arr = pd.read_parquet(fpath)
+        splits[local_key] = arr.squeeze() if local_key.startswith("y_") else arr
     y_test = splits["y_test"]
 
     logger.info("Building evaluation matrix...")
@@ -92,30 +99,27 @@ def main():
         "TFT_SetupB": "GLU (Gated Linear Unit), ReLU"
     }
 
+    # Only TFT_SetupB is needed here.
+    # CNN-LSTM_SetupB and GRU_SetupB already have correct authoritative results
+    # (MAE=9.375 R²=0.877; MAE=9.639 R²=0.867) from the original pipeline run.
+    # Re-running them risks overwriting those results; TFT is new and has no result yet.
     models_to_run = [
-        ("CNN-LSTM_SetupB", CNNLSTMForecaster),
-        ("GRU_SetupB", GRUForecaster),
-        ("TFT_SetupB", TFTForecaster)
+        ("TFT_SetupB", TFTForecaster),
     ]
 
     for name, ModelCls in models_to_run:  # noqa: N806
         logger.info(f"🚀 STARTING: {name}")
         try:
-            # TFT uses PyTorch/Lightning — tf.keras.clear_session() is a no-op
-            # for it and confusingly suggests we're clearing a TF graph state.
-            # Only clear Keras session for TF-based models (LSTM, CNN-LSTM, GRU).
+            # TFT uses PyTorch/Lightning — no Keras session to clear.
             is_tf_model = ModelCls not in (TFTForecaster,)
             if is_tf_model:
                 tf.keras.backend.clear_session()
 
-            # cfg.copy() is a shallow copy: modifying nested keys mutates the
-            # original cfg dict.  Use a proper deep copy so each model gets a
-            # clean config.  Only override deep_learning.epochs for TF models;
-            # TFT uses cfg["training"]["tft"]["max_epochs"] independently.
+            # Deep copy so config mutations don't bleed across models.
+            # Do NOT override epochs for TF models here; the config default (20)
+            # is correct for CNN-LSTM/GRU.  TFT uses cfg["training"]["tft"]["max_epochs"].
             import copy
             model_cfg = copy.deepcopy(cfg)
-            if is_tf_model:
-                model_cfg["training"]["deep_learning"]["epochs"] = 10
 
             t0 = time.time()
             model = ModelCls(model_cfg)

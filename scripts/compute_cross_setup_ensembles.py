@@ -105,8 +105,18 @@ def _blend_and_evaluate(
     y_true_2d: np.ndarray,
     ensemble_name: str,
 ) -> dict:
-    """Weighted average of prediction arrays and compute metrics."""
+    """Weighted average of prediction arrays and compute metrics.
+
+    Defensively trims all arrays to their common minimum row count so that
+    minor off-by-one differences between model window counts don't crash the
+    blend (e.g. LightGBM vs CNN-LSTM sliding-window boundary alignment).
+    """
     from energy_forecast.evaluation import evaluate  # noqa: PLC0415
+
+    # Trim to the minimum length across y_true and all prediction arrays
+    n_min = min(len(y_true_2d), *(len(v) for v in preds_dict.values()))
+    y_true_2d   = y_true_2d[:n_min]
+    preds_dict  = {k: v[:n_min] for k, v in preds_dict.items()}
 
     blend = np.zeros_like(y_true_2d, dtype=np.float64)
     for name, w in weights.items():
