@@ -20,15 +20,15 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import Lasso, Ridge
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import Lasso, Ridge
 
 from .base import BaseForecaster
 
 logger = logging.getLogger(__name__)
 
 
-def build_sklearn_models(cfg: dict[str, Any]) -> dict[str, "SklearnForecaster"]:
+def build_sklearn_models(cfg: dict[str, Any]) -> dict[str, SklearnForecaster]:
     """Instantiate all sklearn models from config and return as a dict."""
     t = cfg["training"]
     seed = cfg.get("seed", 42)
@@ -59,7 +59,7 @@ def build_sklearn_models(cfg: dict[str, Any]) -> dict[str, "SklearnForecaster"]:
     return models
 
 
-def _build_lgbm(lgbm_cfg: dict, seed: int) -> "SklearnForecaster":
+def _build_lgbm(lgbm_cfg: dict, seed: int) -> SklearnForecaster:
     try:
         import lightgbm as lgb
     except ImportError as e:
@@ -80,11 +80,11 @@ def _build_lgbm(lgbm_cfg: dict, seed: int) -> "SklearnForecaster":
     return SklearnForecaster(model, name="LightGBM")
 
 
-def _build_lgbm_quantile(lgbm_cfg: dict, seed: int) -> "LightGBMQuantileForecaster":
+def _build_lgbm_quantile(lgbm_cfg: dict, seed: int) -> LightGBMQuantileForecaster:
     """Build the specialised probabilistic forecaster outputting P10/P50/P90 quantiles."""
     return LightGBMQuantileForecaster(lgbm_cfg, seed, name="LightGBM_Quantile")
 
-def _build_xgboost(xgb_cfg: dict, seed: int) -> "SklearnForecaster":
+def _build_xgboost(xgb_cfg: dict, seed: int) -> SklearnForecaster:
     """Build XGBoost regressor — MSc thesis rank 2 (MAE 3.42 kWh, ~3s train time)."""
     try:
         from xgboost import XGBRegressor
@@ -116,12 +116,12 @@ class SklearnForecaster(BaseForecaster):
 
     def fit(
         self,
-        X_train: pd.DataFrame,
+        X_train: pd.DataFrame,  # noqa: N803
         y_train: pd.Series,
-        X_val: pd.DataFrame | None = None,
+        X_val: pd.DataFrame | None = None,  # noqa: N803
         y_val: pd.Series | None = None,
         **kwargs: Any,
-    ) -> "SklearnForecaster":
+    ) -> SklearnForecaster:
         logger.info("Training %s ...", self.name)
         fit_params: dict = {}
 
@@ -153,7 +153,7 @@ class SklearnForecaster(BaseForecaster):
         logger.info("%s training complete.", self.name)
         return self
 
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
+    def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
         return self.estimator.predict(X.values)
 
     @property
@@ -165,10 +165,10 @@ class LightGBMQuantileForecaster(BaseForecaster):
     """Specialised wrapper to train three LightGBM models for P10, P50, and P90 quantiles."""
 
     def __init__(
-        self, 
-        lgbm_cfg: dict, 
-        seed: int, 
-        name: str = "LightGBM_Quantile", 
+        self,
+        lgbm_cfg: dict,
+        seed: int,
+        name: str = "LightGBM_Quantile",
         quantiles: list[float] = [0.1, 0.5, 0.9]
     ) -> None:
         self.name = name
@@ -179,12 +179,12 @@ class LightGBMQuantileForecaster(BaseForecaster):
 
     def fit(
         self,
-        X_train: pd.DataFrame,
+        X_train: pd.DataFrame,  # noqa: N803
         y_train: pd.Series,
-        X_val: pd.DataFrame | None = None,
+        X_val: pd.DataFrame | None = None,  # noqa: N803
         y_val: pd.Series | None = None,
         **kwargs: Any,
-    ) -> "LightGBMQuantileForecaster":
+    ) -> LightGBMQuantileForecaster:
         try:
             import lightgbm as lgb
         except ImportError as e:
@@ -218,13 +218,13 @@ class LightGBMQuantileForecaster(BaseForecaster):
         logger.info("%s training complete.", self.name)
         return self
 
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
+    def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
         """Returns the median prediction (P50) to satisfy standard evaluation frameworks."""
         if 0.5 not in self.models:
             raise ValueError("Median model (alpha=0.5) was not trained.")
         return self.models[0.5].predict(X.values)
 
-    def predict_quantiles(self, X: pd.DataFrame) -> pd.DataFrame:
+    def predict_quantiles(self, X: pd.DataFrame) -> pd.DataFrame:  # noqa: N803
         """Return a DataFrame with specific quantile bound predictions."""
         preds = {}
         for alpha, model in self.models.items():

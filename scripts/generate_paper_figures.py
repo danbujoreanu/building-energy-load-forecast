@@ -25,10 +25,10 @@ import warnings
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -167,7 +167,7 @@ def fig1_paradigm_parity() -> None:
     sel = sel.sort_values(["porder", mae_col], ascending=[True, True]).reset_index(drop=True)
 
     # ── Plot setup ────────────────────────────────────────────────────────────
-    X_MAX = 14.0   # display cap; bars exceeding this are truncated + annotated
+    X_MAX = 14.0   # display cap; bars exceeding this are truncated + annotated  # noqa: N806
     colors = [PALETTE[p] for p in sel["paradigm"]]
 
     fig, ax = plt.subplots(figsize=(9, 6.5))

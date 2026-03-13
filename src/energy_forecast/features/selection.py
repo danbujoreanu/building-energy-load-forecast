@@ -30,10 +30,10 @@ logger = logging.getLogger(__name__)
 
 
 def select_features(
-    X_train: pd.DataFrame,
+    X_train: pd.DataFrame,  # noqa: N803
     y_train: pd.Series,
-    X_val: pd.DataFrame,
-    X_test: pd.DataFrame,
+    X_val: pd.DataFrame,  # noqa: N803
+    X_test: pd.DataFrame,  # noqa: N803
     cfg: dict[str, Any],
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, list[str]]:
     """Run the three-stage feature selection pipeline.
@@ -60,19 +60,19 @@ def select_features(
     logger.info("Starting feature selection with %d initial features", X_train.shape[1])
 
     # ── Stage 1: Variance threshold ────────────────────────────────────────────
-    X_train, X_val, X_test, kept = _variance_filter(
+    X_train, X_val, X_test, kept = _variance_filter(  # noqa: N806
         X_train, X_val, X_test, threshold=var_threshold
     )
     logger.info("After variance filter: %d features", len(kept))
 
     # ── Stage 2: Correlation filter ────────────────────────────────────────────
-    X_train, X_val, X_test, kept = _correlation_filter(
+    X_train, X_val, X_test, kept = _correlation_filter(  # noqa: N806
         X_train, X_val, X_test, threshold=corr_threshold
     )
     logger.info("After correlation filter: %d features", len(kept))
 
     # ── Stage 3: LightGBM importance ──────────────────────────────────────────
-    X_train, X_val, X_test, kept = _lgbm_importance_filter(
+    X_train, X_val, X_test, kept = _lgbm_importance_filter(  # noqa: N806
         X_train, y_train, X_val, X_test, n_keep=n_keep, cfg=cfg
     )
     logger.info("After LightGBM importance filter: %d features retained", len(kept))
@@ -85,9 +85,9 @@ def select_features(
 # ---------------------------------------------------------------------------
 
 def _variance_filter(
-    X_train: pd.DataFrame,
-    X_val: pd.DataFrame,
-    X_test: pd.DataFrame,
+    X_train: pd.DataFrame,  # noqa: N803
+    X_val: pd.DataFrame,  # noqa: N803
+    X_test: pd.DataFrame,  # noqa: N803
     threshold: float = 0.0,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, list[str]]:
     selector = VarianceThreshold(threshold=threshold)
@@ -101,9 +101,9 @@ def _variance_filter(
 # ---------------------------------------------------------------------------
 
 def _correlation_filter(
-    X_train: pd.DataFrame,
-    X_val: pd.DataFrame,
-    X_test: pd.DataFrame,
+    X_train: pd.DataFrame,  # noqa: N803
+    X_val: pd.DataFrame,  # noqa: N803
+    X_test: pd.DataFrame,  # noqa: N803
     threshold: float = 0.99,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, list[str]]:
     """Remove features that are pairwise-correlated above ``threshold``.
@@ -138,10 +138,10 @@ def _correlation_filter(
 # ---------------------------------------------------------------------------
 
 def _lgbm_importance_filter(
-    X_train: pd.DataFrame,
+    X_train: pd.DataFrame,  # noqa: N803
     y_train: pd.Series,
-    X_val: pd.DataFrame,
-    X_test: pd.DataFrame,
+    X_val: pd.DataFrame,  # noqa: N803
+    X_test: pd.DataFrame,  # noqa: N803
     n_keep: int,
     cfg: dict[str, Any],
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, list[str]]:
@@ -153,7 +153,7 @@ def _lgbm_importance_filter(
 
     # Sanitise column names (LightGBM dislikes special characters)
     clean_names = _sanitise_names(X_train.columns.tolist())
-    X_tr = X_train.copy()
+    X_tr = X_train.copy()  # noqa: N806
     X_tr.columns = clean_names
 
     model = lgb.LGBMRegressor(

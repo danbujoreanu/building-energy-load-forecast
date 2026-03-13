@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 def build_sequences(
-    X: pd.DataFrame,
+    X: pd.DataFrame,  # noqa: N803
     y: pd.Series,
     lookback: int,
     horizon: int,
@@ -58,11 +58,11 @@ def build_sequences(
     X_seq : (n_samples, lookback, n_features)
     y_seq : (n_samples,)
     """
-    X_seqs, y_seqs = [], []
+    X_seqs, y_seqs = [], []  # noqa: N806
     building_ids = X.index.get_level_values("building_id").unique()
 
     for bid in building_ids:
-        X_b = X.xs(bid, level="building_id").values
+        X_b = X.xs(bid, level="building_id").values  # noqa: N806
         y_b = y.xs(bid, level="building_id").values
         n = len(X_b)
 
@@ -90,12 +90,12 @@ class LSTMForecaster(BaseForecaster):
         self.model_ = None
         self.history_ = None
 
-    def fit(self, X_train, y_train, X_val=None, y_val=None, **kwargs):
+    def fit(self, X_train, y_train, X_val=None, y_val=None, **kwargs):  # noqa: N803
         tf = _import_tf()
         dl_cfg = self.cfg["training"]["deep_learning"]
         seq_cfg = self.cfg["sequence"]
 
-        X_tr_seq, y_tr_seq = build_sequences(
+        X_tr_seq, y_tr_seq = build_sequences(  # noqa: N806
             X_train, y_train, seq_cfg["lookback"], seq_cfg["horizon"]
         )
         n_features = X_tr_seq.shape[2]
@@ -122,7 +122,7 @@ class LSTMForecaster(BaseForecaster):
             "verbose":    2,   # 2 = one line per epoch (\n); 1 = \r progress bar (floods log files)
         }
         if X_val is not None and y_val is not None:
-            X_v_seq, y_v_seq = build_sequences(
+            X_v_seq, y_v_seq = build_sequences(  # noqa: N806
                 X_val, y_val, seq_cfg["lookback"], seq_cfg["horizon"]
             )
             fit_kwargs["validation_data"] = (X_v_seq, y_v_seq)
@@ -133,10 +133,10 @@ class LSTMForecaster(BaseForecaster):
         self._seq_cfg = seq_cfg
         return self
 
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
+    def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
         # Build sequences from X; y is a placeholder (values not used)
         y_placeholder = pd.Series(np.zeros(len(X)), index=X.index)
-        X_seq, _ = build_sequences(
+        X_seq, _ = build_sequences(  # noqa: N806
             X, y_placeholder, self._seq_cfg["lookback"], self._seq_cfg["horizon"]
         )
         raw = self.model_.predict(X_seq, verbose=0)  # (n_samples, horizon)
@@ -161,13 +161,13 @@ class CNNLSTMForecaster(BaseForecaster):
         self.model_ = None
         self.history_ = None
 
-    def fit(self, X_train, y_train, X_val=None, y_val=None, **kwargs):
+    def fit(self, X_train, y_train, X_val=None, y_val=None, **kwargs):  # noqa: N803
         tf = _import_tf()
         dl_cfg = self.cfg["training"]["deep_learning"]
         cnn_cfg = dl_cfg["cnn_lstm"]
         seq_cfg = self.cfg["sequence"]
 
-        X_tr_seq, y_tr_seq = build_sequences(
+        X_tr_seq, y_tr_seq = build_sequences(  # noqa: N806
             X_train, y_train, seq_cfg["lookback"], seq_cfg["horizon"]
         )
         n_features = X_tr_seq.shape[2]
@@ -198,7 +198,7 @@ class CNNLSTMForecaster(BaseForecaster):
             "verbose":    2,   # 2 = one line per epoch (\n); 1 = \r progress bar (floods log files)
         }
         if X_val is not None and y_val is not None:
-            X_v_seq, y_v_seq = build_sequences(
+            X_v_seq, y_v_seq = build_sequences(  # noqa: N806
                 X_val, y_val, seq_cfg["lookback"], seq_cfg["horizon"]
             )
             fit_kwargs["validation_data"] = (X_v_seq, y_v_seq)
@@ -209,9 +209,9 @@ class CNNLSTMForecaster(BaseForecaster):
         self._seq_cfg = seq_cfg
         return self
 
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
+    def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
         y_placeholder = pd.Series(np.zeros(len(X)), index=X.index)
-        X_seq, _ = build_sequences(
+        X_seq, _ = build_sequences(  # noqa: N806
             X, y_placeholder, self._seq_cfg["lookback"], self._seq_cfg["horizon"]
         )
         raw = self.model_.predict(X_seq, verbose=0)  # (n_samples, horizon)
@@ -232,12 +232,12 @@ class GRUForecaster(BaseForecaster):
         self.model_ = None
         self.history_ = None
 
-    def fit(self, X_train, y_train, X_val=None, y_val=None, **kwargs):
+    def fit(self, X_train, y_train, X_val=None, y_val=None, **kwargs):  # noqa: N803
         tf = _import_tf()
         dl_cfg = self.cfg["training"]["deep_learning"]
         seq_cfg = self.cfg["sequence"]
 
-        X_tr_seq, y_tr_seq = build_sequences(
+        X_tr_seq, y_tr_seq = build_sequences(  # noqa: N806
             X_train, y_train, seq_cfg["lookback"], seq_cfg["horizon"]
         )
         n_features = X_tr_seq.shape[2]
@@ -263,7 +263,7 @@ class GRUForecaster(BaseForecaster):
             "verbose":    2,   # 2 = one line per epoch (\n); 1 = \r progress bar (floods log files)
         }
         if X_val is not None and y_val is not None:
-            X_v_seq, y_v_seq = build_sequences(
+            X_v_seq, y_v_seq = build_sequences(  # noqa: N806
                 X_val, y_val, seq_cfg["lookback"], seq_cfg["horizon"]
             )
             fit_kwargs["validation_data"] = (X_v_seq, y_v_seq)
@@ -274,9 +274,9 @@ class GRUForecaster(BaseForecaster):
         self._seq_cfg = seq_cfg
         return self
 
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
+    def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
         y_placeholder = pd.Series(np.zeros(len(X)), index=X.index)
-        X_seq, _ = build_sequences(
+        X_seq, _ = build_sequences(  # noqa: N806
             X, y_placeholder, self._seq_cfg["lookback"], self._seq_cfg["horizon"]
         )
         raw = self.model_.predict(X_seq, verbose=0)  # (n_samples, horizon)

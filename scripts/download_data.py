@@ -17,7 +17,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from energy_forecast.utils import setup_logging, load_config
+from energy_forecast.utils import load_config, setup_logging
 
 logger = logging.getLogger(__name__)
 

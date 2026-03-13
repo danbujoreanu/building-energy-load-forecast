@@ -41,7 +41,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from energy_forecast.utils import load_config, setup_logging, set_global_seed
+from energy_forecast.utils import load_config, set_global_seed, setup_logging  # noqa: E402
 
 log_dir = ROOT / "outputs" / "logs"
 log_dir.mkdir(parents=True, exist_ok=True)
@@ -61,8 +61,6 @@ def main() -> None:
 
     import numpy as np
     import pandas as pd
-
-    import lightning.pytorch as pl
     from pytorch_forecasting import TemporalFusionTransformer, TimeSeriesDataSet
     from pytorch_forecasting.data import GroupNormalizer
 
@@ -71,11 +69,11 @@ def main() -> None:
     res_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("Loading feature-selected splits …")
-    X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")
+    X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")  # noqa: N806
     y_train = pd.read_parquet(proc_dir / "y_train.parquet").squeeze()
-    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")
+    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
     y_val   = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
-    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")
+    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
     y_test  = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
 
     tft_cfg    = cfg["training"]["tft"]
@@ -87,7 +85,7 @@ def main() -> None:
     # Must use IDENTICAL parameters to the original training run.
     logger.info("Reconstructing TimeSeriesDataSet (same params as original fit) …")
 
-    def _prepare_df(X: pd.DataFrame, y: pd.Series, split: str) -> pd.DataFrame:
+    def _prepare_df(X: pd.DataFrame, y: pd.Series, split: str) -> pd.DataFrame:  # noqa: N803
         df = X.copy()
         df[y.name or "target"] = y.values
         df["split"] = split
@@ -106,7 +104,7 @@ def main() -> None:
     # time_varying_known_reals (BUG-C3 was fixed in tft.py but not before this training).
     # The checkpoint (epoch=19) therefore expects 36 time_varying_known features including
     # "timestamp".  We intentionally retain timestamp here to match the checkpoint exactly.
-    _EXCLUDE = {"building_id", "time_idx", target_col, "split"}
+    _EXCLUDE = {"building_id", "time_idx", target_col, "split"}  # noqa: N806
     time_varying_known = [c for c in df_full.columns if c not in _EXCLUDE]
 
     training_dataset = TimeSeriesDataSet(
@@ -240,7 +238,8 @@ def main() -> None:
         logger.warning("final_metrics.csv not found — wrote TFT-only file.")
 
     # ── Save checkpoint copy to outputs/models/ ───────────────────────────────
-    import shutil, datetime
+    import datetime
+    import shutil
     model_dir = ROOT / "outputs" / "models"
     model_dir.mkdir(parents=True, exist_ok=True)
     dest = model_dir / f"drammen_TFT_h1_{datetime.date.today().isoformat()}_epoch19.ckpt"

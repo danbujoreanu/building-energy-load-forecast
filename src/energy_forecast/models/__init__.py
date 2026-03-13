@@ -1,8 +1,8 @@
 """Model zoo: baselines, sklearn, deep learning (LSTM/CNN-LSTM/GRU), TFT, ensemble."""
 
-from .baselines import NaiveModel, SeasonalNaiveModel, MeanModel
-from .sklearn_models import SklearnForecaster
+from .baselines import MeanModel, NaiveModel, SeasonalNaiveModel
 from .ensemble import StackingEnsemble
+from .sklearn_models import SklearnForecaster
 
 __all__ = [
     "NaiveModel", "SeasonalNaiveModel", "MeanModel",

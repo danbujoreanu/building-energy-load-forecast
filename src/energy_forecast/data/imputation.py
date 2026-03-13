@@ -1,10 +1,8 @@
 import logging
+
 import pandas as pd
-import numpy as np
 from sklearn.experimental import enable_iterative_imputer  # noqa
 from sklearn.impute import IterativeImputer
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
 
 logger = logging.getLogger(__name__)
 
@@ -29,30 +27,30 @@ def impute_missing_weather(df: pd.DataFrame, weather_cols: list[str]) -> pd.Data
     temp_df = df[cols_to_impute].copy()
     temp_df["hour_of_day"] = ts.hour
     temp_df["month"] = ts.month
-    
+
     # We want to fit MICE. Since IterativeImputer scales based on variance, scaling first is helpful.
     # However, to be fast and avoid leakage, we do a single global imputation on the entire continuous sequence,
     # or per building. Given it's weather, global is fine (climate is the same across buildings).
-    
+
     logger.info("Applying MICE (IterativeImputer) to weather columns...")
-    
+
     imputer = IterativeImputer(
         max_iter=10,
         random_state=42,
         initial_strategy="median",
         skip_complete=True
     )
-    
+
     # Fit and transform
     imputed_values = imputer.fit_transform(temp_df)
-    
+
     # Convert back to DataFrame
     imputed_df = pd.DataFrame(
         imputed_values,
         index=temp_df.index,
         columns=temp_df.columns
     )
-    
+
     # Put back the imputed columns into original df
     df_out = df.copy()
     for col in cols_to_impute:
@@ -71,7 +69,7 @@ def impute_missing_metadata(df: pd.DataFrame) -> pd.DataFrame:
     Deep Learning sequence models (like PatchTST) crash if static exog variables have NaNs.
     """
     df_out = df.copy()
-    
+
     if "energy_label" in df_out.columns:
         # Fill missing energy labels with "Unknown" or a dedicated category
         missing_mask = df_out["energy_label"].isna()
@@ -79,5 +77,5 @@ def impute_missing_metadata(df: pd.DataFrame) -> pd.DataFrame:
             missing_count = missing_mask.sum()
             logger.info("Filling %d missing 'energy_label' values with 'Unknown'", missing_count)
             df_out["energy_label"] = df_out["energy_label"].fillna("Unknown")
-            
+
     return df_out

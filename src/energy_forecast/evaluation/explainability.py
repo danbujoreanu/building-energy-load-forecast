@@ -61,7 +61,7 @@ class SHAPExplainer:
         Pass ``X_train`` (or a shap.sample of it for large datasets).
     """
 
-    def __init__(self, model: Any, X_background: pd.DataFrame) -> None:
+    def __init__(self, model: Any, X_background: pd.DataFrame) -> None:  # noqa: N803
         try:
             import shap
         except ImportError as exc:
@@ -79,13 +79,13 @@ class SHAPExplainer:
             data=shap.sample(X_background, min(200, len(X_background))),
         )
         self.feature_names_: list[str] = list(X_background.columns)
-        self._shap_values: "shap.Explanation | None" = None
+        self._shap_values: shap.Explanation | None = None
 
     # ------------------------------------------------------------------
     # Core compute
     # ------------------------------------------------------------------
 
-    def compute(self, X: pd.DataFrame, check_additivity: bool = False) -> "shap.Explanation":
+    def compute(self, X: pd.DataFrame, check_additivity: bool = False) -> shap.Explanation:  # noqa: F821, N803
         """Compute SHAP values for the given dataset.
 
         Parameters
@@ -111,7 +111,7 @@ class SHAPExplainer:
 
     def plot_beeswarm(
         self,
-        shap_values: "shap.Explanation | None" = None,
+        shap_values: shap.Explanation | None = None,  # noqa: F821
         max_display: int = 20,
         save_path: str | Path | None = None,
     ) -> None:
@@ -131,7 +131,8 @@ class SHAPExplainer:
         save_path:
             If provided, saves the figure instead of showing it.
         """
-        import shap, matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt
+        import shap
 
         sv = shap_values or self._shap_values
         if sv is None:
@@ -145,7 +146,7 @@ class SHAPExplainer:
 
     def plot_waterfall(
         self,
-        shap_values: "shap.Explanation | None" = None,
+        shap_values: shap.Explanation | None = None,  # noqa: F821
         idx: int = 0,
         save_path: str | Path | None = None,
     ) -> None:
@@ -163,7 +164,8 @@ class SHAPExplainer:
         save_path:
             If provided, saves the figure.
         """
-        import shap, matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt
+        import shap
 
         sv = shap_values or self._shap_values
         if sv is None:
@@ -180,7 +182,7 @@ class SHAPExplainer:
 
     def plot_bar(
         self,
-        shap_values: "shap.Explanation | None" = None,
+        shap_values: shap.Explanation | None = None,  # noqa: F821
         max_display: int = 20,
         save_path: str | Path | None = None,
     ) -> None:
@@ -189,7 +191,8 @@ class SHAPExplainer:
         Shows feature importance without the direction information.
         Use beeswarm for full insight, bar chart for a clean portfolio figure.
         """
-        import shap, matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt
+        import shap
 
         sv = shap_values or self._shap_values
         if sv is None:
@@ -203,7 +206,7 @@ class SHAPExplainer:
 
     def plot_heatmap(
         self,
-        shap_values: "shap.Explanation | None" = None,
+        shap_values: shap.Explanation | None = None,  # noqa: F821
         max_display: int = 20,
         save_path: str | Path | None = None,
     ) -> None:
@@ -212,7 +215,8 @@ class SHAPExplainer:
         Reveals how SHAP values vary across the test set (e.g., seasonal patterns
         in the contribution of temperature or time-of-day features).
         """
-        import shap, matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt
+        import shap
 
         sv = shap_values or self._shap_values
         if sv is None:
@@ -230,7 +234,7 @@ class SHAPExplainer:
 
     def save_values(
         self,
-        shap_values: "shap.Explanation | None" = None,
+        shap_values: shap.Explanation | None = None,  # noqa: F821
         save_dir: str | Path = "outputs/results/shap",
     ) -> Path:
         """Save SHAP values, feature names, and expected value to disk.
@@ -260,7 +264,7 @@ class SHAPExplainer:
 
     def get_top_features(
         self,
-        shap_values: "shap.Explanation | None" = None,
+        shap_values: shap.Explanation | None = None,  # noqa: F821
         n: int = 10,
     ) -> pd.DataFrame:
         """Return a DataFrame of top-N features ranked by mean |SHAP|.
@@ -290,8 +294,8 @@ class SHAPExplainer:
 
 def explain_model(
     model: Any,
-    X_train: pd.DataFrame,
-    X_test: pd.DataFrame,
+    X_train: pd.DataFrame,  # noqa: N803
+    X_test: pd.DataFrame,  # noqa: N803
     model_name: str | None = None,
     save_dir: str | Path | None = None,
     n_samples: int = 500,
@@ -321,7 +325,7 @@ def explain_model(
     explainer = SHAPExplainer(model, X_train)
 
     # Subsample for speed — SHAP is O(n * features * trees)
-    X_explain = X_test.sample(min(n_samples, len(X_test)), random_state=42)
+    X_explain = X_test.sample(min(n_samples, len(X_test)), random_state=42)  # noqa: N806
     shap_values = explainer.compute(X_explain)
 
     if save_dir is not None:

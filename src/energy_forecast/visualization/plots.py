@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib
+
 matplotlib.use("Agg")   # non-interactive backend — safe for scripts & CI
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
