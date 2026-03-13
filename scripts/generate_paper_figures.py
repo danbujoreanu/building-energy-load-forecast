@@ -93,92 +93,176 @@ def load_quantile() -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 def fig1_paradigm_parity() -> None:
-    """All H+24 Drammen models, grouped by paradigm, sorted by MAE."""
+    """All H+24 Drammen models, grouped by paradigm, sorted by MAE.
+
+    Design improvements over v1:
+    - X-axis capped at 14 kWh; outlier bars (LSTM_SetupB, Mean Baseline)
+      are truncated and annotated with their actual values and '→' arrow
+      so the scale is not distorted.
+    - LSTM_SetupC and GRU_SetupC removed (PatchTST is the Setup C champion;
+      CNN-LSTM_SetupC retained as secondary reference).
+    - R² value annotated to the right of each bar as secondary metric.
+    - Paradigm-group background shading for fast visual parsing.
+    - Cleaner model labels.
+    """
     df = load_drammen()
 
-    # Tag each row with its paradigm
-    def tag(name: str) -> tuple[str, str]:
+    # ── Paradigm tagging ─────────────────────────────────────────────────────
+    def tag(name: str) -> str:
         n = str(name)
-        if "Ensemble" in n or "Stacking" in n:
-            return ("Ensemble", "Ensemble")
+        if "GrandEnsemble" in n or "Stacking" in n:
+            return "Ensemble"
         if any(x in n for x in ["Naive", "Baseline", "Mean", "Seasonal"]):
-            return ("Baseline", "Baseline")
+            return "Baseline"
         if "SetupB" in n:
-            return ("B", "Setup B\n(DL + Features)")
+            return "B"
         if "SetupC" in n:
-            return ("C", "Setup C\n(DL + Raw)")
+            return "C"
         if any(x in n for x in ["LightGBM", "XGBoost", "RandomForest", "Ridge", "Lasso"]):
-            return ("A", "Setup A\n(Trees + Features)")
-        return ("C", "Setup C\n(DL + Raw)")
+            return "A"
+        return "C"
 
-    # Filter to informative rows (no grand ensemble sweep rows, only A0_C100 and A90_C10 and A100_C0)
+    # ── Model selection ───────────────────────────────────────────────────────
+    # Keep key champion/reference models only; drop redundant Setup C LSTM/GRU
     keep_patterns = [
         "LightGBM_SetupA", "XGBoost_SetupA", "RandomForest_SetupA",
         "Ridge_SetupA", "Lasso_SetupA",
-        "LSTM_SetupB", "CNN-LSTM_SetupB", "GRU_SetupB",
-        "PatchTST_SetupC", "CNN-LSTM_SetupC", "LSTM_SetupC", "GRU_SetupC",
+        "LSTM_SetupB", "CNN-LSTM_SetupB", "GRU_SetupB", "TFT_SetupB",
+        "PatchTST_SetupC", "CNN-LSTM_SetupC",
         "GrandEnsemble_A90_C9",
         "Mean Baseline",
     ]
-    # Flexible matching
     sel = df[df["model"].apply(lambda m: any(p in str(m) for p in keep_patterns))].copy()
 
-    # Use R² column — handle both "R²" and "R2"
-    r2_col = "R²" if "R²" in sel.columns else "R2"
     mae_col = "MAE"
+    # Unify the two R² column spellings (R² for sklearn rows, R2 for DL/ensemble rows)
+    sel["_r2"] = sel["R²"].fillna(sel["R2"]) if ("R²" in sel.columns and "R2" in sel.columns) \
+                 else (sel["R²"] if "R²" in sel.columns else sel["R2"])
+    r2_col = "_r2"
 
-    sel["paradigm"] = sel["model"].apply(lambda m: tag(m)[0])
-    sel["label"] = sel["model"].apply(lambda m: (
-        str(m).replace("_SetupA", "").replace("_SetupB", "").replace("_SetupC", "")
-             .replace("GrandEnsemble_A90_C9", "Grand Ens. A90/C10")
-    ))
+    # ── Readable labels ───────────────────────────────────────────────────────
+    label_map = {
+        "LightGBM_SetupA":    "LightGBM ★",
+        "XGBoost_SetupA":     "XGBoost",
+        "RandomForest_SetupA":"Random Forest",
+        "Ridge_SetupA":       "Ridge",
+        "Lasso_SetupA":       "Lasso",
+        "LSTM_SetupB":        "LSTM  [B]",
+        "CNN-LSTM_SetupB":    "CNN-LSTM  [B]",
+        "GRU_SetupB":         "GRU  [B]",
+        "TFT_SetupB":         "TFT  [B]",
+        "PatchTST_SetupC":    "PatchTST ★",
+        "CNN-LSTM_SetupC":    "CNN-LSTM  [C]",
+        "GrandEnsemble_A90_C9": "Grand Ens. A90/C10",
+        "Mean Baseline":      "Mean Baseline",
+    }
+    sel["paradigm"] = sel["model"].apply(tag)
+    sel["label"]    = sel["model"].map(label_map).fillna(
+        sel["model"].str.replace("_SetupA","").str.replace("_SetupB","").str.replace("_SetupC","")
+    )
 
-    # Sort: within each paradigm, sort by MAE ascending
-    order = ["A", "B", "C", "Ensemble", "Baseline"]
-    sel["porder"] = sel["paradigm"].map({k: i for i, k in enumerate(order)})
-    sel = sel.sort_values(["porder", mae_col], ascending=[True, True])
+    # ── Sort: paradigm group order, then MAE ascending within group ───────────
+    order = {"A": 0, "B": 1, "C": 2, "Ensemble": 3, "Baseline": 4}
+    sel["porder"] = sel["paradigm"].map(order)
+    sel = sel.sort_values(["porder", mae_col], ascending=[True, True]).reset_index(drop=True)
 
-    # Colours per row
+    # ── Plot setup ────────────────────────────────────────────────────────────
+    X_MAX = 14.0   # display cap; bars exceeding this are truncated + annotated
     colors = [PALETTE[p] for p in sel["paradigm"]]
 
-    fig, ax = plt.subplots(figsize=(8, 6))
-    y_pos = range(len(sel))
-    bars = ax.barh(list(y_pos), sel[mae_col].values, color=colors, edgecolor="white",
-                   linewidth=0.6, height=0.7)
+    fig, ax = plt.subplots(figsize=(9, 6.5))
+    y_pos = np.arange(len(sel))
 
-    # Value labels
-    for bar, val in zip(bars, sel[mae_col].values):
-        ax.text(bar.get_width() + 0.2, bar.get_y() + bar.get_height() / 2,
-                f"{val:.2f}", va="center", ha="left", fontsize=8)
+    # Draw bars (capped at X_MAX)
+    display_mae = sel[mae_col].clip(upper=X_MAX).values
+    bars = ax.barh(y_pos, display_mae, color=colors, edgecolor="white",
+                   linewidth=0.5, height=0.72, zorder=3)
 
-    ax.set_yticks(list(y_pos))
-    ax.set_yticklabels(sel["label"].values, fontsize=9)
-    ax.set_xlabel("MAE (kWh)", fontweight="bold")
-    ax.set_title("Paradigm Parity: H+24 Drammen Results\n"
-                 "Setup A (Trees+Features) vs B (DL+Features) vs C (DL+Raw)",
-                 fontweight="bold", pad=10)
-    ax.set_xlim(0, sel[mae_col].max() * 1.2)
+    # ── Annotations: value + R² ───────────────────────────────────────────────
+    for i, (bar, raw_mae) in enumerate(zip(bars, sel[mae_col].values)):
+        # MAE value label (use "→ X.XX" for truncated bars)
+        truncated = raw_mae > X_MAX
+        x_text = X_MAX + 0.12 if truncated else bar.get_width() + 0.12
+        label   = f"→ {raw_mae:.2f}" if truncated else f"{raw_mae:.2f}"
+        ax.text(x_text, bar.get_y() + bar.get_height() / 2,
+                label, va="center", ha="left", fontsize=7.5, color="#333333")
 
-    # Legend patches
+        # R² annotation (right-aligned inside or just right of bar)
+        r2_val = sel[r2_col].iloc[i]
+        if pd.notna(r2_val):
+            r2_str = f"R²={r2_val:.3f}"
+            ax.text(X_MAX * 0.995, bar.get_y() + bar.get_height() / 2,
+                    r2_str, va="center", ha="right", fontsize=6.5,
+                    color="white" if not truncated and display_mae[i] > X_MAX * 0.65 else "#555555",
+                    zorder=4)
+
+    # ── Paradigm background shading ───────────────────────────────────────────
+    bg_colors = {
+        "A": "#eaf3fb", "B": "#fdf2f0", "C": "#f0faf0",
+        "Ensemble": "#f5f0fb", "Baseline": "#f5f5f5",
+    }
+    group_label_pos = {}
+    prev_p, start_i = None, 0
+    rows_with_paradigm = list(zip(y_pos, sel["paradigm"].values))
+    for idx, (yp, p) in enumerate(rows_with_paradigm):
+        if p != prev_p:
+            if prev_p is not None:
+                ax.axhspan(start_i - 0.5, yp - 0.5, facecolor=bg_colors[prev_p],
+                           alpha=0.45, zorder=1)
+                group_label_pos[prev_p] = (start_i + yp - 1) / 2
+            start_i = yp
+            prev_p = p
+    # Last group
+    ax.axhspan(start_i - 0.5, y_pos[-1] + 0.5, facecolor=bg_colors[prev_p],
+               alpha=0.45, zorder=1)
+    group_label_pos[prev_p] = (start_i + y_pos[-1]) / 2
+
+    # ── Group boundary lines ──────────────────────────────────────────────────
+    seen = []
+    for yp, p in rows_with_paradigm:
+        if p not in seen:
+            if seen:
+                ax.axhline(yp - 0.5, color="#aaaaaa", linewidth=0.7, linestyle="-", zorder=2)
+            seen.append(p)
+
+    # ── Group labels on the right margin ─────────────────────────────────────
+    group_full_names = {
+        "A":        "Setup A\n(Trees + Features)",
+        "B":        "Setup B\n(DL + Features)",
+        "C":        "Setup C\n(DL + Raw)",
+        "Ensemble": "Ensemble",
+        "Baseline": "Baseline",
+    }
+    for p, yc in group_label_pos.items():
+        ax.text(X_MAX * 1.28, yc, group_full_names[p],
+                va="center", ha="left", fontsize=7.5, color=PALETTE[p],
+                fontweight="bold", linespacing=1.3)
+
+    # ── Axes formatting ───────────────────────────────────────────────────────
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(sel["label"].values, fontsize=8.5)
+    ax.set_xlabel("MAE (kWh)  [bars truncated at 14 kWh; actual values annotated with →]",
+                  fontweight="bold", fontsize=9)
+    ax.set_xlim(0, X_MAX * 1.55)
+    ax.set_title(
+        "Paradigm Parity: H+24 Day-Ahead Drammen Results\n"
+        "Setup A (Trees + Features)  vs  B (DL + Features, negative control)  vs  C (DL + Raw Sequences)",
+        fontweight="bold", pad=12, fontsize=10,
+    )
+
+    # ── Legend ────────────────────────────────────────────────────────────────
     legend_patches = [
-        mpatches.Patch(color=PALETTE["A"], label="Setup A — Trees + Features"),
-        mpatches.Patch(color=PALETTE["B"], label="Setup B — DL + Features (negative control)"),
-        mpatches.Patch(color=PALETTE["C"], label="Setup C — DL + Raw Sequences"),
+        mpatches.Patch(color=PALETTE["A"],        label="Setup A — Tree-based models"),
+        mpatches.Patch(color=PALETTE["B"],        label="Setup B — DL on engineered features (negative control)"),
+        mpatches.Patch(color=PALETTE["C"],        label="Setup C — DL on raw sequences"),
         mpatches.Patch(color=PALETTE["Ensemble"], label="Grand Ensemble (A+C blend)"),
-        mpatches.Patch(color=PALETTE["Baseline"], label="Mean Baseline"),
+        mpatches.Patch(color=PALETTE["Baseline"], label="Baseline"),
     ]
-    ax.legend(handles=legend_patches, loc="lower right", framealpha=0.9, fontsize=8)
+    ax.legend(handles=legend_patches, loc="lower right", framealpha=0.92,
+              fontsize=7.5, frameon=True, edgecolor="#cccccc")
 
-    # Separator lines between paradigm groups
-    group_boundaries = []
-    prev = None
-    for i, p in enumerate(sel["paradigm"].values):
-        if p != prev and prev is not None:
-            group_boundaries.append(i - 0.5)
-        prev = p
-    for b in group_boundaries:
-        ax.axhline(b, color="#cccccc", linewidth=0.8, linestyle="-")
-
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
     fig.tight_layout()
     out = FIG_DIR / "fig1_paradigm_parity.png"
     fig.savefig(out, bbox_inches="tight")
