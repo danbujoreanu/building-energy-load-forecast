@@ -1,0 +1,6 @@
+comparison,n_buildings,lgbm_mean_mae,cmp_mean_mae,mean_diff,wilcoxon_stat,wilcoxon_p,t_stat,t_p_one_sided,cohens_d,significance
+LightGBM vs Ridge (linear baseline),44,3.9875,7.359,-3.3715,0.0,0.0,-10.0609,0.0,-1.5167,***
+LightGBM vs Lasso (linear baseline),44,3.9875,7.3471,-3.3597,0.0,0.0,-9.9903,0.0,-1.5061,***
+LightGBM vs Random Forest,44,3.9875,4.3532,-0.3657,141.0,6e-06,-5.095,4e-06,-0.7681,***
+LightGBM vs XGBoost,44,3.9875,4.1094,-0.122,22.0,0.0,-7.9752,0.0,-1.2023,***
+LightGBM vs Mean Baseline,44,3.9875,22.4397,-18.4522,0.0,0.0,-8.7939,0.0,-1.3257,***
