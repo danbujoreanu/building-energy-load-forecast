@@ -1483,3 +1483,29 @@ Was at Scaling Secure Inference session when this session ran.
 - Sage session attended: "Building Scalable Agentic AI Solutions at Sage with Amazon
   Bedrock AgentCore" — relevant because Sage is building AI natively into CRL's
   existing payroll/accounting software
+
+---
+
+## Session 22 — 2026-03-13
+
+**Theme:** Sprint planning, ROADMAP, personas, strategy
+
+**Completed:**
+- `claude-review.yml` GitHub Actions PR review workflow committed (035301d)
+- `docs/ROADMAP.md` created: 9-phase roadmap from journal paper to commercialisation (8919285)
+- MEMORY.md updated: AICS '25 correction (12-page full paper, not skeleton), journal affiliation, GitHub Actions
+- `/sprint journal-paper` executed: 6-task plan, 4-5 sessions, DM significance test as only new code
+- Scope: A (FOCUSED) — writing sprint, no new pipeline runs needed
+- Personas defined: Researcher (now), PM (after draft), Entrepreneur (in parallel), Engineer (Phase 7-8)
+
+**Key decisions:**
+- Sprint 1 = journal paper from existing results (writing sprint, ~4-5 sessions)
+- Sprint 2 = horizon sensitivity (H+1→H+48), deferred
+- Sprint 3 = CER Irish dataset (6,435 households), deferred
+- June 2026 = CRU dynamic pricing mandate = market trigger for P1 device
+- User's house (solar + eddi + gas) = pilot for Phase 8
+
+**Pending — next session:**
+- User to choose: start with Section 2 (lit review), DM test script, or paper restructure
+- Apply for AWS Activate (user action, takes 15 min)
+- Check Nova UCD associate/researcher status (user action, one email)
