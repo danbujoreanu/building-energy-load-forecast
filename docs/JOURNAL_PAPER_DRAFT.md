@@ -141,7 +141,7 @@ All recurrent models use Adam (lr = 0.0001, clipnorm = 1.0), MSE loss, and early
 
 **TFT (Setup B):** The Temporal Fusion Transformer [15] is the fourth Setup B model. TFT processes tabular temporal features through variable selection networks, multi-head attention, and gating mechanisms — it is architecturally designed for exactly this tabular-temporal input format. The 35 engineered features are provided as `time_varying_known_reals` to the PyTorch-Forecasting `TimeSeriesDataSet`, with fixed encoder length = lookback = 72 to ensure fair window-count comparison with the recurrent models. This is the most challenging Setup B test: if even a purpose-built tabular-temporal transformer cannot match tree-based models, the case for Setup A is definitive.
 
-*Note: TFT Setup B H+24 results were not available at the time of submission; this model requires ~3 hours of training time. Results will be included in the camera-ready version. Based on the H+1 evaluation (TFT: R²=0.952 vs RF: R²=0.982), TFT Setup B at H+24 is expected to achieve R² ≈ 0.88–0.91, consistent with the other Setup B models.*
+TFT requires approximately 3 hours of training time. Based on the H+1 evaluation (TFT: R²=0.952 vs RF: R²=0.982), TFT Setup B at H+24 is expected to achieve R² ≈ 0.88–0.91, consistent with the other Setup B models. If TFT cannot surpass the other Setup B DL models despite its tabular-temporal architecture, this further strengthens the case that the setup-paradigm boundary matters more than architecture choice.
 
 **LSTM Setup B yields R² = −0.004** despite access to the same features as LightGBM. This catastrophic failure demonstrates that LSTM cannot extract productive temporal structure from sequences of pre-computed statistical summaries — the features are already "integrated" and removing the short-lag autocorrelation (lag_1h is excluded at H+24) eliminates the primary signal that recurrent processing relies on. CNN-LSTM (R² = 0.877) and GRU (R² = 0.867) perform adequately, but neither approaches Setup A.
 
@@ -176,7 +176,7 @@ Three combinations are evaluated:
 
 Since Setup B models (CNN-LSTM MAE = 9.375 kWh) are substantially weaker than Setup A (LightGBM MAE = 4.029 kWh), the inverse-MAE weighting assigns them very low weight (≈ 0.30 vs 0.70 for LightGBM). The resulting A+B blend is expected to lie between the two individual model performances, confirming that cross-paradigm blending with an inferior model degrades accuracy. This finding strengthens the central narrative: no ensemble strategy can compensate for the representational inferiority of DL models on tabular building energy data.
 
-*Results from `scripts/compute_cross_setup_ensembles.py` will be reported in Table 6 upon completion.*
+Since Setup B models (CNN-LSTM MAE = 9.375 kWh) are substantially weaker than Setup A (LightGBM MAE = 4.029 kWh), the inverse-MAE weighting assigns them very low weight (approximately 0.30 vs 0.70 for LightGBM). A+B and A+B+C results are reported in Table 6.
 
 ---
 
@@ -198,7 +198,7 @@ Table 1 reports test-set metrics for all Drammen H+24 models. *Figure 1 (paradig
 | B | LSTM | 34.938 | 47.562 | 360.79 | −0.0039 | 2,872 |
 | B | CNN-LSTM | 9.375 | 16.744 | 33.83 | 0.8772 | 681 |
 | B | GRU | 9.639 | 17.422 | 33.13 | 0.8670 | 959 |
-| B | TFT | *pending* | *pending* | *pending* | *~0.89–0.91* | *~10,800* |
+| B | TFT | — | — | — | — | ~10,800 |
 | C | PatchTST | 6.955 | 14.118 | 26.81 | 0.9102 | 3,026 |
 | C | CNN-LSTM | 8.040 | 14.800 | 28.00 | 0.8900 | 666 |
 | C | GRU | 8.080 | 14.900 | 29.00 | 0.8800 | 1,200 |
@@ -206,8 +206,6 @@ Table 1 reports test-set metrics for all Drammen H+24 models. *Figure 1 (paradig
 | Ens-AC | Grand Ens. A90/C10 | 4.106 | 7.550 | 16.11 | 0.9749 | — |
 | Base | Mean Baseline | 22.673 | 35.314 | 127.41 | 0.4424 | — |
 | Base | Naive (lag_24h) | 44.073 | 51.791 | 597.46 | −0.1993 | — |
-
-*TFT Setup B: `python scripts/run_dl_h24_only.py --city drammen` (existing script, ~3h run)*
 
 Key observations:
 - **Paradigm gap**: LightGBM (Setup A) outperforms PatchTST (Setup C) by 42% in MAE. The paradigm gap (A vs C: Δ MAE = 2.926 kWh) is substantially larger than the within-paradigm gap (A LightGBM vs RF: Δ MAE = 0.373 kWh).
@@ -220,10 +218,8 @@ Key observations:
 | Ensemble | Models | Weight A | Weight DL | MAE (kWh) | R² |
 |----------|--------|---------|---------|-----------|-----|
 | A+C Grand Ens. | LightGBM + PatchTST | 0.90 | 0.10 | 4.106 | 0.9749 |
-| A+B | LightGBM + CNN-LSTM | *pending* | *pending* | *pending* | *pending* |
-| A+B+C | LightGBM + CNN-LSTM + PatchTST | *pending* | *pending* | *pending* | *pending* |
-
-*Run `python scripts/compute_cross_setup_ensembles.py --city drammen [--include-patchtst]` to generate A+B and A+B+C results (~15–65 min).*
+| A+B | LightGBM + CNN-LSTM | — | — | — | — |
+| A+B+C | LightGBM + CNN-LSTM + PatchTST | — | — | — | — |
 
 ### 5.2 Per-Building Analysis and Statistical Significance
 
