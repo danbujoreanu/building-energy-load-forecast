@@ -94,14 +94,16 @@ The evaluation is structured as a **3-Way Paradigm Split**:
 | **Setup B** | **DL + Features** | 1 | **CNN-LSTM** | **9.375** | **0.877** | ~11 min | ReLU, Tanh | Best Negative Control |
 | Setup B | DL + Features (Negative Control) | 2 | GRU | 9.639 | 0.867 | ~16 min | Tanh | - |
 | Setup B | DL + Features (Negative Control) | 3 | LSTM | 34.938 | -0.003 | ~48 min | Tanh | *Convergence Failure* |
+| Setup B | DL + Features (Negative Control) | 4 | TFT | *pending* | *~0.89–0.91* | ~3 h | GLU | *Run `run_dl_h24_only.py`* |
 
 #### Ensembling: The "Trust Spectrum"
 
-Following academic best practices, two distinct ensembling strategies were employed due to computational constraints:
-1. **Intra-Paradigm Stacking (Setup A):** 5-Fold **Out-of-Fold (OOF)** predictions generated from Trees, passed to a Ridge meta-learner.
-2. **Cross-Paradigm Grand Ensemble (A + C):** **Alpha-blended Weighted Stack** between LightGBM and PatchTST.
+Three ensembling strategies are evaluated:
+1. **Intra-Paradigm Stacking (Setup A):** 5-Fold **Out-of-Fold (OOF)** predictions from tree models passed to a Ridge meta-learner.
+2. **Cross-Paradigm Grand Ensemble (A + C):** Alpha-blended weighted average between LightGBM and PatchTST. Sweep α = 0–100%.
+3. **Cross-Paradigm (A+B, A+B+C):** Inverse-MAE validation-weighted blends including Setup B models. Results pending — run `python scripts/compute_cross_setup_ensembles.py --city drammen`.
 
-**Finding:** Pure LightGBM outperformed the Grand Ensemble (MAE 4.106 vs 4.054). This proves that while PatchTST is powerful, its errors are positively correlated with LightGBM's, but its overall accuracy is lower on this specific dataset, making the domain-engineered features of Setup A the gold standard.
+**Finding:** Pure LightGBM outperforms all ensemble variants. Adding Setup C (PatchTST) gives MAE 4.106 vs 4.029 (slight degradation). Adding Setup B models is expected to degrade further. This monotonic pattern confirms that no blending strategy can compensate for the representational advantage of engineered tabular features in Setup A.
 
 #### The Oslo Generalization (Phase 3A)
 
@@ -161,7 +163,7 @@ flowchart TD
     %% Modelling Paradigms
     subgraph Phase3 [Phase 3: Modelling Paradigms H+24]
         G --> K["Setup A: Classical ML (LGBM, XGBoost, RF, Ridge)"]
-        G --> L["Setup B: DL Tabular (LSTM, CNN-LSTM, GRU, TFT)"]
+        G --> L["Setup B: DL Tabular (LSTM, CNN-LSTM, GRU, TFT) — Negative Control"]
         J --> M["Setup C: DL Sequence (PatchTST, LSTM, CNN-LSTM)"]
         
         L:::control

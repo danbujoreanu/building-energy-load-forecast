@@ -110,7 +110,12 @@ class TFTForecaster(BaseForecaster):
             time_idx="time_idx",
             target=target_col,
             group_ids=["building_id"],
-            min_encoder_length=seq_cfg["lookback"] // 2,
+            # min_encoder_length == max_encoder_length (= lookback) so TFT produces
+            # exactly the same number of windows as build_sequences() and
+            # _build_y_true_matrix().  If min < max, TimeSeriesDataSet creates
+            # (max - min) extra short-encoder windows per building, causing a shape
+            # mismatch in the H+24 evaluation loop.
+            min_encoder_length=seq_cfg["lookback"],
             max_encoder_length=seq_cfg["lookback"],
             min_prediction_length=1,
             max_prediction_length=seq_cfg["horizon"],

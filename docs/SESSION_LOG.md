@@ -1509,3 +1509,65 @@ Was at Scaling Secure Inference session when this session ran.
 - User to choose: start with Section 2 (lit review), DM test script, or paper restructure
 - Apply for AWS Activate (user action, takes 15 min)
 - Check Nova UCD associate/researcher status (user action, one email)
+
+---
+
+## Session 23 — 2026-03-13
+
+**Theme:** Thesis reconciliation, TFT in Setup B, cross-setup ensembles, paper refinement
+
+**Completed:**
+
+### Investigation
+- Read STBELF diagram: confirms TFT was a planned Setup B base model (alongside CNN-LSTM, LSTM)
+  and is listed in `run_dl_h24_only.py` `models_to_run` — it was never successfully run (silent exception / shape mismatch)
+- Read `README.md`: Setup B architecture diagram correctly shows TFT; H+24 results table had TFT pending
+- Read old thesis notebooks (splits_training/): confirmed ensemble was stacking + weighted average
+  on base models [RF, XGB, LGBM, CNN-LSTM, LSTM, TFT], all retrained on windowed flattened 3D data
+- Read `tft.py`: identified `min_encoder_length = lookback // 2` causes extra windows → shape mismatch with `_build_y_true_matrix()`
+- Clarified "TST in Setup B" = TFT (not PatchTST). PatchTST was "WIP" in STBELF diagram, assigned to Setup C.
+
+### Fixes
+- `src/energy_forecast/models/tft.py`: changed `min_encoder_length = lookback // 2` → `min_encoder_length = lookback`
+  so TFT produces exactly the same window count as `_build_y_true_matrix()` (fixes H+24 shape mismatch)
+- `scripts/run_dl_h24_only.py`: 
+  - Added `import copy; model_cfg = copy.deepcopy(cfg)` (was shallow copy — mutated original cfg dict)
+  - Skip `tf.keras.backend.clear_session()` for TFT (PyTorch model, not Keras)
+  - Only override `deep_learning.epochs = 10` for TF models (TFT has its own `tft.max_epochs` key)
+
+### New Scripts
+- `scripts/compute_cross_setup_ensembles.py`: Implements A+B and A+B+C weighted-average ensembles
+  - Inverse-MAE validation weights (no test-set leakage)
+  - Retrains LightGBM (~15s) + CNN-LSTM (~10min from saved splits)
+  - Optional --include-patchtst for A+B+C (~65min total)
+  - Saves to `final_metrics.csv`
+  - Run: `python scripts/compute_cross_setup_ensembles.py --city drammen [--include-patchtst]`
+
+### Paper Updates (`docs/JOURNAL_PAPER_DRAFT.md`)
+- Section 4.2 Setup B: Added TFT as 4th Setup B model with architecture rationale and expected R² range
+- Section 4.4–4.6: Split into Grand Ensemble (A+C), Stacking (Intra-A), and new Cross-Setup Ensemble Analysis
+- Section 5.1 Table 1: Added TFT Setup B (pending) row; added Table 6 for cross-setup ensemble results
+- Section 6.3: Renamed and expanded to formally define Drammen (primary benchmark) vs Oslo (generalisation test) roles
+  — clarified Oslo retrains from scratch (methodology generalisation, not zero-shot transfer)
+
+### README Updates
+- Added TFT row to H+24 Setup B table (pending, expected ~0.89–0.91)
+- Clarified ensemble section: three strategies with pending cross-setup results
+
+**How to run pending experiments:**
+```bash
+# TFT Setup B (~3 hours)
+/miniconda3/envs/ml_lab1/bin/python scripts/run_dl_h24_only.py
+
+# Cross-setup A+B ensemble (~15 min)
+/miniconda3/envs/ml_lab1/bin/python scripts/compute_cross_setup_ensembles.py --city drammen
+
+# Cross-setup A+B+C ensemble (~65 min, requires PatchTST retraining)
+/miniconda3/envs/ml_lab1/bin/python scripts/compute_cross_setup_ensembles.py --city drammen --include-patchtst
+```
+
+**Key architectural insight confirmed:**
+The thesis ensemble was a "unified windowed representation" stacking ensemble — sklearn models were retrained
+on flattened 3D DL windows, NOT on 35 tabular features. This is different from the current pipeline's
+cleaner paradigm separation. The current design (Setup A on tabular features, Setup B/C on windowed data)
+is more rigorous for the journal paper's controlled experiment narrative.
