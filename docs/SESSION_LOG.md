@@ -1756,3 +1756,73 @@ actually a REPORTED RESULT in Table 1 (footnoted as convergence failure).
 4. Regenerate fig1: `~/miniconda3/envs/ml_lab1/bin/python scripts/generate_paper_figures.py`
 5. Update MEMORY.md with TFT result and CrossEnsemble corrected value
 6. Commit: "fix CrossEnsemble H+24 blend evaluation; add TFT_SetupB result"
+
+---
+
+## Session 26 — 2026-03-13 (continued) — Horizon Sensitivity Table & Gemini Critical Review
+
+### Completed This Session
+
+**`scripts/build_horizon_table.py`** (new file)
+- Merges h1_metrics.csv + final_metrics.csv into horizon_sensitivity.csv
+- Canonical model name mapping (H1_NAME_MAP + H24_NAME_MAP)
+- Outputs: model, setup, paradigm, mae_h1, r2_h1, mae_h24, r2_h24, degradation_factor, note
+- Prints formatted table + statistics to stdout
+- Key output:
+  ```
+  Setup A (Trees):    degradation 1.88× – 2.57×  (mean 2.24×)
+  Setup B (DL sane):  degradation 2.05× – 2.44×  (mean 2.25×)
+  LSTM at H+24:       9.8× (catastrophic convergence failure)
+  ```
+- Finding: Trees are AS horizon-robust as converged DL models. LSTM failure at H+24 is
+  architectural (tabular features + sequence learning = harder gradient landscape).
+
+**`scripts/generate_paper_figures.py` — `fig7_horizon_sensitivity()` added**
+- Grouped bar chart: H+1 (light tint) vs H+24 (full colour) per model
+- Paradigm background shading: Setup A (blue), Setup B (red)
+- Degradation factor annotated above each H+24 bar
+- Y-axis capped at 15 kWh; LSTM annotated with "→ 34.9" arrow
+- Insight text box: "Trees: 1.9–2.6× | CNN-LSTM: 2.1× | GRU: 2.4× | LSTM: 9.8× (failure)"
+- Saved: `outputs/figures/paper/fig7_horizon_sensitivity.png`
+
+**`README.md`** — "Menu of Solutions" section added after Oslo results:
+- Table: H+1 champion (Stacking 1.74 kWh, R²=0.995), H+24 (LGBM 4.03), H+24 Quantile (7.42)
+- Horizon sensitivity degradation table: all 8 models, degradation factors
+- Key insight paragraph
+
+**`docs/JOURNAL_PAPER_OUTLINE.md`** — Section 4.3 clarified:
+- Two ensemble tracks now clearly separated:
+  1. Intra-paradigm OOF stacking (Setup A only) = recommended production ensemble
+  2. Cross-paradigm alpha sweep = ABLATION showing non-complementarity (not recommended)
+- Cross-paradigm stacking explicitly rejected with empirical justification
+- Section 4.4 (Horizon Sensitivity / Menu of Solutions) added as new section
+- Section 4.5 Hardware Acceleration (renumbered from 4.4)
+
+### Critical Assessment of Gemini 13.03 Follow-Up
+
+**Where Gemini is RIGHT:**
+- "Kitchen sink" critique valid — cross-paradigm stacking dilutes the champion. Already confirmed empirically (A90/C10=4.106 > LGBM=4.029).
+- Paradigm champions as independent benchmarks is cleaner. Agreed and already done.
+- "Reviewer-proof" ablation framing is good academic writing.
+
+**Where Gemini is WRONG (significant errors):**
+
+1. "Do NOT build cross-paradigm ensembles for the paper" — TOO PRESCRIPTIVE. The cross-paradigm experiments ARE the paper's finding of paradigm non-complementarity. We KEEP them — framed as ablation, not recommendation. Any reviewer will ask "did you try ensembling?" We need to show we did.
+
+2. "Calculate metrics at H+1, H+6, H+12, H+24 for all models" — ARCHITECTURALLY INCORRECT for Setup A trees. H+6 and H+12 require SEPARATE TRAINING RUNS with different lag-shift targets. These are direct forecasters, not sequential models. Cannot evaluate the H+24 LGBM model at H+6 and expect meaningful results. Deferred to Sprint 2.
+
+3. Gemini assumes H+6/H+12 is a simple aggregation. It is not. The only way to get those data points for Setup A is to retrain. DL per-step MAE (H+1→H+24) already exists in horizon_mae column and fig5. Fig7 (H+1 vs H+24) is sufficient for the paper given the available data.
+
+**Decision: Keep cross-paradigm ensemble experiments, framed as ablation.**
+
+### TFT Status (epoch 6, batch ~1100/2231, ~21:30 ETA)
+- val_MAE=1.8534 (normalized scale, likely ~kWh for large building loads)
+- Still running — do NOT interrupt
+
+### Next Steps (after training completes ~21:30)
+1. Check TFT final test MAE (log: `tft_setupb_20260313_163924.log`)
+2. Re-run: `python scripts/compute_cross_setup_ensembles.py --city drammen` (will overwrite MAE=15.56 row)
+3. Regenerate all paper figures: `python scripts/generate_paper_figures.py`
+4. Update MEMORY.md with TFT result, corrected CrossEnsemble value, Session 26 additions
+5. Commit: "feat: horizon sensitivity table, fig7, Menu of Solutions; clarify ensemble narrative"
+

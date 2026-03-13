@@ -21,8 +21,14 @@
 ## 4. Results & Benchmarking
 - **4.1 The Real-Time Horizon (H+1):** Highlighting the explicit dominance of `lag_1h` and why this forms the 'easy mode' of short-term stability prediction.
 - **4.2 The Day-Ahead Market (H+24) - Paradigm Parity Examined:** Detail the rigorous empirical drop-off when `lag_1h` is removed. Proving that LightGBM out-competes PatchTST when evaluating domain-tabular vs sequential representations respectively.
-- **4.3 The Grand Ensemble vs Stacking:** Analysis of Out-of-Fold (OOF) Stacking stability for trees compared against Alpha-blended integration of Setup A & C. 
-- **4.4 Hardware Acceleration Discovery:** Highlighting the observed speedups utilizing Tanh vs ReLU on optimized macOS Silicon engines. 
+- **4.3 Ensemble Strategy — Paradigm Champions vs Cross-Paradigm Blending (Ablation):**
+  Two tracks are reported as distinct findings:
+  1. *Intra-paradigm stacking (Setup A only):* OOF Ridge meta-learner on {RF, LightGBM, XGBoost}. Recommended production ensemble — interpretable, low-variance, fast.
+  2. *Cross-paradigm alpha sweep (ablation):* GrandEnsemble A+C at α = 0–100%. Key finding: MAE monotonically minimised at α = 1.0 (pure Setup A). DL adds no complementary signal — this is the proof of paradigm non-complementarity, not a recommendation.
+  - Cross-paradigm stacking (Trees + DL) is **explicitly rejected** with empirical justification: error distributions are positively correlated, blending introduces DL variance, performance degrades. Framing: "We ran it; it doesn't help; here is why."
+  - This addresses Reviewer 2's inevitable "did you try ensembling?" question pre-emptively.
+- **4.4 Horizon Sensitivity — Menu of Solutions:** H+1 vs H+24 degradation factor per paradigm. Setup A: 1.9–2.6×. DL (converged): 2.1–2.4×. LSTM: 9.8× (failure). Key finding: trees are as horizon-robust as DL when DL converges. Practical recommendation: use H+1 for real-time control, H+24 LightGBM for day-ahead markets, H+24 Quantile for risk-aware scheduling.
+- **4.5 Hardware Acceleration Discovery:** Observed speedups utilising Tanh vs ReLU on optimised macOS Silicon engines.
 
 ## 5. Discussion: Geographic Generalization & Real-World Impact
 - **5.1 The Oslo Generalization:** Proving the Setup A methodology is fundamentally robust. Evaluating the absolute Error Metric "Scale vs. Variance" reality: Oslo MAE bounded higher simply due to building scale size (Mean Baseline ~45kWh vs ~22kWh), while structural R² reliably maintained perfectly resilient >0.96 bounds.

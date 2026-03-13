@@ -11,6 +11,7 @@ Figures generated
   fig4_quantile_calibration.png Coverage rate and Winkler score — probabilistic evaluation
   fig5_per_horizon_mae.png      H+1 to H+24 per-step MAE for CNN-LSTM SetupB/C models
   fig6_methodology_overview.png Text/patch diagram of the three-paradigm pipeline
+  fig7_horizon_sensitivity.png  H+1 vs H+24 grouped bar chart across all paradigms
 
 All figures saved to outputs/figures/paper/ at 300 dpi (journal submission quality).
 
@@ -653,6 +654,199 @@ def fig6_methodology_overview() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Figure 7 — Horizon Sensitivity: H+1 vs H+24 Cross-Paradigm Comparison
+# ---------------------------------------------------------------------------
+
+def fig7_horizon_sensitivity() -> None:
+    """Grouped bar chart: H+1 MAE vs H+24 MAE for all paradigms.
+
+    Design rationale
+    ----------------
+    - Each model group has two bars: H+1 (light tint) and H+24 (full paradigm colour).
+    - Y-axis capped at 15 kWh; LSTM H+24 is truncated and annotated with '→' arrow.
+    - Degradation factor (H+24/H+1) annotated above each H+24 bar.
+    - Background shading separates Setup A, Setup B, and Baseline groups.
+
+    Data sources
+    ------------
+    - H+1: outputs/results/h1_metrics.csv
+    - H+24: outputs/results/final_metrics.csv
+    """
+    import ast
+
+    h1_path  = RESULTS_DIR / "h1_metrics.csv"
+    h24_path = RESULTS_DIR / "final_metrics.csv"
+
+    if not h1_path.exists():
+        print("h1_metrics.csv not found — skipping fig7")
+        return
+
+    df1 = pd.read_csv(h1_path,  index_col=0)
+    df24 = pd.read_csv(h24_path, index_col=0)
+
+    # ── Canonical model name mapping ────────────────────────────────────────
+    h1_map  = {
+        "LightGBM":   "LightGBM",
+        "XGBoost":    "XGBoost",
+        "RandomForest": "RF",
+        "Ridge":      "Ridge",
+        "Lasso":      "Lasso",
+        "LSTM":       "LSTM",
+        "GRU":        "GRU",
+        "CNN-LSTM":   "CNN-LSTM",
+    }
+    h24_map = {
+        "LightGBM_SetupA":  "LightGBM",
+        "XGBoost_SetupA":   "XGBoost",
+        "RandomForest_SetupA": "RF",
+        "Ridge_SetupA":     "Ridge",
+        "Lasso_SetupA":     "Lasso",
+        "LSTM_SetupB":      "LSTM",
+        "GRU_SetupB":       "GRU",
+        "CNN-LSTM_SetupB":  "CNN-LSTM",
+    }
+
+    # Build lookup tables: canonical_key → MAE
+    h1_mae: dict[str, float] = {}
+    for _, row in df1.iterrows():
+        raw = str(row.get("Model", row.get("model", ""))).strip()
+        key = h1_map.get(raw)
+        if key:
+            h1_mae[key] = float(row["MAE"])
+
+    h24_mae: dict[str, float] = {}
+    for _, row in df24.iterrows():
+        raw = str(row.get("model", "")).strip()
+        key = h24_map.get(raw)
+        if key:
+            h24_mae[key] = float(row["MAE"])
+
+    # ── Model display order & metadata ─────────────────────────────────────
+    models = ["LightGBM", "XGBoost", "RF", "Ridge", "Lasso",
+              "CNN-LSTM", "GRU", "LSTM"]
+    labels = ["LightGBM ★", "XGBoost", "Random Forest ★", "Ridge", "Lasso",
+              "CNN-LSTM [B]", "GRU [B]", "LSTM [B]"]
+    setups = ["A", "A", "A", "A", "A", "B", "B", "B"]
+
+    h1_vals  = [h1_mae.get(m,  np.nan) for m in models]
+    h24_vals = [h24_mae.get(m, np.nan) for m in models]
+
+    degradation = []
+    for h1v, h24v in zip(h1_vals, h24_vals):
+        if pd.notna(h1v) and pd.notna(h24v) and h1v > 0:
+            degradation.append(h24v / h1v)
+        else:
+            degradation.append(np.nan)
+
+    # ── Plot ────────────────────────────────────────────────────────────────
+    Y_MAX = 15.0   # display cap
+    BAR_W = 0.35
+    x     = np.arange(len(models))
+
+    # Tinted H+1 colours (lighter shade)
+    h1_colors  = {"A": "#9ecae1", "B": "#f4a582"}   # light blue / light salmon
+    h24_colors = {"A": PALETTE["A"], "B": PALETTE["B"]}
+
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+
+    # H+1 bars
+    bars_h1 = ax.bar(
+        x - BAR_W / 2,
+        [min(v, Y_MAX) if pd.notna(v) else 0 for v in h1_vals],
+        BAR_W,
+        color=[h1_colors[s] for s in setups],
+        edgecolor="white", linewidth=0.5, label="H+1 (Next-Hour)", zorder=3,
+    )
+
+    # H+24 bars (capped)
+    h24_display = [min(v, Y_MAX) if pd.notna(v) else 0 for v in h24_vals]
+    bars_h24 = ax.bar(
+        x + BAR_W / 2,
+        h24_display,
+        BAR_W,
+        color=[h24_colors[s] for s in setups],
+        edgecolor="white", linewidth=0.5, label="H+24 (Day-Ahead)", zorder=3,
+    )
+
+    # ── Annotations: degradation factor + truncation arrows ────────────────
+    for i, (bar, raw_h24, dg) in enumerate(zip(bars_h24, h24_vals, degradation)):
+        xb = bar.get_x() + bar.get_width() / 2
+
+        # Truncated bar (LSTM convergence failure)
+        if pd.notna(raw_h24) and raw_h24 > Y_MAX:
+            ax.text(xb, Y_MAX + 0.25, f"→ {raw_h24:.1f}", ha="center", va="bottom",
+                    fontsize=7, color="#c0392b", fontweight="bold")
+        # Degradation factor
+        if pd.notna(dg):
+            yann = min(raw_h24, Y_MAX) + 0.28 if (pd.notna(raw_h24) and raw_h24 <= Y_MAX) else Y_MAX + 0.9
+            color = "#c0392b" if dg > 5 else ("#e67e22" if dg > 2.3 else "#555555")
+            ax.text(xb, yann, f"{dg:.1f}×", ha="center", va="bottom",
+                    fontsize=7.5, color=color, fontweight="bold")
+
+    # ── Value labels on H+1 bars ────────────────────────────────────────────
+    for bar, v in zip(bars_h1, h1_vals):
+        if pd.notna(v):
+            ax.text(bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + 0.15, f"{v:.2f}",
+                    ha="center", va="bottom", fontsize=6.5, color="#555555")
+
+    # ── Background shading for paradigm groups ──────────────────────────────
+    bg = {"A": "#eaf3fb", "B": "#fdf2f0"}
+    # Setup A: indices 0–4
+    ax.axvspan(-0.55, 4.55, facecolor=bg["A"], alpha=0.35, zorder=1)
+    # Setup B: indices 5–7
+    ax.axvspan(4.55, 7.55, facecolor=bg["B"], alpha=0.35, zorder=1)
+    # Group divider
+    ax.axvline(4.55, color="#aaaaaa", linewidth=0.8, linestyle="-", zorder=2)
+
+    # Group labels
+    ax.text(2.0, Y_MAX * 0.96,  "Setup A — Trees + Engineered Features",
+            ha="center", va="top", fontsize=8.5, color=PALETTE["A"],
+            fontweight="bold")
+    ax.text(6.0, Y_MAX * 0.96, "Setup B — DL + Features\n(Negative Control)",
+            ha="center", va="top", fontsize=8.5, color=PALETTE["B"],
+            fontweight="bold", linespacing=1.3)
+
+    # ── Insight text box ─────────────────────────────────────────────────
+    insight = (
+        "Trees: 1.9–2.6×  |  CNN-LSTM: 2.1×  |  GRU: 2.4×  |  LSTM: 9.8× (failure)"
+    )
+    ax.text(0.5, -0.13, insight, transform=ax.transAxes, ha="center",
+            fontsize=8, color="#444444", style="italic",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="#fffbe6",
+                      edgecolor="#cccc88", alpha=0.85))
+
+    # ── Axes & legend ────────────────────────────────────────────────────
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=8.5)
+    ax.set_ylabel("MAE (kWh)", fontweight="bold")
+    ax.set_ylim(0, Y_MAX * 1.15)
+    ax.set_xlim(-0.6, len(models) - 0.4)
+    ax.set_title(
+        "Horizon Sensitivity: H+1 (Next-Hour) vs H+24 (Day-Ahead) — Drammen, 44 Buildings\n"
+        "Degradation factor annotated above H+24 bars  |  Y-axis capped at 15 kWh",
+        fontweight="bold", pad=10, fontsize=10,
+    )
+
+    # Legend: two bars + explanatory note
+    from matplotlib.patches import Patch
+    legend_elements = [
+        Patch(facecolor="#9ecae1", edgecolor="white", label="H+1 MAE (light = tint)"),
+        Patch(facecolor=PALETTE["A"], edgecolor="white", label="H+24 MAE — Setup A"),
+        Patch(facecolor=PALETTE["B"], edgecolor="white", label="H+24 MAE — Setup B"),
+    ]
+    ax.legend(handles=legend_elements, loc="upper left", fontsize=8, framealpha=0.9)
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    fig.tight_layout()
+    out = FIG_DIR / "fig7_horizon_sensitivity.png"
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved → {out}")
+
+
+# ---------------------------------------------------------------------------
 # Run all
 # ---------------------------------------------------------------------------
 
@@ -664,4 +858,5 @@ if __name__ == "__main__":
     fig3_oslo_generalisation()
     fig4_quantile_calibration()
     fig5_per_horizon_mae()
+    fig7_horizon_sensitivity()
     print(f"\nAll figures saved to {FIG_DIR}")
