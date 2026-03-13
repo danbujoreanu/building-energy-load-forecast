@@ -70,13 +70,23 @@ slash command UI is unavailable.
 | `python scripts/significance_test.py` | All significance tests | per_building_metrics.csv |
 | `python scripts/significance_test.py --mode per_building` | Wilcoxon on 44 buildings | per_building_metrics.csv |
 | `python scripts/significance_test.py --mode dm` | Diebold-Mariano DM test | prediction .npy files |
+| `python scripts/quantile_evaluation.py` | Winkler score + coverage (Drammen) | splits parquets |
+| `python scripts/quantile_evaluation.py --city oslo` | Winkler score + coverage (Oslo) | splits parquets |
+| `python scripts/quantile_evaluation.py --city drammen oslo` | Both cities | splits parquets |
+
+**Quantile results (paper-ready, runs in ~15s — no pipeline rerun needed):**
+```
+Drammen: P50 MAE=4.072 kWh | Winkler=19.457 | Coverage=78.3% | PI Width=12.737 kWh
+Oslo:    P50 MAE=7.345 kWh | Winkler=35.021 | Coverage=80.0% | PI Width=23.603 kWh
+```
 
 **To generate DM prediction files:**
 ```bash
-python scripts/run_pipeline.py --save-predictions
+python scripts/run_pipeline.py --save-predictions  # saves {model_name}_h24_test_errors.npy
 # then:
 python scripts/significance_test.py --mode dm
 ```
+DM comparisons: LightGBM vs CNN-LSTM, LightGBM vs Ridge, LightGBM vs XGBoost.
 
 ---
 
@@ -91,6 +101,9 @@ python scripts/significance_test.py --mode dm
 | `outputs/results/h1_metrics.csv` | H+1 archive | ✓ |
 | `outputs/results/significance_results.csv` | Per-building Wilcoxon results | ✓ |
 | `outputs/results/dm_test_results.csv` | DM test results | Needs --save-predictions |
+| `outputs/results/quantile_results.csv` | Winkler score + coverage (both cities) | ✓ |
+| `outputs/results/drammen_quantile_per_building.csv` | Per-building quantile metrics | ✓ |
+| `outputs/results/oslo_quantile_per_building.csv` | Per-building quantile metrics (Oslo) | ✓ |
 
 ---
 

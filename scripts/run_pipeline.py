@@ -63,6 +63,15 @@ def parse_args() -> argparse.Namespace:
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING"],
     )
+    parser.add_argument(
+        "--save-predictions",
+        action="store_true",
+        help=(
+            "Save test prediction error arrays to outputs/predictions/ "
+            "for use with the Diebold-Mariano test (significance_test.py --mode dm). "
+            "Files saved as: {model_name}_h24_test_errors.npy  (e_t = y_true - y_pred)."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -79,7 +88,8 @@ def main() -> None:
     city = cfg["city"]
     logger.info("=" * 60)
     logger.info("Building Energy Load Forecast Pipeline")
-    logger.info("City: %s | Skip slow: %s | Stages: %s", city, args.skip_slow, args.stages)
+    logger.info("City: %s | Skip slow: %s | Stages: %s | Save preds: %s",
+                city, args.skip_slow, args.stages, args.save_predictions)
     logger.info("=" * 60)
 
     t0 = time.perf_counter()
@@ -94,7 +104,7 @@ def main() -> None:
 
     # ── Stage 3: Model Training & Evaluation ─────────────────────────────────
     if "training" in args.stages:
-        _run_training(cfg, skip_slow=args.skip_slow)
+        _run_training(cfg, skip_slow=args.skip_slow, save_preds=args.save_predictions)
 
     # ── Stage 4: SHAP Explainability ─────────────────────────────────────────
     if "explain" in args.stages:
@@ -183,7 +193,7 @@ def _run_features(cfg: dict) -> None:
     logger.info("Stage 2 complete. Selected %d features.", len(kept))
 
 
-def _run_training(cfg: dict, skip_slow: bool = False) -> None:
+def _run_training(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
     """Stage 3: Train all models, evaluate, and save results."""
     import pandas as pd
     from energy_forecast.models import NaiveModel, SeasonalNaiveModel, MeanModel, SklearnForecaster, StackingEnsemble
@@ -195,7 +205,11 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
     proc_dir  = Path(cfg["paths"]["processed"]) / "splits"
     res_dir   = Path(cfg["paths"]["outputs"]["results"])
     fig_dir   = Path(cfg["paths"]["outputs"]["figures"])
+    preds_dir = Path(cfg["paths"]["outputs"].get("predictions", "outputs/predictions"))
     res_dir.mkdir(parents=True, exist_ok=True)
+    if save_preds:
+        preds_dir.mkdir(parents=True, exist_ok=True)
+        logger.info("Prediction error arrays will be saved to %s", preds_dir)
 
     logger.info("── Stage 3: Model Training ────────────────────────")
 
@@ -225,6 +239,8 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
         results.append(evaluate(y_test, preds, model.name,
                                 building_ids=test_bids, timestamps=test_ts))
         fitted_models[model.name] = model
+        if save_preds:
+            _save_error_array(preds_dir, model.name, y_test.values - preds)
 
     # ── Sklearn models ────────────────────────────────────────────────────────
     for name, model in build_sklearn_models(cfg).items():
@@ -235,14 +251,19 @@ def _run_training(cfg: dict, skip_slow: bool = False) -> None:
         results.append(evaluate(y_test, preds, model.name,
                                 building_ids=test_bids, timestamps=test_ts))
         fitted_models[model.name] = model
+        if save_preds:
+            _save_error_array(preds_dir, model.name, y_test.values - preds)
 
     # ── Deep learning (optional, slow) ────────────────────────────────────────
     slow_models = cfg.get("slow_models", ["cnn_lstm", "tft"])
     if not skip_slow or "lstm" not in slow_models:
-        _train_dl_model("lstm", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models, train_times)
+        _train_dl_model("lstm", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models, train_times,
+                        save_preds=save_preds, preds_dir=preds_dir)
     if not skip_slow:
-        _train_dl_model("cnn_lstm", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models, train_times)
-        _train_dl_model("gru", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models, train_times)
+        _train_dl_model("cnn_lstm", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models, train_times,
+                        save_preds=save_preds, preds_dir=preds_dir)
+        _train_dl_model("gru", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models, train_times,
+                        save_preds=save_preds, preds_dir=preds_dir)
 
     # ── TFT (very slow) ───────────────────────────────────────────────────────
     # Condition simplifies to: run TFT when not skip_slow
@@ -453,12 +474,18 @@ def _build_y_true_matrix(y, lookback: int, horizon: int) -> "np.ndarray":
     return np.array(parts, dtype=np.float32)  # (n_samples, horizon)
 
 
-def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted_models, train_times=None):
+def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted_models,
+                    train_times=None, save_preds: bool = False, preds_dir: "Path | None" = None):
     """Helper to train a single DL architecture with error handling.
 
     DL models use a sliding-window approach (see build_sequences) and cannot
     predict for the first ``lookback`` timesteps of each building.  We trim
     ``y_te`` to match the number of predictions before calling evaluate().
+
+    When ``save_preds=True``, saves H+24 error arrays for the Diebold-Mariano test:
+      - H+24 multi-step: saves last-horizon-step errors (y_true[:, -1] - preds[:, -1])
+      - H+1  single-step: saves full 1-D error array
+    Files saved as: {preds_dir}/{model.name}_h24_test_errors.npy
     """
     from energy_forecast.models.deep_learning import LSTMForecaster, CNNLSTMForecaster, GRUForecaster
     from energy_forecast.evaluation import evaluate
@@ -498,6 +525,10 @@ def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted
                 "%s  n_windows=%d  horizon=%d  (2-D evaluation, building boundaries respected)",
                 model.name, len(preds), horizon,
             )
+            if save_preds and preds_dir is not None:
+                # Use the H+24 (last) horizon step for the DM test error series
+                errors_h24 = y_true_2d[:, -1] - preds[:, -1]
+                _save_error_array(preds_dir, model.name, errors_h24)
         else:
             # H+1 single-step: trim leading lookback rows per building.
             y_te_aligned = _trim_dl_targets(y_te, lookback)
@@ -514,8 +545,24 @@ def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted
             fitted_models[model.name] = model
             logger.info("%s  n_eval=%d (trimmed %d lookback rows per building)",
                         model.name, len(y_te_aligned), lookback)
+            if save_preds and preds_dir is not None:
+                errors = y_te_aligned.values - preds
+                _save_error_array(preds_dir, model.name, errors)
     except Exception as exc:
         logger.warning("%s training failed: %s", arch.upper(), exc)
+
+
+def _save_error_array(preds_dir: "Path", model_name: str, errors: "np.ndarray") -> None:
+    """Save a 1-D test error array (y_true - y_pred) for the Diebold-Mariano test.
+
+    File name: {model_name}_h24_test_errors.npy  (errors are signed: positive = over-prediction)
+    These files are consumed by: python scripts/significance_test.py --mode dm
+    """
+    import numpy as np  # noqa: PLC0415
+    safe_name = model_name.replace(" ", "_").replace("/", "-")
+    out_path  = preds_dir / f"{safe_name}_h24_test_errors.npy"
+    np.save(out_path, errors.astype(np.float32))
+    logger.info("Saved prediction errors → %s  (n=%d)", out_path, len(errors))
 
 
 def _run_explain(cfg: dict) -> None:
