@@ -250,6 +250,22 @@ LightGBM R² is remarkably uniform across building categories (Table 3), indicat
 
 The MAE scale difference (Kdg 1.64 vs Sch 6.75 kWh) reflects building size, not model quality: schools consume ~4× more energy than nurseries. The near-identical R² values (0.937–0.956) confirm that the pipeline generalises across scale.
 
+### 5.2.1 Diebold-Mariano Time-Series Significance Tests
+
+The per-building Wilcoxon test treats each building as one observation. The Diebold-Mariano (DM) test [28] uses the full H+24 test-set error time series (n = 241,523 hourly observations), providing complementary evidence at the observation level rather than the building level. Error sequences for all Setup A models are saved during the `--save-predictions` pipeline run; the Harvey-Leybourne-Newbold (HLN) small-sample correction is applied. *Figure 5 (per-horizon MAE) provides additional evidence of consistency across the 24 forecast steps.*
+
+**Table 2b: Diebold-Mariano Tests — H+24 Drammen (HLN-corrected)**
+
+| Comparison | n_obs | DM statistic | p-value | Significance |
+|-----------|-------|-------------|---------|------|
+| LightGBM vs CNN-LSTM [B] | 241,523 | — | — | — |
+| LightGBM vs Ridge | 241,523 | — | — | — |
+| LightGBM vs XGBoost | 241,523 | — | — | — |
+
+*Results to be populated on completion of `python scripts/run_pipeline.py --city drammen --save-predictions` followed by `python scripts/significance_test.py --mode dm`.*
+
+The DM test provides the key cross-paradigm significance result: a significantly negative DM statistic (p < 0.05) for LightGBM vs CNN-LSTM confirms that the paradigm gap is not attributable to sampling variance in the 241,523-observation test set.
+
 ### 5.3 H+1 Results: The Short-Horizon Regime
 
 For completeness, H+1 results are reported. At H+1, lag_1h is available (no oracle enforcement required) and dominates all feature importances (SHAP values confirm it accounts for ~60% of total feature importance in LightGBM).
@@ -406,6 +422,10 @@ The Drammen dataset was provided by Drammen Eiendom KF through the COFACTOR proj
 [26] Norwegian Building Energy Research Repository (2024). Oslo Municipal Building Energy Dataset. doi:10.60609/czgf-5e46
 
 [27] Elmachtoub, A. N., & Grigas, P. (2022). Smart "Predict, then Optimize". *Management Science*, 68(1), 9–26.
+
+[28] Diebold, F.X., & Mariano, R.S. (1995). Comparing predictive accuracy. *Journal of Business & Economic Statistics*, 13(3), 253–263.
+
+[29] Harvey, D., Leybourne, S., & Newbold, P. (1997). Testing the equality of prediction mean squared errors. *International Journal of Forecasting*, 13(2), 281–291.
 
 ---
 
