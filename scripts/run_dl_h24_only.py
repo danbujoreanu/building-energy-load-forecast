@@ -101,12 +101,22 @@ def main():
     for name, ModelCls in models_to_run:
         logger.info(f"🚀 STARTING: {name}")
         try:
-            tf.keras.backend.clear_session()
-            
-            # Override epochs for speed and stability in recovery
-            model_cfg = cfg.copy()
-            model_cfg["training"]["deep_learning"]["epochs"] = 10
-            
+            # TFT uses PyTorch/Lightning — tf.keras.clear_session() is a no-op
+            # for it and confusingly suggests we're clearing a TF graph state.
+            # Only clear Keras session for TF-based models (LSTM, CNN-LSTM, GRU).
+            is_tf_model = ModelCls not in (TFTForecaster,)
+            if is_tf_model:
+                tf.keras.backend.clear_session()
+
+            # cfg.copy() is a shallow copy: modifying nested keys mutates the
+            # original cfg dict.  Use a proper deep copy so each model gets a
+            # clean config.  Only override deep_learning.epochs for TF models;
+            # TFT uses cfg["training"]["tft"]["max_epochs"] independently.
+            import copy
+            model_cfg = copy.deepcopy(cfg)
+            if is_tf_model:
+                model_cfg["training"]["deep_learning"]["epochs"] = 10
+
             t0 = time.time()
             model = ModelCls(model_cfg)
             model.fit(splits["X_train"], splits["y_train"], splits["X_val"], splits["y_val"])
