@@ -268,77 +268,87 @@ def run_cross_setup_ensembles(city: str, include_patchtst: bool = False) -> None
     lgbm_val, lgbm_test, lgbm_val_mae, _ = _train_lightgbm(cfg, splits)
     cnnlstm_val, cnnlstm_test, cnnlstm_val_mae, _ = _train_cnnlstm_b(cfg, splits)
 
-    # LightGBM returns 1-D predictions (flat, no windowing overhead)
-    # CNN-LSTM returns 2-D (n_windows, horizon) — extract last-step column
-    # We compare at the last horizon step (-1) for consistency with existing results.
-    lgbm_test_flat    = lgbm_test                       # (n_test,) — all timestamps
-    cnnlstm_test_2d   = cnnlstm_test                    # (n_windows, horizon)
+    # ── Align predictions at H+24 (last step) for apples-to-apples comparison ──
+    #
+    # LightGBM (Setup A) is a DIRECT H+24 point forecast: one prediction per
+    # test timestamp, trained with the H+24 shifted target. Shape: (n_test,).
+    #
+    # CNN-LSTM (Setup B) is a SEQUENCE-TO-SEQUENCE model: for each window of
+    # `lookback` steps it predicts the next `horizon` steps. Shape: (n_windows, 24).
+    # The last column (index -1) is the H+24 prediction, directly comparable
+    # to LightGBM's point forecast.
+    #
+    # Evaluation methodology: we compare both models at exactly H+24 (1-D blend).
+    # This is identical to how individual model MAEs are reported in the paper
+    # (LightGBM evaluated flat; DL evaluated at last step). Tiling LightGBM
+    # across all 24 horizon steps would be wrong — it predicts H+24 only, not
+    # H+1 through H+23, so blending at earlier steps would inflate MAE.
 
-    # Align sizes: y_test_2d has windows aligned with the DL window count.
-    # LightGBM has one prediction per test timestamp (no lookback offset).
-    # We trim LightGBM to match the DL window count (skip first 'lookback' steps
-    # per building — same offset as build_sequences()).
+    lgbm_test_flat = lgbm_test          # (n_test,) — H+24 point forecast
+
+    # Trim LightGBM to the DL window count (skip first `lookback` steps per
+    # building — mirrors the windowing offset in build_sequences()).
     n_buildings = splits["y_test"].index.get_level_values("building_id").nunique()
-    # LightGBM predictions per building
     lgbm_per_bldg = len(lgbm_test_flat) // n_buildings
     dl_per_bldg   = len(y_test_2d) // n_buildings
-    skip = lgbm_per_bldg - dl_per_bldg          # rows to skip at start per building
+    skip = lgbm_per_bldg - dl_per_bldg
 
     lgbm_test_trimmed = np.concatenate([
-        lgbm_test_flat[
-            b * lgbm_per_bldg + skip : (b + 1) * lgbm_per_bldg
-        ]
+        lgbm_test_flat[b * lgbm_per_bldg + skip : (b + 1) * lgbm_per_bldg]
         for b in range(n_buildings)
-    ])  # shape (n_windows,) matching y_test_2d rows
+    ])  # shape (n_windows,) — aligned to DL window boundaries
 
-    # Expand LightGBM to 2D for blending: repeat the same prediction across horizon
-    # (LightGBM is a single-step model; for a fair blend at each horizon step,
-    # we use the same flat prediction at every future hour — this is the canonical
-    # "tabular point forecast blended with sequential model" approach).
-    lgbm_test_2d = np.tile(lgbm_test_trimmed[:, None], (1, horizon)).astype(np.float32)
+    # Extract H+24 step from CNN-LSTM 2-D predictions
+    cnnlstm_test_1d = cnnlstm_test[:, -1]  # (n_windows,) — H+24 predictions only
 
-    # Align CNN-LSTM to y_test_2d length
-    n = min(len(y_test_2d), len(cnnlstm_test_2d))
-    y_test_2d_aligned     = y_test_2d[:n]
-    lgbm_test_2d_aligned  = lgbm_test_2d[:n]
-    cnnlstm_test_2d_align = cnnlstm_test_2d[:n]
+    # Ground truth at H+24 for each window
+    y_true_h24 = y_test_2d[:, -1]  # (n_windows,)
+
+    # Final alignment (guard against off-by-one differences)
+    n = min(len(y_true_h24), len(lgbm_test_trimmed), len(cnnlstm_test_1d))
+    y_true_aligned     = y_true_h24[:n]
+    lgbm_aligned       = lgbm_test_trimmed[:n]
+    cnnlstm_aligned    = cnnlstm_test_1d[:n]
 
     # ── Compute ensemble weights from validation MAE ─────────────────────────
     w_lgbm, w_cnnlstm = _inverse_mae_weights(lgbm_val_mae, cnnlstm_val_mae)
     logger.info(
-        "A+B weights (val MAE inverse): LightGBM=%.3f  CNN-LSTM=%.3f",
-        w_lgbm, w_cnnlstm,
+        "A+B weights (val MAE inverse): LightGBM=%.3f (val_MAE=%.4f)  "
+        "CNN-LSTM=%.3f (val_MAE=%.4f)",
+        w_lgbm, lgbm_val_mae, w_cnnlstm, cnnlstm_val_mae,
     )
 
-    # ── A+B ensemble ─────────────────────────────────────────────────────────
+    # ── A+B ensemble — H+24 point forecast blend ─────────────────────────────
     preds_ab = {
-        "LightGBM_SetupA": lgbm_test_2d_aligned,
-        "CNN-LSTM_SetupB": cnnlstm_test_2d_align,
+        "LightGBM_SetupA": lgbm_aligned,
+        "CNN-LSTM_SetupB": cnnlstm_aligned,
     }
     weights_ab = {
         "LightGBM_SetupA": w_lgbm,
         "CNN-LSTM_SetupB": w_cnnlstm,
     }
     res_ab = _blend_and_evaluate(
-        preds_ab, weights_ab, y_test_2d_aligned,
+        preds_ab, weights_ab, y_true_aligned,
         f"CrossEnsemble_A+B_{city}",
     )
 
     # ── A+B+C ensemble ───────────────────────────────────────────────────────
     if include_patchtst:
         patchtst_val, patchtst_test, patchtst_val_mae, _ = _train_patchtst(cfg, splits)
-        patchtst_test_align = patchtst_test[:n]
+        # Extract H+24 from proxy model (2-D) and align
+        patchtst_test_1d = patchtst_test[:, -1]
+        n_abc = min(n, len(patchtst_test_1d))
         w_l, w_c, w_p = _inverse_mae_weights(
             lgbm_val_mae, cnnlstm_val_mae, patchtst_val_mae
         )
         logger.info(
-            "A+B+C weights (val MAE inverse): LightGBM=%.3f  CNN-LSTM=%.3f  PatchTST=%.3f",
+            "A+B+C weights (val MAE inverse): LightGBM=%.3f  CNN-LSTM=%.3f  Proxy=%.3f",
             w_l, w_c, w_p,
         )
         preds_abc = {
-            "LightGBM_SetupA": lgbm_test_2d_aligned,
-            "CNN-LSTM_SetupB": cnnlstm_test_2d_align,
-            "PatchTST_SetupC": patchtst_test_align[:n],
+            "LightGBM_SetupA": lgbm_aligned[:n_abc],
+            "CNN-LSTM_SetupB": cnnlstm_aligned[:n_abc],
+            "PatchTST_SetupC": patchtst_test_1d[:n_abc],
         }
         weights_abc = {
             "LightGBM_SetupA": w_l,
@@ -346,7 +356,7 @@ def run_cross_setup_ensembles(city: str, include_patchtst: bool = False) -> None
             "PatchTST_SetupC": w_p,
         }
         res_abc = _blend_and_evaluate(
-            preds_abc, weights_abc, y_test_2d_aligned,
+            preds_abc, weights_abc, y_true_aligned[:n_abc],
             f"CrossEnsemble_A+B+C_{city}",
         )
     else:
