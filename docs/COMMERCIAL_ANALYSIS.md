@@ -188,4 +188,106 @@ The journal paper is the scientific foundation. The product is what transforms i
 
 ---
 
-*Generated: 2026-03-13. Sources: CRU Decision Paper on Dynamic Electricity Price Tariffs, ESB Networks Smart Meter rollout data, Tibber business model analysis, Loop product analysis, Hildebrand Glow API documentation.*
+---
+
+## 9. Threat Analysis: Can Utilities Replicate This?
+
+### 9.1 The Conflict of Interest Problem
+
+The short answer is: technically yes, structurally no. And the reason is exactly the conflict the user identified.
+
+**The Bord Gáis Saturday example is a clean illustration:**
+Bord Gáis designed the free Saturday tariff because they can buy surplus renewable generation cheaply on Saturdays (low wholesale prices, high wind). They sell it to you as "free energy." If they build an AI that optimises your Saturday usage, they make you a better customer — but they have no incentive to tell you that your Tuesday heating is 15% inefficient and you should switch to Energia's night saver. A supplier-agnostic AI **will** tell you that. No supplier will build a supplier-agnostic AI.
+
+| Stakeholder | Has the data? | Has the incentive? | Structural barrier |
+|-------------|---------------|-------------------|-------------------|
+| ESB Networks (grid operator) | Yes — all half-hourly readings | Neutral | Legally separated from retail; can't give data to Electric Ireland |
+| Electric Ireland / Bord Gáis / Energia | 30-min settlement data (delayed) | No — optimising your bill may reduce their margin | Supplier-locked; won't recommend competitors |
+| CRU | Regulatory mandate possible | Yes, but timeline years | Government agency, not product company |
+| **Independent supplier-agnostic product** | Via P1 port or ESB API | **Yes — fully aligned with consumer savings** | **None** |
+
+### 9.2 Do You Need a Physical Device?
+
+**Critical finding (March 2026):** The P1 port on Irish smart meters is currently **disabled** by default. ESB Networks planned enablement for Q4 2025 — it is either live now or imminent. However, ESB Networks already provides a **30-min interval API** (CSV-based via their consumer portal) which is sufficient for the H+24 forecast and day-ahead scheduling use case.
+
+This creates two distinct product architectures:
+
+**Architecture A — Software-only (no device, launch now):**
+```
+ESB Networks 30-min API → LightGBM H+24 forecast → SEMO day-ahead prices
+→ Morning brief push notification: "Charge EV 02:00–05:00, est. €0.07/kWh"
+→ Manual MyEnergi app action, or MyEnergi cloud API scheduling call
+```
+- No hardware, no manufacturing risk
+- Can launch before P1 port is broadly enabled
+- Revenue: €2.99/month subscription
+- **Limitation**: 30-min data latency; no real-time solar diversion
+
+**Architecture B — P1 device (full product, H2 2026):**
+```
+P1 port → real-time consumption + solar export → LightGBM + ControlEngine
+→ Automated MyEnergi Eddi/Zappi API calls (no user action needed)
+→ Personalised solar model after 2 weeks
+```
+- Physical device, full automation
+- Requires P1 port to be live and protocol-compatible
+- Revenue: €99 device + €3.99/month
+
+**Recommended path: launch Architecture A now, ship Architecture B when P1 port is confirmed.**
+
+### 9.3 MyEnergi / Eddi Assessment
+
+MyEnergi makes the best solar diversion hardware in the Irish market. The Eddi is the dominant product for diverting excess solar to hot water. The Zappi is the leading solar-aware EV charger.
+
+**What MyEnergi does today:**
+- Real-time solar diversion (CT clamp measures instantaneous export → diverts to Eddi/hot water). This is reactive, not predictive.
+- Static scheduled timers (e.g., "boost hot water 02:00–04:00 on night rate"). Manual configuration.
+- Zappi + Octopus Agile (UK only): price-aware EV charging. Day-ahead Agile prices downloaded at ~16:00; Zappi automatically sets boost timers for cheapest slots overnight. **This is the closest thing to what we're building — but UK-only (Octopus is not in Ireland) and price-only (no demand forecast).**
+
+**What MyEnergi does NOT do:**
+- ML-based demand forecast for your specific building
+- Supplier-agnostic Irish tariff integration (SEMO not in their system)
+- Personalised solar model learning from your P1 data
+- H+24 probabilistic prediction with P10/P90 uncertainty bounds
+
+**Strategic insight — partnership, not competition:**
+MyEnergi makes excellent hardware. We are not a hardware company. The ideal positioning is:
+*"EnergyOS: The AI forecast layer for your MyEnergi system."*
+- Their Eddi/Zappi handles the physical switching
+- Our LightGBM + ControlEngine handles the intelligent scheduling
+- Our product calls their community API to schedule boost timers based on our forecast
+- This is faster to market than building hardware from scratch
+
+### 9.4 Electric Ireland / Renewable Alerts
+
+No product called "Green Flex" was found. Electric Ireland offers basic email digests of smart meter usage — energy insights, not forecasts, not automation. EirGrid publishes live renewable data (wind %, grid frequency) but there is no consumer-facing alert system tied to smart meters. This gap remains open.
+
+### 9.5 Threat Ranking
+
+| Threat | Probability | Timeline | Impact | Mitigation |
+|--------|-------------|----------|--------|------------|
+| Tibber enters Ireland | High | 2027–2028 | High | Supplier-agnostic positioning; MyEnergi partnership; first-mover data moat |
+| MyEnergi adds SEMO price integration to Zappi | Medium | 2027 | Medium | We're the ML layer on top; still differentiated on demand forecast |
+| ESB Networks builds consumer optimisation portal (CRU mandate) | Low-Medium | 2028+ | Medium | Open API = lower barrier for us too; move fast |
+| Electric Ireland builds smart scheduling app | Low | 2027+ | Low-Medium | Supplier-locked by definition; we remain agnostic |
+| Google Nest adds SEMO integration | Low | 2028 | Medium | Thermostat-only; no solar diversion, no EV, no hot water |
+
+**The first-mover data moat is real:** Every week of personalised P1 data collected per household makes the model more accurate for that household. A competitor arriving in 2027 starts cold. You start warm.
+
+---
+
+## 10. Phased Go-to-Market
+
+| Phase | When | Product | Revenue | Key Dependency |
+|-------|------|---------|---------|----------------|
+| **Phase 0** | Now | AWS conference demo (`live_inference.py --dry-run`) | None | None |
+| **Phase 1** | Q2 2026 | Software: ESB API + SEMO + LightGBM → push notifications | €2.99/month SaaS | ESB API access |
+| **Phase 2** | Q3–Q4 2026 | Phase 1 + MyEnergi cloud API automation (no device) | €3.99/month | MyEnergi API |
+| **Phase 3** | Q1 2027 | P1 hardware device + real-time solar diversion | €99 device + €3.99/month | P1 port live + confirmed protocol |
+| **Phase 4** | 2027 | CER residential dataset validation → residential launch | Scale | CER data + model retraining |
+
+Phase 1 requires **no hardware, no P1 port, no manufacturing.** Just the software stack that already exists in `deployment/`.
+
+---
+
+*Updated: 2026-03-14. Additional sources: ESB Networks P1 port boards.ie discussion, Home Assistant ESB Smart Meter Integration community thread, MyEnergi Octopus Agile integration documentation, EirGrid System and Renewable Data Reports.*
