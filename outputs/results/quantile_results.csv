@@ -1,0 +1,2 @@
+city,n_test,p50_mae,winkler_score,coverage_rate,mean_pi_width,calibration,cov_building_min,cov_building_max,cov_building_std
+oslo,779423,7.3452,35.0213,0.8001,23.6031,well-calibrated,0.7206,0.8617,0.0272

@@ -16,9 +16,10 @@ paths:
   processed:  data/processed
   splits:     data/processed/splits
   outputs:
-    figures: outputs/figures
-    models:  outputs/models
-    results: outputs/results
+    figures:     outputs/figures
+    models:      outputs/models
+    results:     outputs/results
+    predictions: outputs/predictions
 
 # ── Reproducibility ───────────────────────────────────────────────────────────
 seed: 42
