@@ -72,3 +72,15 @@ Icon?
 .env
 *.env
 secrets.yaml
+
+# ── Commercial / private — NEVER include in public academic repo ───────────────
+# These files live in this private repo only.
+# When creating the public academic snapshot, these are excluded by
+# scripts/create_public_snapshot.sh
+#
+# deployment/          ← commercial product code (ControlEngine, connectors, API)
+# docs/COMMERCIAL_ANALYSIS.md  ← product roadmap, competitive analysis, go-to-market
+#
+# To create a public academic snapshot:
+#   bash scripts/create_public_snapshot.sh
+outputs/predictions/
