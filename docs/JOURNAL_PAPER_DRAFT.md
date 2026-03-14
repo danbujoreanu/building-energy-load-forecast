@@ -141,7 +141,7 @@ All recurrent models use Adam (lr = 0.0001, clipnorm = 1.0), MSE loss, and early
 
 **TFT (Setup B):** The Temporal Fusion Transformer [15] is the fourth Setup B model. TFT processes tabular temporal features through variable selection networks, multi-head attention, and gating mechanisms — it is architecturally designed for exactly this tabular-temporal input format. The 35 engineered features are provided as `time_varying_known_reals` to the PyTorch-Forecasting `TimeSeriesDataSet`, with fixed encoder length = lookback = 72 to ensure fair window-count comparison with the recurrent models. This is the most challenging Setup B test: if even a purpose-built tabular-temporal transformer cannot match tree-based models, the case for Setup A is definitive.
 
-TFT requires approximately 3 hours of training time. Based on the H+1 evaluation (TFT: R²=0.952 vs RF: R²=0.982), TFT Setup B at H+24 is expected to achieve R² ≈ 0.88–0.91, consistent with the other Setup B models. If TFT cannot surpass the other Setup B DL models despite its tabular-temporal architecture, this further strengthens the case that the setup-paradigm boundary matters more than architecture choice.
+TFT trained for 20 epochs (~93 minutes on Apple M2 Max with MPS acceleration). The best checkpoint achieved val_loss = 1.6534 at epoch 18 (pytorch-forecasting GroupNormalizer-normalised units). Test-set evaluation required a post-hoc alignment step: pytorch-forecasting's `TimeSeriesDataSet` with `min_prediction_length=1` generates partial-horizon boundary windows at building edges (prediction_length = 1…horizon−1), producing 2,024 rows (0.83%) whose inverse-transform yields NaN after GroupNormalizer denormalisation. After filtering these NaN rows, 241,393 finite predictions remain, matching the ground-truth matrix constructed by `_build_y_true_matrix()` exactly. TFT achieves **MAE = 8.770 kWh, RMSE = 17.581, R² = 0.8646** on the Drammen test set — the best Setup B result by MAE, confirming that even a purpose-built tabular-temporal architecture designed for exactly this input format cannot approach tree-based performance.
 
 **LSTM Setup B yields R² = −0.004** despite access to the same features as LightGBM. This catastrophic failure demonstrates that LSTM cannot extract productive temporal structure from sequences of pre-computed statistical summaries — the features are already "integrated" and removing the short-lag autocorrelation (lag_1h is excluded at H+24) eliminates the primary signal that recurrent processing relies on. CNN-LSTM (R² = 0.877) and GRU (R² = 0.867) perform adequately, but neither approaches Setup A.
 
@@ -196,18 +196,18 @@ Table 1 reports test-set metrics for all Drammen H+24 models. *Figure 1 (paradig
 | B | LSTM | 34.938 | 47.562 | 360.79 | −0.0039 | 2,872 |
 | B | CNN-LSTM | 9.375 | 16.744 | 33.83 | 0.8772 | 681 |
 | B | GRU | 9.639 | 17.422 | 33.13 | 0.8670 | 959 |
-| B | TFT | — | — | — | — | ~10,800 |
+| B | TFT | 8.770 | 17.581 | — | 0.8646 | 5,627 |
 | C | PatchTST | 6.955 | 14.118 | 26.81 | 0.9102 | 3,026 |
 | C | CNN-LSTM | 8.040 | 14.800 | 28.00 | 0.8900 | 666 |
 | C | GRU | 8.080 | 14.900 | 29.00 | 0.8800 | 1,200 |
-| Ens-A | Stacking (Ridge meta) | 4.029 | — | — | 0.9752 | — |
+| Ens-A | Stacking (Ridge meta) | 4.034 | 7.508 | 15.61 | 0.9751 | 1,059 |
 | Ens-AC | Grand Ens. A90/C10 | 4.106 | 7.550 | 16.11 | 0.9749 | — |
 | Base | Mean Baseline | 22.673 | 35.314 | 127.41 | 0.4424 | — |
 | Base | Naive (lag_24h) | 44.073 | 51.791 | 597.46 | −0.1993 | — |
 
 Key observations:
 - **Paradigm gap**: LightGBM (Setup A) outperforms PatchTST (Setup C) by 42% in MAE. The paradigm gap (A vs C: Δ MAE = 2.926 kWh) is substantially larger than the within-paradigm gap (A LightGBM vs RF: Δ MAE = 0.373 kWh).
-- **Setup B pattern**: LSTM Setup B (R² = −0.004) catastrophically fails; CNN-LSTM and GRU Setup B are comparable in absolute terms to Setup C CNN-LSTM/GRU but still ~1.4× worse than PatchTST (Setup C's best). This confirms that the tabular feature format is as unsuitable for recurrent DL as it is advantageous for trees.
+- **Setup B pattern**: LSTM Setup B (R² = −0.004) catastrophically fails; CNN-LSTM (MAE = 9.375) and GRU (MAE = 9.639) Setup B are comparable in absolute terms to Setup C CNN-LSTM/GRU but still ~1.4× worse than PatchTST (Setup C's best). TFT (MAE = 8.770, R² = 0.8646) is the best Setup B model, marginally ahead of CNN-LSTM — yet still 118% worse than LightGBM by MAE. The ceiling for Setup B is TFT (8.770 kWh), and it falls well short of the floor for Setup A (Lasso: 7.448 kWh). This confirms that the tabular feature format is as unsuitable for DL architectures — including purpose-built ones — as it is advantageous for trees.
 - **Training efficiency**: LightGBM trains in 13 seconds; PatchTST requires 3,026 seconds (~50 minutes). The 230× speed advantage is operationally significant for daily model retraining cycles.
 - **Ensemble monotonicity**: All cross-setup ensemble variants (A+C, A+B) degrade compared to pure Setup A. The ordering LightGBM > A+C > A+B tracks the quality of the DL component: a stronger DL model (PatchTST Setup C) hurts less than a weaker one (CNN-LSTM Setup B). See Section 4.6 and Table 6.
 
@@ -259,13 +259,11 @@ The per-building Wilcoxon test treats each building as one observation. The Dieb
 
 | Comparison | n_obs | DM statistic | p-value | Significance |
 |-----------|-------|-------------|---------|------|
-| LightGBM vs CNN-LSTM [B] | 241,523 | — | — | — |
-| LightGBM vs Ridge | 241,523 | — | — | — |
-| LightGBM vs XGBoost | 241,523 | — | — | — |
+| LightGBM vs CNN-LSTM [B] | — | — | — | *(pred. file pending)* |
+| LightGBM vs Ridge | 241,393 | −33.52 | < 0.0001 | *** |
+| LightGBM vs XGBoost | 241,393 | −5.25 | < 0.0001 | *** |
 
-*Results to be populated on completion of `python scripts/run_pipeline.py --city drammen --save-predictions` followed by `python scripts/significance_test.py --mode dm`.*
-
-The DM test provides the key cross-paradigm significance result: a significantly negative DM statistic (p < 0.05) for LightGBM vs CNN-LSTM confirms that the paradigm gap is not attributable to sampling variance in the 241,523-observation test set.
+The within-paradigm DM tests confirm that LightGBM significantly outperforms both Ridge (DM = −33.52, p < 0.0001) and XGBoost (DM = −5.25, p < 0.0001) at the observation level. The large negative DM statistics indicate LightGBM has persistently smaller prediction errors across the full 241,393-observation test period, not merely on average across buildings. The cross-paradigm DM test (LightGBM vs CNN-LSTM Setup B) will be added at camera-ready stage: prediction arrays for Setup B CNN-LSTM require a dedicated re-run with `--save-predictions`.
 
 ### 5.3 H+1 Results: The Short-Horizon Regime
 
