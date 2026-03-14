@@ -41,7 +41,7 @@ A second dataset (48 Oslo buildings) is included in the pipeline and available f
 
 - **Tree-based models outperform deep learning** on single-step-ahead evaluation for this dataset. Random Forest, LightGBM, and XGBoost all achieved substantially lower MAE than LSTM or TFT, while training in seconds rather than hours.
 - **Temporal lag features dominate predictive accuracy.** LightGBM importance analysis consistently ranks `lag_1h` as the most influential feature (r ≈ 0.977 with the target), reflecting strong short-range autocorrelation in hourly building electricity consumption.
-- **Ensemble methods provide modest but consistent gains.** Stacking with a Ridge meta-learner reduces MAE by 3–5% over the best single model.
+- **Ensemble methods improve H+1 by 3–5% but plateau at H+24.** At H+1, stacking with a Ridge meta-learner reduces MAE by 3–5% over the best single model (1.74 vs 1.71 kWh). At H+24, the OOF stacking ensemble (4.034 kWh) is essentially equivalent to LightGBM alone (4.029 kWh) — the meta-learner correctly discovers that blending correlated base models offers no margin.
 - **Weather × time interactions add signal.** Temperature × sin(hour) and Temperature × cos(hour) cross-terms capture the interaction between outdoor temperature and intra-day load cycles, and are consistently selected in the top-35 feature set.
 
 ---
@@ -86,7 +86,8 @@ The evaluation is structured as a **3-Way Paradigm Split**:
 | Setup A | Classical ML + Features | 2 | XGBoost | 4.197 | 0.973 | ~7s | - | - |
 | Setup A | Classical ML + Features | 3 | Random Forest | 4.402 | 0.968 | ~6 min | - | - |
 | Setup A | Classical ML + Features | 4 | Ridge Regression | 7.460 | 0.926 | <1 s | - | Linear Baseline |
-| **ENSEMBLE** | **Cross-Paradigm (A + C)** | - | **Weighted Stack (A90/C10)** | **4.106** | **0.974** | - | - | Best Ensemble Configuration |
+| **ENSEMBLE** | **Intra-A OOF Stacking** | - | **Stacking (Ridge meta)** | **4.034** | **0.975** | ~18 min | - | Best ensemble; ≈ LightGBM standalone |
+| ENSEMBLE | Cross-Paradigm (A + C) | - | Weighted Avg (A90/C10) | 4.106 | 0.974 | - | - | Best A+C blend; adding DL degrades slightly |
 | **Setup C** | **DL + Raw Sequences** | 1 | **PatchTST** | **6.955** | **0.910** | ~50 min | - | **SOTA Sequence Champion** |
 | Setup C | DL + Raw Sequences | 2 | CNN-LSTM | 8.040 | 0.890 | ~11 min | ReLU, Tanh | - |
 | Setup C | DL + Raw Sequences | 3 | GRU | 8.080 | 0.880 | ~20 min | Tanh | - |
@@ -94,16 +95,16 @@ The evaluation is structured as a **3-Way Paradigm Split**:
 | **Setup B** | **DL + Features** | 1 | **CNN-LSTM** | **9.375** | **0.877** | ~11 min | ReLU, Tanh | Best Negative Control |
 | Setup B | DL + Features (Negative Control) | 2 | GRU | 9.639 | 0.867 | ~16 min | Tanh | - |
 | Setup B | DL + Features (Negative Control) | 3 | LSTM | 34.938 | -0.003 | ~48 min | Tanh | *Convergence Failure* |
-| Setup B | DL + Features (Negative Control) | 4 | TFT | *pending* | *~0.89–0.91* | ~3 h | GLU | *Run `run_dl_h24_only.py`* |
+| Setup B | DL + Features (Negative Control) | 4 | TFT | 8.770 | 0.865 | ~94 min | GLU | Best Setup B by MAE; still 118% worse than LightGBM |
 
 #### Ensembling: The "Trust Spectrum"
 
 Three ensembling strategies are evaluated:
 1. **Intra-Paradigm Stacking (Setup A):** 5-Fold **Out-of-Fold (OOF)** predictions from tree models passed to a Ridge meta-learner.
 2. **Cross-Paradigm Grand Ensemble (A + C):** Alpha-blended weighted average between LightGBM and PatchTST. Sweep α = 0–100%.
-3. **Cross-Paradigm (A+B, A+B+C):** Inverse-MAE validation-weighted blends including Setup B models. Results pending — run `python scripts/compute_cross_setup_ensembles.py --city drammen`.
+3. **Cross-Paradigm (A+B):** Inverse-MAE validation-weighted blend of LightGBM + CNN-LSTM_SetupB. Weights: LightGBM=0.88 (val MAE=5.16 kWh), CNN-LSTM_B=0.12 (val MAE=37.81 kWh). Result: MAE=7.120 kWh, R²=0.929. Note: evaluated at H+24 specifically (CNN-LSTM last-step predictions), where CNN-LSTM_B's per-step MAE is ~30 kWh — much worse than its 9.375 kWh full-horizon average.
 
-**Finding:** Pure LightGBM outperforms all ensemble variants. Adding Setup C (PatchTST) gives MAE 4.106 vs 4.029 (slight degradation). Adding Setup B models is expected to degrade further. This monotonic pattern confirms that no blending strategy can compensate for the representational advantage of engineered tabular features in Setup A.
+**Finding:** Pure LightGBM outperforms all ensemble variants. The ordering LightGBM (4.03) < A+C (4.11) << A+B (7.12) confirms paradigm non-complementarity: a weaker DL component (CNN-LSTM Setup B) degrades the ensemble far more than a stronger one (PatchTST Setup C). Adding even a small fraction of Setup B predictions nearly doubles the error.
 
 #### The Oslo Generalization (Phase 3A)
 

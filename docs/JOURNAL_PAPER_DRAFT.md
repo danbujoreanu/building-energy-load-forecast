@@ -171,10 +171,10 @@ To complete the ensemble picture, we evaluate a cross-paradigm weighted-average 
 
 Two cross-setup blends are reported alongside the within-paradigm A+C result from Section 4.4:
 
-- **A+B (LightGBM + CNN-LSTM)**: Setup A blended with the Setup B negative-control model. CNN-LSTM Setup B receives approximately 12% weight (val MAE ≈ 37.8 kWh vs LightGBM ≈ 5.2 kWh), yielding a blend that lies between the two component performances.
-- **A+C (Grand Ensemble A90/C10)**: LightGBM blended with PatchTST Setup C at 10% weight. PatchTST is a stronger DL model than CNN-LSTM Setup B, so the A+C blend achieves slightly better R² than A+B.
+- **A+B (LightGBM + CNN-LSTM)**: Setup A blended with the Setup B negative-control model. CNN-LSTM Setup B receives 12% weight (val MAE = 37.81 kWh vs LightGBM = 5.16 kWh at H+24). The blend is evaluated at H+24 specifically — using CNN-LSTM's H+24 step prediction (column −1 of its 24-step output) for a direct apples-to-apples comparison with LightGBM's point forecast. CNN-LSTM's H+24-step MAE is substantially higher than its full-horizon average (9.375 kWh across all 24 steps), as H+24 is the hardest individual step. The blend degrades LightGBM from 4.029 to 7.120 kWh (+77%).
+- **A+C (Grand Ensemble A90/C10)**: LightGBM blended with PatchTST Setup C at 10% weight (Grand Ensemble; Section 4.4). PatchTST degrades LightGBM by only 1.9% (4.029 → 4.106), compared to 77% degradation from CNN-LSTM_B, because PatchTST is purpose-built for sequential inputs and its H+24 predictions are of much higher quality.
 
-Both ensembles degrade relative to pure LightGBM. The ordering A > A+C > A+B is consistent with the inverse-MAE weighting mechanism — a weaker DL component receives lower weight but still pulls the blend away from the tree-based optimum. This monotonicity confirms that no cross-setup blending strategy compensates for the representational inferiority of DL models on tabular building energy data. Results are reported in Table 6.
+Both ensembles degrade relative to pure LightGBM, and the ordering A > A+C >> A+B holds. The magnitude of A+B degradation (+77%) is instructive: even with only 12% weight, a DL model that is poorly suited to the H+24 task (CNN-LSTM reading tabular features) substantially damages the ensemble. This monotonicity confirms that no cross-setup blending strategy compensates for the representational inferiority of DL models on tabular building energy data. Results are reported in Table 6.
 
 ---
 
@@ -209,7 +209,7 @@ Key observations:
 - **Paradigm gap**: LightGBM (Setup A) outperforms PatchTST (Setup C) by 42% in MAE. The paradigm gap (A vs C: Δ MAE = 2.926 kWh) is substantially larger than the within-paradigm gap (A LightGBM vs RF: Δ MAE = 0.373 kWh).
 - **Setup B pattern**: LSTM Setup B (R² = −0.004) catastrophically fails; CNN-LSTM (MAE = 9.375) and GRU (MAE = 9.639) Setup B are comparable in absolute terms to Setup C CNN-LSTM/GRU but still ~1.4× worse than PatchTST (Setup C's best). TFT (MAE = 8.770, R² = 0.8646) is the best Setup B model, marginally ahead of CNN-LSTM — yet still 118% worse than LightGBM by MAE. The ceiling for Setup B is TFT (8.770 kWh), and it falls well short of the floor for Setup A (Lasso: 7.448 kWh). This confirms that the tabular feature format is as unsuitable for DL architectures — including purpose-built ones — as it is advantageous for trees.
 - **Training efficiency**: LightGBM trains in 13 seconds; PatchTST requires 3,026 seconds (~50 minutes). The 230× speed advantage is operationally significant for daily model retraining cycles.
-- **Ensemble monotonicity**: All cross-setup ensemble variants (A+C, A+B) degrade compared to pure Setup A. The ordering LightGBM > A+C > A+B tracks the quality of the DL component: a stronger DL model (PatchTST Setup C) hurts less than a weaker one (CNN-LSTM Setup B). See Section 4.6 and Table 6.
+- **Ensemble monotonicity**: All cross-setup ensemble variants (A+C, A+B) degrade compared to pure Setup A. The ordering LightGBM (4.029) < A+C (4.106, +1.9%) < A+B (7.120, +77%) tracks the quality of the DL component at H+24: PatchTST Setup C (H+24 MAE ≈ 7 kWh) causes minor degradation; CNN-LSTM Setup B (H+24-step MAE ≈ 30 kWh) causes severe degradation even at 12% blend weight. See Section 4.6 and Table 6.
 
 **Paradigm Parity Summary.** The ensemble degradation result carries a direct interpretive consequence beyond ensemble method selection. In classical ensemble theory, performance improves when base learners are *uncorrelated* — each model captures signal the others miss. The monotonic degradation observed here (pure Setup A outperforms any blend with Setup C or B) implies the opposite: Setup A and Setup C are capturing *correlated* signal, not independent signal. Both paradigms learn the same underlying consumption patterns from the same data; the DL models simply do so less accurately. This is the empirical falsification of the "architectures are complementary" hypothesis and justifies the production recommendation — LightGBM alone — without appeal to model complexity or interpretability arguments. The ensemble alpha-sweep is therefore presented as an *ablation study confirming paradigm non-complementarity*, not as a naive failure to find the right blend. Combining a strong learner (LightGBM, R²=0.975) with a weaker, correlated learner (PatchTST, R²=0.910) inevitably degrades the ensemble: the weaker model contributes noise, not signal.
 
@@ -220,7 +220,7 @@ The Oslo generalisation provides independent external validation of this conclus
 | Ensemble | Models | Weight A | Weight DL | MAE (kWh) | R² |
 |----------|--------|---------|---------|-----------|-----|
 | A+C Grand Ens. | LightGBM + PatchTST | 0.90 | 0.10 | 4.106 | 0.9749 |
-| A+B | LightGBM + CNN-LSTM | — | — | — | — |
+| A+B | LightGBM + CNN-LSTM | 0.88 | 0.12 | 7.120 | 0.9293 |
 
 ### 5.2 Per-Building Analysis and Statistical Significance
 
