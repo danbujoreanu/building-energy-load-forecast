@@ -130,7 +130,7 @@ def fig1_paradigm_parity() -> None:
         "Ridge_SetupA", "Lasso_SetupA",
         "LSTM_SetupB", "CNN-LSTM_SetupB", "GRU_SetupB", "TFT_SetupB",
         "PatchTST_SetupC", "CNN-LSTM_SetupC",
-        "GrandEnsemble_A90_C9",
+        "GrandEnsemble_A90_C9", "Stacking Ensemble",
         "Mean Baseline",
     ]
     sel = df[df["model"].apply(lambda m: any(p in str(m) for p in keep_patterns))].copy()
@@ -154,8 +154,9 @@ def fig1_paradigm_parity() -> None:
         "TFT_SetupB":         "TFT  [B]",
         "PatchTST_SetupC":    "PatchTST ★",
         "CNN-LSTM_SetupC":    "CNN-LSTM  [C]",
-        "GrandEnsemble_A90_C9": "Grand Ens. A90/C10",
-        "Mean Baseline":      "Mean Baseline",
+        "GrandEnsemble_A90_C9":           "Grand Ens. A90/C10",
+        "Stacking Ensemble (Ridge meta)": "Stacking Ens. ★",
+        "Mean Baseline":                  "Mean Baseline",
     }
     sel["paradigm"] = sel["model"].apply(tag)
     sel["label"]    = sel["model"].map(label_map).fillna(
@@ -256,7 +257,7 @@ def fig1_paradigm_parity() -> None:
         mpatches.Patch(color=PALETTE["A"],        label="Setup A — Tree-based models"),
         mpatches.Patch(color=PALETTE["B"],        label="Setup B — DL on engineered features (negative control)"),
         mpatches.Patch(color=PALETTE["C"],        label="Setup C — DL on raw sequences"),
-        mpatches.Patch(color=PALETTE["Ensemble"], label="Grand Ensemble (A+C blend)"),
+        mpatches.Patch(color=PALETTE["Ensemble"], label="Ensemble (Grand A+C blend; OOF Stacking)"),
         mpatches.Patch(color=PALETTE["Baseline"], label="Baseline"),
     ]
     ax.legend(handles=legend_patches, loc="lower right", framealpha=0.92,
