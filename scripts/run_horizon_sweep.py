@@ -66,7 +66,7 @@ logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 DEFAULT_HORIZONS = [1, 6, 12, 24, 48]
-SKLEARN_MODELS   = ["LightGBM", "XGBoost", "Ridge"]
+SKLEARN_MODELS   = ["lightgbm", "xgboost", "ridge"]
 DL_MODELS        = ["LSTM"]
 OUTPUT_FILE      = ROOT / "outputs" / "results" / "horizon_metrics.csv"
 
@@ -97,13 +97,16 @@ def _build_features_for_horizon(cfg: dict, horizon: int) -> tuple:
 
     The feature set is horizon-specific:
     - Only lags >= horizon are retained (causal constraint)
-    - The full 35-feature set is re-selected for each horizon from the processed splits
+    - Feature selection re-run for each horizon (fewer features at longer horizons)
 
-    For now this reuses the H+24 pre-processed splits (which already enforce lag >= 24).
-    For H+1 and H+6 we reload from model_ready.parquet and rebuild.
+    Fast path: H+24 reuses the pre-processed splits from run_pipeline.py.
+    General path: rebuilds temporal features from model_ready.parquet with horizon
+                  injected into cfg["features"]["forecast_horizon"].
     """
-    from energy_forecast.features.temporal import build_features
-    from energy_forecast.data.preprocessor import preprocess
+    import copy
+
+    from energy_forecast.data import make_splits
+    from energy_forecast.features import build_temporal_features, select_features
 
     proc_dir = Path(cfg["paths"]["processed"]) / "splits"
 
@@ -120,21 +123,33 @@ def _build_features_for_horizon(cfg: dict, horizon: int) -> tuple:
 
     # General path: rebuild features for this specific horizon
     logger.info("H+%d: rebuilding features with horizon-specific lag filter", horizon)
-    model_ready = Path(cfg["paths"]["processed"]) / "model_ready.parquet"
-    if not model_ready.exists():
+    model_ready_path = Path(cfg["paths"]["processed"]) / "model_ready.parquet"
+    if not model_ready_path.exists():
         raise FileNotFoundError(
-            f"model_ready.parquet not found at {model_ready}. "
+            f"model_ready.parquet not found at {model_ready_path}. "
             "Run: python scripts/run_pipeline.py --stages preprocess"
         )
 
-    # Override horizon in config copy
-    import copy
+    # Inject horizon into features config (build_temporal_features reads this)
     cfg_h = copy.deepcopy(cfg)
-    cfg_h["forecast_horizon"] = horizon
+    cfg_h["features"]["forecast_horizon"] = horizon
 
-    df = pd.read_parquet(model_ready)
-    X_train, y_train, X_val, y_val, X_test, y_test = preprocess(df, cfg_h)
-    return X_train, y_train, X_val, y_val, X_test, y_test
+    target = cfg["data"]["target_column"]
+    df = pd.read_parquet(model_ready_path)
+
+    featured = build_temporal_features(df, cfg_h, target)
+    splits   = make_splits(featured, cfg_h, target)
+
+    X_tr = splits["X_train"]
+    y_tr = splits["y_train"]
+    X_v  = splits["X_val"]
+    y_v  = splits["y_val"]
+    X_te = splits["X_test"]
+    y_te = splits["y_test"]
+
+    X_tr, X_v, X_te, _ = select_features(X_tr, y_tr, X_v, X_te, cfg_h)
+
+    return X_tr, y_tr, X_v, y_v, X_te, y_te
 
 
 def _run_sklearn_model(name: str, cfg: dict, horizon: int,
