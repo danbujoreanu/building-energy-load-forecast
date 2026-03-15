@@ -49,6 +49,8 @@ def parse_args():
     parser.add_argument("--city", default="drammen", choices=["drammen", "oslo"])
     parser.add_argument("--config", default="config/config.yaml", help="Config file path")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING"])
+    parser.add_argument("--save-predictions", action="store_true",
+                        help="Save H+24 error arrays for Diebold-Mariano tests")
     return parser.parse_args()
 
 def get_keras_model(name, input_shape, horizon, cfg):
@@ -187,7 +189,8 @@ def run_patchtst_eval(cfg, df_train, df_test, target_col, feature_cols, scaler_X
     y_inv_2d = y_inv.reshape(-1, horizon) if horizon > 1 else y_inv.reshape(-1, 1)
 
     res_metrics = evaluate(y_inv_2d, preds_inv_2d, model_name="PatchTST")
-    return res_metrics
+    # Return prediction arrays alongside metrics so caller can save error arrays
+    return res_metrics, preds_inv, y_inv
 
 def main():
     args = parse_args()
@@ -302,11 +305,19 @@ def main():
 
     # PatchTST Model Implementation
     logger.info("--- Training Raw PatchTST (Setup C) ---")
+    save_preds = args.save_predictions
+    preds_dir  = Path(cfg["paths"]["outputs"].get("predictions", "outputs/predictions"))
+    if save_preds:
+        import numpy as np
+        preds_dir.mkdir(parents=True, exist_ok=True)
+        logger.info("Prediction error arrays will be saved to %s", preds_dir)
+
     try:
-        patchtst_res = run_patchtst_eval(
+        patchtst_result = run_patchtst_eval(
             cfg, df_train, df_test, target_col, feature_cols, scaler_X, scaler_y, horizon
         )
-        if patchtst_res:
+        if patchtst_result:
+            patchtst_res, preds_inv, y_inv = patchtst_result
             df_res = pd.DataFrame([patchtst_res])
             metrics_file = Path(cfg["paths"]["outputs"]["results"]) / "final_metrics.csv"
 
@@ -318,6 +329,11 @@ def main():
                 combined.to_csv(metrics_file)
             else:
                 df_res.to_csv(metrics_file)
+
+            if save_preds:
+                errors = y_inv - preds_inv
+                np.save(preds_dir / "errors_PatchTST_SetupC.npy", errors)
+                logger.info("Saved PatchTST error array → %s/errors_PatchTST_SetupC.npy", preds_dir)
     except Exception as e:
         logger.error(f"Failed to process PatchTST: {e}")
 

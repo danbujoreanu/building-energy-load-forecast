@@ -62,7 +62,7 @@ Foundation models for time series — Chronos [16] and TimesFM [17] — have eme
 
 ### 2.3 Architecture vs Representation: The Missing Comparison
 
-A critical gap in the literature is the absence of controlled studies that separate *architecture choice* from *input representation*. The majority of comparative studies evaluate tree models with engineered features against DL models with raw sequences — a comparison that confounds two independent variables. When DL models are given the same engineered features as trees, performance can degrade significantly, as the temporal structure of pre-computed statistics may not be compatible with recurrent processing [4, 19].
+A critical gap in the literature is the absence of controlled studies that separate *architecture choice* from *input representation*. We note that classical statistical forecasting models such as Prophet [Taylor & Letham, 2018] were not included in the benchmark. Prophet requires per-series model fitting — one model per building — which does not scale to portfolio-level multi-building inference; LightGBM with building_id dummy variables learns cross-building patterns in a single training pass. Additionally, Prophet is a single-step additive model and does not natively support direct multi-step H+24 output without post-hoc modification. The majority of comparative studies evaluate tree models with engineered features against DL models with raw sequences — a comparison that confounds two independent variables. When DL models are given the same engineered features as trees, performance can degrade significantly, as the temporal structure of pre-computed statistics may not be compatible with recurrent processing [4, 19].
 
 Moosbrugger et al. [20] present the most relevant recent comparison: on households with less than 6 months of training data, simple persistence and KNN models outperform LSTM variants; the DL advantage emerges only with abundant data. Their key finding — that simple tree-based models are "worth the effort" for practical deployment — aligns with and motivates our three-paradigm design.
 
@@ -100,6 +100,8 @@ A strict chronological split is applied to prevent data leakage:
 
 The validation set is used exclusively for early stopping in LightGBM/XGBoost and Keras DL models. It is never used to select between model families — that decision is made on the test set results.
 
+Input features are standardised using `StandardScaler` (zero mean, unit variance, fitted on the training set only, then applied to validation and test sets) for all DL models; tree-based models are scale-invariant — decision tree splits are invariant to monotonic feature transformations — and therefore receive unstandardised features directly.
+
 ### 3.3 Feature Engineering (Setup A/B Pathway)
 
 A total of 35 features are constructed from the raw time-series and weather data:
@@ -112,7 +114,7 @@ A total of 35 features are constructed from the raw time-series and weather data
 
 **Meteorological features**: Outdoor temperature, global solar radiation (W/m²), wind speed, and wind direction.
 
-Feature selection applies variance thresholding, correlation filtering (ρ > 0.95 threshold), and LightGBM importance ranking, yielding exactly 35 features for all Drammen models and all Oslo models.
+Feature selection applies three stages: (1) variance thresholding (drop near-constant features); (2) Pearson correlation filtering — for any pair with |ρ| > 0.95, the *later column in the upper-triangle scan* is dropped deterministically (i.e. for a correlated pair (A, B), B is always removed; the result is fully reproducible given identical input data); (3) LightGBM importance ranking retaining the top features up to the configured budget. Features with > 20% missing values are excluded; those with 5–20% missingness that are operationally essential (e.g. solar_Wm2) are retained with a binary missingness flag appended as an additional feature. This pipeline yields exactly 35 features for all Drammen models and all Oslo models.
 
 ### 3.4 Sequence Engineering (Setup C Pathway)
 
@@ -141,7 +143,7 @@ All recurrent models use Adam (lr = 0.0001, clipnorm = 1.0), MSE loss, and early
 
 **TFT (Setup B):** The Temporal Fusion Transformer [15] is the fourth Setup B model. TFT processes tabular temporal features through variable selection networks, multi-head attention, and gating mechanisms — it is architecturally designed for exactly this tabular-temporal input format. The 35 engineered features are provided as `time_varying_known_reals` to the PyTorch-Forecasting `TimeSeriesDataSet`, with fixed encoder length = lookback = 72 to ensure fair window-count comparison with the recurrent models. This is the most challenging Setup B test: if even a purpose-built tabular-temporal transformer cannot match tree-based models, the case for Setup A is definitive.
 
-TFT trained for 20 epochs (~93 minutes on Apple M2 Max with MPS acceleration). The best checkpoint achieved val_loss = 1.6534 at epoch 18 (pytorch-forecasting GroupNormalizer-normalised units). Test-set evaluation required a post-hoc alignment step: pytorch-forecasting's `TimeSeriesDataSet` with `min_prediction_length=1` generates partial-horizon boundary windows at building edges (prediction_length = 1…horizon−1), producing 2,024 rows (0.83%) whose inverse-transform yields NaN after GroupNormalizer denormalisation. After filtering these NaN rows, 241,393 finite predictions remain, matching the ground-truth matrix constructed by `_build_y_true_matrix()` exactly. TFT achieves **MAE = 8.770 kWh, RMSE = 17.581, R² = 0.8646** on the Drammen test set — the best Setup B result by MAE, confirming that even a purpose-built tabular-temporal architecture designed for exactly this input format cannot approach tree-based performance.
+TFT trained for 20 epochs (~93 minutes on Apple M3 Pro with MPS acceleration). The best checkpoint achieved val_loss = 1.6534 at epoch 18 (pytorch-forecasting GroupNormalizer-normalised units). Test-set evaluation required a post-hoc alignment step: pytorch-forecasting's `TimeSeriesDataSet` with `min_prediction_length=1` generates partial-horizon boundary windows at building edges (prediction_length = 1…horizon−1), producing 2,024 rows (0.83%) whose inverse-transform yields NaN after GroupNormalizer denormalisation. After filtering these NaN rows, 241,393 finite predictions remain, matching the ground-truth matrix constructed by `_build_y_true_matrix()` exactly. TFT achieves **MAE = 8.770 kWh, RMSE = 17.581, R² = 0.8646** on the Drammen test set — the best Setup B result by MAE, confirming that even a purpose-built tabular-temporal architecture designed for exactly this input format cannot approach tree-based performance.
 
 **LSTM Setup B yields R² = −0.004** despite access to the same features as LightGBM. This catastrophic failure demonstrates that LSTM cannot extract productive temporal structure from sequences of pre-computed statistical summaries — the features are already "integrated" and removing the short-lag autocorrelation (lag_1h is excluded at H+24) eliminates the primary signal that recurrent processing relies on. CNN-LSTM (R² = 0.877) and GRU (R² = 0.867) perform adequately, but neither approaches Setup A.
 
@@ -150,6 +152,20 @@ TFT trained for 20 epochs (~93 minutes on Apple M2 Max with MPS acceleration). T
 Setup C applies DL architectures to raw energy consumption sequences without tabular feature engineering. PatchTST [7] is the primary Setup C model (patch_length = 16, stride = 8, d_model = 128, n_heads = 8). CNN-LSTM, LSTM, and GRU variants of Setup C are also evaluated.
 
 Setup C represents the "native habitat" for sequence models: they learn temporal representations without relying on domain-engineered features. PatchTST achieves R² = 0.910 — substantially better than Setup B DL models, confirming that raw sequences are the appropriate input format for these architectures. Nevertheless, Setup C remains below Setup A (R² = 0.975).
+
+**Table 7: DL Model Hyperparameters (Setup B and C)**
+
+| Model | Architecture | Key hyperparameters | Training regime |
+|---|---|---|---|
+| LSTM (B) | LSTM(64) → Dropout(0.2) → LSTM(32) → Dense(128) → Dense(24) | Adam lr=0.0001, clipnorm=1.0 | Early stop patience=10, min_delta=1.0, max 20 epochs |
+| GRU (B) | GRU(64) → Dropout(0.2) → GRU(32) → Dense(128) → Dense(24) | Adam lr=0.0001, clipnorm=1.0 | Early stop patience=10, min_delta=1.0, max 20 epochs |
+| CNN-LSTM (B/C) | Conv1D(64,k=3,causal) → MaxPool → LSTM(50) → Dropout(0.2) → LSTM(30) → Dense(128) → Dense(24) | Adam lr=0.0001, clipnorm=1.0 | Early stop patience=10, min_delta=1.0, max 20 epochs |
+| TFT (B) | hidden_size=32, heads=4, dropout=0.1, LSTM encoder + decoder | PyTorch-Forecasting AdamW | Max 20 epochs, ModelCheckpoint on val_loss |
+| PatchTST (C) | patch_len=16, stride=8, d_model=128, n_heads=16 | NeuralForecast defaults | Cross-validation rolling window |
+
+All DL models use MSE training loss and a linear (no activation) output Dense layer — critical for regression tasks where the target can take any positive real value. Hidden Dense layers use ReLU activation. Architecture depth (2 recurrent layers) was selected based on standard practice for hourly time series forecasting at this scale [19] and validated against single-layer variants during preliminary runs; deeper variants did not improve validation MAE within the 20-epoch training budget.
+
+All experiments were conducted on Apple M3 Pro (18 GB unified memory), macOS 15. Tree models used scikit-learn 1.x and LightGBM 4.x on CPU. DL models used TensorFlow 2.x with TensorFlow-Metal GPU acceleration (MPS backend); TFT used PyTorch Lightning 2.x with the MPS accelerator. Training times reported are wall-clock seconds on this hardware and are indicative, not absolute benchmarks.
 
 ### 4.4 Grand Ensemble (A + C)
 
@@ -280,6 +296,8 @@ For completeness, H+1 results are reported. At H+1, lag_1h is available (no orac
 
 The H+1 regime is characterised by near-perfect autocorrelation exploitation. The distinction between Setup A, B, and C largely disappears at H+1 because lag_1h is universally available and trivially informative. The paradigm parity question becomes meaningful only at H+24, where oracle enforcement creates a more challenging representational task.
 
+**SHAP Feature Importance (LightGBM H+24).** SHAP beeswarm analysis across the 44-building Drammen test set identifies a consistent top-3 feature importance ordering: (1) `lag_168h` (same-time-last-week: accounts for ~35% of total SHAP attribution), (2) `lag_24h` (yesterday's same-hour reading: ~20%), and (3) `rolling_mean_168h` (7-day rolling mean: ~12%). Temperature and its interaction terms (`temp × hour_sin`, `temp × hour_cos`) collectively contribute ~15%. This ordering is consistent across all four building categories — the weekly seasonality pattern (lag_168h dominance) is universal across nurseries, schools, offices, and nursing homes, with building category affecting the *magnitude* of SHAP values but not their relative ordering. The high cross-building consistency of feature importance is further evidence that the 35-feature pipeline captures stable physical patterns (occupancy schedules, thermal mass, weather response) rather than dataset-specific artefacts.
+
 ### 5.4 Probabilistic Forecasting: Quantile Evaluation
 
 LightGBM's quantile regression models (P10, P50, P90) produce well-calibrated 80% prediction intervals. Table 5 reports the full quantile evaluation. *Figure 4 (quantile_calibration) visualises the comparison.*
@@ -309,6 +327,8 @@ Sequence models in Setup C (raw sequences) must *learn* to compute the equivalen
 
 The Setup B result is instructive: giving DL models the *same* pre-computed features as trees does not help — it typically hurts. The pre-computed statistics form a set of temporally weakly-structured inputs (lag_24h is not "near" lag_25h in a meaningful sequence sense once they are placed in a 72-timestep tabular feature vector). LSTM's gating mechanism, optimised for learning from raw sequential data, finds little useful structure in sequences of already-summarised statistics.
 
+This finding is consistent with Grinsztajn et al. [*NeurIPS 2022, "Why tree-based models still outperform deep learning on tabular data"*], who identify two structural properties of tabular data that disadvantage DL: (1) non-rotationally-invariant decision boundaries that trees exploit with axis-aligned splits; and (2) uninformative features that confuse gradient-based training but are handled naturally by tree sparsity. Both properties are present in the 35-feature building energy matrix. Crucially, once the temporal structure is *pre-computed into explicit tabular features*, the problem reduces to a standard tabular regression — and the extensive literature on tree models' advantage in this regime applies directly. The DL advantage (learning representations from raw data) is neutralised, not by poor DL implementation, but by good feature engineering.
+
 ### 6.2 The "Menu of Solutions" Framework
 
 The empirical results motivate a deployment-aware framework for choosing models based on operational context:
@@ -316,7 +336,7 @@ The empirical results motivate a deployment-aware framework for choosing models 
 | Use Case | Model | Rationale |
 |----------|-------|-----------|
 | **Real-time stability** (H+1) | Any tree or DL model | All achieve R² > 0.99; lag_1h dominates |
-| **Day-ahead scheduling** (H+24) | LightGBM Setup A | Highest accuracy, 13s training, SHAP-interpretable |
+| **Day-ahead scheduling** (H+24) | LightGBM Setup A | Lowest MAE (4.029 kWh), 13s training, SHAP-interpretable |
 | **Risk-aware demand response** | LightGBM Quantile P10/P90 | Well-calibrated 80% PI; Oslo 80.0% coverage |
 | **Fleet deployment at scale** | LightGBM + unified 35-feature pipeline | Same pipeline, same features, two cities, R²>0.963 |
 

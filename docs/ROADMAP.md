@@ -1,7 +1,7 @@
 # Project Roadmap — Building Energy Load Forecast
 
-**Last updated:** 2026-03-13
-**Status:** Sprint 1 starting
+**Last updated:** 2026-03-15
+**Status:** Sprint 2 starting
 
 This roadmap tracks the full journey from research pipeline to commercialised product.
 Each sprint has a concrete, single deliverable and a definition of done.
@@ -18,7 +18,7 @@ Each sprint has a concrete, single deliverable and a definition of done.
 
 ---
 
-## Sprint 1: Journal Paper [CURRENT]
+## Sprint 1: Journal Paper [COMPLETE ✓ — 2026-03-15]
 **Goal:** Submit to Applied Energy or Energy and Buildings
 
 **Foundation:** AICS '25 12-page paper (Springer LNCS, submitted Dec 2025)
@@ -39,7 +39,7 @@ Each sprint has a concrete, single deliverable and a definition of done.
 
 ---
 
-## Sprint 2: Horizon Sensitivity Analysis
+## Sprint 2: Horizon Sensitivity Analysis [CURRENT]
 **Goal:** Produce `outputs/results/horizon_metrics.csv` with model performance from H+1 to H+48
 
 **What this adds:**
@@ -184,7 +184,7 @@ Simpler heuristic: time-of-day patterns + known appliance signatures from CER da
 
 | Milestone | Deliverable | Status | Sessions |
 |-----------|------------|--------|----------|
-| Sprint 1 | Journal paper submitted | IN PROGRESS | 4-5 |
+| Sprint 1 | Journal paper submitted | COMPLETE ✓ (draft done; submission pending final review) | 5 |
 | Sprint 2 | Horizon sensitivity results | PENDING | 2-3 |
 | Sprint 3 | Irish (CER) dataset results | PENDING | 3-4 |
 | Sprint 4 | DFL ControlEngine | PENDING | 4-5 |
