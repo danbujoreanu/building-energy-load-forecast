@@ -53,8 +53,9 @@ Each sprint has a concrete, single deliverable and a definition of done.
 Key finding: LightGBM degrades 48% (H+1→H+48); Ridge degrades 96%. Tree advantage widens with horizon.
 LightGBM R² = 0.967 at H+48 (exceeds DoD threshold of 0.90).
 
-**Note:** LSTM/PatchTST sweep across all horizons was optional (`--include-dl`, ~3h). Not run — the
-cross-paradigm story is already complete from the H+24 DM test (LightGBM vs PatchTST DM=−12.17***).
+**LSTM degradation sweep** (`--include-dl`): Running 2026-03-15 (task bc448yqmi). Adds LSTM row per
+horizon to `horizon_metrics.csv`. Expected ~45 min. PatchTST multi-horizon deferred — raw sequence
+rebuilds per horizon would take ~3h; cross-paradigm story already complete from H+24 DM (−12.17***).
 
 **New code:** `scripts/run_horizon_sweep.py` (checkpoint-aware, `--resume` flag)
 **Journal paper:** Section 5.5 + Table 8 added.
@@ -139,6 +140,40 @@ Simpler heuristic: time-of-day patterns + known appliance signatures from CER da
 - Morning brief CLI: `python deployment/live_inference.py --dry-run` (already works)
 
 **Estimated sessions:** 2-3
+
+---
+
+## Production Model Architecture — Decisions (2026-03-15)
+
+These decisions are fixed for Phase 7+ deployment. Record here to avoid revisiting.
+
+### Which model runs in production?
+**LightGBM always.** Not the stacking ensemble (marginal +0.5% R² at 10× complexity). Not DL
+(PatchTST 7.0 kWh MAE vs LightGBM 4.0 kWh at H+24, plus no GPU in Pi/cloud tier).
+
+### Inference cadence
+| Horizon | Frequency | Trigger |
+|---------|-----------|---------|
+| H+24 | Daily at 16:00 | SEMO day-ahead price publication |
+| H+1 | Hourly | Real-time grid stability / immediate recommendations |
+
+### Retraining
+- **Cadence:** Monthly, rolling 24-month window (NOT expanding — prevents pre-heat-pump patterns
+  polluting post-heat-pump model)
+- **Concept drift trigger:** 7-day rolling MAE > 1.5× training MAE → immediate retrain
+- **Cold start:** Days 1-30 = Irish residential population-average model. Day 31+ = household-specific.
+- **User life events:** Manual retrain trigger in app for: got solar, got EV, moved in
+
+### Feedback loop
+Do NOT use user actions (accepted/dismissed recommendations) as direct training signal — no
+counterfactual is observable. Instead: track compliance rate + bill savings as outcome metrics.
+Retrain on observed consumption only (supervised signal is always real metered data).
+
+### LLM Energy Advisor (Phase 2)
+- Model: `claude-haiku-4-5` (~€0.04/user/month at 20 queries)
+- Context injection: 30d consumption stats + current tariff + today's forecast → system prompt
+- No raw time-series sent to API (privacy + cost)
+- Full spec: `docs/APP_PRODUCT_SPEC.md`
 
 ---
 

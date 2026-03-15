@@ -1993,3 +1993,98 @@ Journal paper: Section 5.5 + Table 8 added.
 | Sprint 2 (horizon sweep) | COMPLETE ✓ |
 | Cross-paradigm DM test | LightGBM vs PatchTST DM=−12.17*** ✓ |
 | Sprint 3 | Oslo full paradigm parity — CURRENT |
+
+---
+
+## Session 29 — 2026-03-15 (Product Direction + Production Architecture)
+
+### Objectives
+- Log all activation function decisions, DL sweep plan, CSO data, product/commercial decisions
+- Update documentation across all roadmap files
+- Begin Phase 7 Docker deployment
+
+### Key Decisions Logged
+
+#### Sprint 2 DL Sweep
+- **LSTM Setup B** running across H+1/6/12/24/48 via `run_horizon_sweep.py --include-dl --resume`
+- **PatchTST multi-horizon sweep deferred**: requires raw sequence rebuilds per horizon (~3h), marginal
+  journal value beyond H+24 DM result already obtained. Revisit if reviewer asks.
+- Rationale: LSTM degradation curve is the right addition — shows Setup B tabular-DL collapses faster
+  than LightGBM as horizon grows, complementing Ridge degradation narrative.
+
+#### Production Model Architecture
+- **Model:** LightGBM **always** in production. No Ensemble (marginal +0.5% R² for 10× complexity),
+  no DL (7.0 kWh MAE vs 4.0 kWh for LightGBM at H+24).
+- **Cadence:** H+24 once daily at 16:00 (after SEMO day-ahead prices published). H+1 hourly for
+  real-time use cases (grid stability / live recommendations).
+- **Retraining:** Monthly batch retrain on rolling 24-month window (NOT expanding window).
+- **Cold start:** 30 days on population-average model → household-specific model after day 30.
+- **Concept drift trigger:** Rolling 7-day MAE > 1.5× training MAE → auto-retrain.
+- **User actions as feedback:** Do NOT use as direct training signal (no counterfactual). Track
+  compliance rate + bill savings as outcome metrics instead.
+- **Sliding window rationale:** Rolling 24-month prevents old heating patterns (pre-heat-pump)
+  contaminating post-heat-pump model. Critical for Irish market with rapid heat pump adoption.
+
+#### CSO Irish Market Data (2024)
+- 10% of Irish households actively shift consumption based on tariff — the gap the app closes
+- 33% on TOU/smart tariffs; 24% switched tariff in past year — engaged, not passive market
+- Peak demand shifters cluster in 40-49 age group (16%) — primary buyer demographic
+- SEAI: trusted independent advisors are the key adoption driver → app tone must be impartial
+
+#### Heat Pump Commercial Framing
+- Strongest pitch: "We make heat pump grants actually work in practice"
+- Heat pump running at peak tariff = more expensive than gas. With off-peak scheduling = 40% cheaper.
+- Ireland: 400k heat pump target by 2030. SEAI grant up to €6,500. Our device is the optimisation layer.
+- Government / SEAI partnership angle is genuine — Climate Action Plan alignment confirmed.
+- Viotas does demand flexibility for LEAP customers (B2B), not consumer hardware — no overlap.
+
+#### LLM Energy Advisor
+- Added to `docs/APP_PRODUCT_SPEC.md` as Phase 2 feature
+- Model: `claude-haiku-4-5` (~€0.04/user/month at 20 queries, viable within €3.99 sub)
+- Architecture: Pre-computed context (30d stats, tariff, today's forecast) injected as system prompt.
+  No raw consumption time-series sent to API — privacy safe, cost-controlled.
+- Use cases: "Why is my bill higher?", "Should I switch tariff?", "Is solar worth it?"
+
+#### Hierarchical BART (PhD Paper Path)
+- Reference: pymc-bart package, Bruna (2023) NUI Maynooth
+- Contribution: Partial pooling across 44 Drammen buildings — sparse buildings (new schools, <6mo data)
+  borrow strength from similar buildings. Convergent to per-building model as data accumulates.
+- Novel for domain: no published hierarchical BART in building energy portfolio forecasting
+- Natural PhD Chapter 3 (after journal paper Chapter 2)
+
+#### PhD Intentions
+- Full-time preferred (self-funded if necessary, would prefer funded)
+- Paul Cuffe (UCD EE) can be re-approached for full-time (previously not supportive of part-time)
+- Better fits for this research direction: Aoife Foley (DCU/Queen's Belfast), Kazempour (DTU),
+  Marcus Keane (NUI Galway), Brian Ó Gallachóir (UCC Energy Policy)
+- Two published papers + this codebase = strong PhD proposal. Journal paper is seed paper.
+- Part-time at research institute (NCI/DCU as affiliated researcher) while building company = viable path
+
+#### Product Priority (explicit, recorded)
+- User: commercialisation over additional papers
+- Papers will follow once product development progresses — this is a deliberate sequencing decision
+- The research pipeline IS the product backend — no rewrite needed for deployment
+
+### Docs Updated
+- `docs/APP_PRODUCT_SPEC.md` — CREATED: full product spec (8 Phase 1 features, 5 Phase 2 features)
+- `ROADMAP.md` — Phase 9 product feature roadmap section added
+- `MEMORY.md` — PhD, product priority, and Irish market context appended
+
+### Horizon Sweep Results (sklearn, complete)
+| Model | H+1 | H+6 | H+12 | H+24 | H+48 | Degradation H+1→H+48 |
+|-------|-----|-----|------|------|------|----------------------|
+| LightGBM | 3.188 | 3.584 | 3.799 | 4.057 | 4.724 | +48% |
+| XGBoost | 3.339 | 3.678 | 3.906 | 4.182 | 4.824 | +45% |
+| Ridge | 4.301 | 6.306 | 6.883 | 7.487 | 8.447 | +96% |
+
+Key finding: LightGBM degrades half as fast as Ridge — paradigm advantage widens with horizon.
+
+### LSTM sweep
+- Running in background (task bc448yqmi) — adds LSTM row per horizon to horizon_metrics.csv
+- Expected: ~45 min total (5 horizons × ~9 min/LSTM train on MPS)
+
+### Next Implementation (Session 29 → 30)
+1. LSTM results → update horizon_metrics.csv + Section 5.5 of journal paper
+2. Sprint 3 Oslo full paradigm parity (A+C, per-building breakdown)
+3. Phase 7: Docker + AWS App Runner deployment (started this session)
+

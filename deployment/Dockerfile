@@ -12,7 +12,12 @@ WORKDIR /app
 # Install system dependencies (required for lightgbm compilation if no binary exists)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Health check — App Runner and ECS both use this
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
 
 # Copy the requirements separately to leverage Docker cache
 # We recreate a lightweight requirements file ignoring heavy DL frameworks
@@ -23,10 +28,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application source and models
 # (In production, models might be downloaded from S3 or a model registry rather than baked)
+COPY deployment/__init__.py ./deployment/
 COPY deployment/app.py ./deployment/
+COPY deployment/connectors.py ./deployment/
+COPY deployment/live_inference.py ./deployment/
 COPY src/ ./src/
 COPY config/ ./config/
-# We copy outputs/models to bundle the .joblib files. 
+# Bundle .joblib model files (~20 MB total — no DL frameworks needed for inference)
 COPY outputs/models/ ./outputs/models/
 
 # Expose port for FastAPI
