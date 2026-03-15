@@ -52,23 +52,54 @@ ReLU was chosen over tanh for the projection Dense layers for two reasons:
    patterns, sparse coding is efficient — most units specialise in specific
    hour/building combinations and stay silent otherwise.
 
-### Tanh vs ReLU on Apple Silicon (MPS)
+### Tanh vs ReLU — GPU Optimization Reality (cuDNN / Apple MPS)
 
-The root ROADMAP.md notes an empirical finding: *"Tanh activation triggers hardware
-acceleration on Apple Silicon (MPS), achieving ~10x speedup over ReLU."* This was
-observed during early experimentation. If this holds, switching the Dense hidden
-layers to tanh could dramatically reduce training time on M-series Macs at the cost
-of potentially slightly slower convergence.
+This is the key finding from the Antigravity session (documented in SESSION_LOG Mar 5,
+and the PDF "Activation types for DL models_content.pdf"):
 
-**This has not been applied to the current pipeline.** The current setup (ReLU in
-Dense hidden layers) produces final results used in the journal paper and is the
-baseline. If Sprint 2 horizon sweep re-training is needed, testing tanh for hidden
-Dense layers is a low-risk change worth benchmarking — particularly for the
-CNN-LSTM which has the most Dense hidden compute.
+**tanh is significantly faster than ReLU for LSTM/GRU recurrent layers on GPU**,
+despite ReLU being simpler mathematically. The reason is hardware-specific:
 
-**Recommendation**: Benchmark tanh in Dense hidden layers for Setup B during Sprint 2
-re-trains. If training time drops significantly with no MAE regression, adopt it and
-document as a pipeline improvement in the journal paper's reproducibility section.
+- **cuDNN (NVIDIA)**: NVIDIA's cuDNN library provides fused kernels specifically
+  optimised for the standard LSTM cell using tanh. Switching to ReLU forces
+  a generic, unfused implementation that is orders of magnitude slower.
+- **MPS (Apple Silicon)**: The same principle applies — Metal has optimised LSTM
+  kernels that assume tanh. The root ROADMAP note ("~10x speedup") was an
+  empirical observation on M-series Mac hardware.
+
+**Our current pipeline is already correct.** Keras LSTM and GRU use tanh for
+recurrent kernels *by default* — this is the Keras default, not a custom setting.
+We never overrode this. The ReLU in `deep_learning.py` is only in the *Dense
+projection layers*, where cuDNN optimisation does not apply (Dense layers are not
+fused LSTM cells). For Dense layers, ReLU is the right choice (no vanishing gradient,
+sparse representation).
+
+**Why this matters for commercialisation**: In a production system doing hourly
+retraining (rolling 30-day window), LSTM/GRU training time directly affects
+operational cost. Using the cuDNN/MPS-optimised tanh path (which is the default)
+is essential. Accidentally adding `activation='relu'` to the LSTM layer itself
+(not the Dense projection) would silently fall back to a slow generic path.
+
+**Summary of correct choices:**
+
+| Component | Activation | Why |
+|---|---|---|
+| LSTM/GRU recurrent kernel | tanh (Keras default — DO NOT OVERRIDE) | cuDNN/MPS kernel fusion |
+| LSTM/GRU gates | sigmoid (Keras default — DO NOT OVERRIDE) | Standard gate semantics |
+| Dense hidden projection | ReLU | No fused-kernel benefit; ReLU is faster for MLP layers |
+| Conv1D (CNN-LSTM) | ReLU | Standard for convolutional feature extraction |
+| Output Dense(horizon) | linear | Regression: no clipping |
+
+**Should we switch to Sigmoid for Dense layers?** No — Antigravity confirmed:
+sigmoid is not zero-centred (output ∈ (0,1)), makes it susceptible to vanishing
+gradients in hidden layers, and offers no speed advantage over tanh for Dense
+projections. Sigmoid belongs only in gates (which Keras already handles internally).
+
+**What about GELU/Swish in Dense layers?** GELU is the standard for Transformer
+FFN blocks (PatchTST already uses it). For our LSTM/GRU Dense projections, the
+benefit would be marginal — GELU is compute-heavier than ReLU and the
+performance difference in projection layers is small. Worthwhile if doing a Sprint 2
+ablation study; not a priority change.
 
 ---
 
