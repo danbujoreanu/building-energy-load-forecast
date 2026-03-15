@@ -1,0 +1,40 @@
+# AWS App Runner configuration
+# Docs: https://docs.aws.amazon.com/apprunner/latest/dg/manage-configure-automatic.html
+#
+# Deploy with:
+#   aws apprunner create-service --cli-input-json file://apprunner-create.json
+# Or via AWS Console → App Runner → Create Service → Source: ECR
+#
+# This file configures the SERVICE RUNTIME — build config is in the Dockerfile.
+
+version: 1.0
+runtime: DOCKER
+
+# App Runner will use the Dockerfile at the repo root context.
+# Build the image first and push to ECR, then reference it here.
+# See Makefile targets: make docker-build, make ecr-push, make apprunner-deploy
+
+build:
+  commands:
+    build:
+      - echo "Build handled by Dockerfile — see deployment/Dockerfile"
+      - echo "Push to ECR before deploying: make ecr-push"
+
+run:
+  # Command to start the application inside the container
+  # (matches CMD in Dockerfile)
+  command: uvicorn deployment.app:app --host 0.0.0.0 --port 8080
+  network:
+    port: 8080
+    env: PORT
+
+  # Environment variables
+  # Set LOG_LEVEL, ANTHROPIC_API_KEY (LLM advisor Phase 2) via App Runner console
+  # Never commit API keys here — use App Runner environment variable configuration
+  env:
+    - name: LOG_LEVEL
+      value: INFO
+    - name: PYTHONUNBUFFERED
+      value: "1"
+    - name: PYTHONPATH
+      value: /app/src

@@ -1,0 +1,37 @@
+# Data — never bake raw data into the image (use S3 or mounted volume)
+data/
+outputs/predictions/
+outputs/figures/
+outputs/results/
+
+# Models ARE baked in (small .joblib files, ~5-20 MB each)
+# outputs/models/ is intentionally NOT excluded
+
+# Dev artefacts
+notebooks/
+checkpoints/
+lightning_logs/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# Git / IDE
+.git/
+.gitignore
+.github/
+.vscode/
+.idea/
+
+# Documentation (not needed at runtime)
+docs/
+*.md
+
+# Large ML frameworks — not needed in inference container
+# (TensorFlow, PyTorch, pytorch-forecasting are in root requirements.txt
+#  but NOT in deployment/requirements.txt — they are correctly excluded)
