@@ -81,7 +81,7 @@ Use this as a checklist when writing/revising the journal paper draft.
 |---|---|---|
 | "accuracy" used for regression | Replace all occurrences of "accuracy" with "prediction error", "forecast error", or metric-specific language (MAE, RMSE, R²). | **Needs find-and-replace** |
 | DL hyperparameter justification | Add Table 3: hyperparameters for LSTM/GRU/CNN-LSTM/TFT/PatchTST with brief justification column. See below. | **Needs table** |
-| DM significance tests | LightGBM vs Ridge ✓, LightGBM vs XGBoost ✓. Cross-paradigm (vs PatchTST, vs CNN-LSTM_B) — pending saved predictions. | Partially done |
+| DM significance tests | LightGBM vs Ridge ✓ (DM=−33.52***), LightGBM vs XGBoost ✓ (DM=−5.25***), LightGBM vs PatchTST ✓ (DM=−12.17***). CNN-LSTM_B omitted (negative control by design). | ✓ Done |
 
 ---
 
@@ -106,7 +106,7 @@ Use this as a checklist when writing/revising the journal paper draft.
 3. Section 3.3: Correlation tie-breaking + missingness threshold documented
 4. Hardware spec paragraph (replace "exact hardware not critical")
 5. "accuracy" → "prediction error" find-and-replace
-6. DM cross-paradigm tests (LightGBM vs PatchTST, LightGBM vs CNN-LSTM_B)
+6. ~~DM cross-paradigm tests~~ — LightGBM vs PatchTST: DM=−12.17, p<0.001 *** ✓ Done
 7. BESS defined in abbreviations
 
 **Medium priority (strengthens submission):**

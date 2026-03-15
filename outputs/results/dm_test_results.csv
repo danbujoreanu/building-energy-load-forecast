@@ -1,4 +1,5 @@
 comparison,dm_stat,p_value,significance
+"LightGBM (Setup A) vs PatchTST (Setup C, raw sequences)",-12.1676,0.0,***
 "LightGBM (Setup A) vs CNN-LSTM (Setup B, tabular DL)",,,NOT RUN — missing prediction files
 LightGBM (Setup A) vs Ridge (Setup A),-33.5161,0.0,***
 LightGBM (Setup A) vs XGBoost (Setup A),-5.2504,0.0,***
