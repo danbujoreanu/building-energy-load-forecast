@@ -72,7 +72,7 @@ live-demo:
 docker-build:
 	docker build -f deployment/Dockerfile -t $(IMAGE_NAME):$(IMAGE_TAG) .
 	@echo "Built $(IMAGE_NAME):$(IMAGE_TAG)"
-	@echo "Image size: $$(docker image inspect $(IMAGE_NAME):$(IMAGE_TAG) --format='{{.Size}}' | awk '{printf \"%.0f MB\", $$1/1024/1024}')"
+	@docker image inspect $(IMAGE_NAME):$(IMAGE_TAG) --format='Image size: {{.Size}} bytes' 2>/dev/null || true
 
 docker-run:
 	docker run -d \
