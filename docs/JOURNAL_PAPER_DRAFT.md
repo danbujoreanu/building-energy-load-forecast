@@ -313,6 +313,22 @@ The Oslo coverage of exactly 80.0% — achieved on an entirely unseen city with 
 
 Per-building coverage rates: Drammen min = 0.669, max = 0.885, std = 0.037; Oslo min = 0.721, max = 0.862, std = 0.027. The lower standard deviation in Oslo (0.027 vs 0.037) suggests that the larger, more homogeneous Oslo building fleet benefits from more consistent calibration.
 
+### 5.5 Horizon Sensitivity Analysis
+
+To characterise how forecast performance degrades as the prediction horizon extends, LightGBM, XGBoost, and Ridge are evaluated at five horizons: H+1, H+6, H+12, H+24, and H+48. At each horizon, features are rebuilt with the causal lag constraint (lags ≥ H) applied; feature selection is re-run independently for each horizon. This ensures no oracle leakage regardless of horizon.
+
+**Table 8: MAE (kWh) by Model and Forecast Horizon — Drammen Test Set**
+
+| Model | H+1 | H+6 | H+12 | H+24 | H+48 |
+|-------|-----|-----|------|------|------|
+| LightGBM | 3.188 | 3.584 | 3.799 | 4.057 | 4.724 |
+| XGBoost | 3.339 | 3.678 | 3.906 | 4.182 | 4.824 |
+| Ridge | 4.301 | 6.306 | 6.883 | 7.487 | 8.447 |
+
+**Degradation profile.** LightGBM degrades gracefully across the full horizon range: MAE increases 48% from H+1 (3.188 kWh) to H+48 (4.724 kWh). XGBoost follows closely (+44%). Ridge degrades substantially more (+96%), indicating that linear models cannot compensate for the loss of short-lag features through the remaining predictors — tree models exploit the non-linear interactions between medium-lag and rolling features that Ridge cannot capture.
+
+The relative advantage of LightGBM over Ridge *widens* with horizon: at H+1 the margin is 35% (3.188 vs 4.301 kWh); at H+48 it is 44% (4.724 vs 8.447 kWh). This monotonic widening confirms that tree-based non-linearity becomes increasingly important as the forecast horizon removes short-range autocorrelation features. The degradation analysis also validates the "Menu of Solutions" operational framing: H+1 models can still achieve ~3.2 kWh MAE for real-time stability applications, while H+24 models (4.0 kWh) remain sufficient for day-ahead planning. H+48 performance (4.7 kWh) would support 48-hour pre-scheduling but with increasing uncertainty.
+
 ---
 
 ## 6. Discussion
