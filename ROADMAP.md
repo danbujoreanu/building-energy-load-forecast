@@ -529,6 +529,32 @@ DOI: [10.60609/2hvr-wc82](https://data.sintef.no/product/dp-679b0640-834e-46bd-b
 
 ---
 
+## Phase 9 — Product Feature Roadmap 🔴
+*Full spec: `docs/APP_PRODUCT_SPEC.md`*
+
+### Phase 1 Features (MVP — launch-ready)
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Day-Ahead Load Forecast (H+24, P10/P50/P90) | ✅ Model ready | LightGBM, 4.0 kWh MAE |
+| Price-aware scheduling (SEMO day-ahead prices) | 🟡 SEMOConnector stub | Needs ENTSO-E token |
+| Solar generation forecast | ✅ OpenMeteoConnector | direct_radiation endpoint |
+| Push notifications / Morning Brief | ✅ live_inference.py | dry-run safe |
+| Energy plan recommendation | 🔵 Not started | Tariff DB + compatibility match |
+| Heat pump / EV optimisation logic | 🟡 ControlEngine rules | Needs MyEnergi hardware |
+| Weekly/Monthly insights dashboard | 🔵 Not started | Retrospective analytics |
+| Mobile app (PWA or React Native) | 🔵 Not started | |
+
+### Phase 2 Features (Growth)
+| Feature | Status | Notes |
+|---------|--------|-------|
+| LLM Energy Advisor (Claude API) | 🔵 Not started | claude-haiku-4-5, ~€0.04/user/month |
+| Adaptive household model (monthly retrain) | 🔵 Not started | Rolling 24-month window |
+| Concept drift detection (MAE monitoring) | 🔵 Not started | Phase 3D rolling MAE |
+| Solar/EV/heat pump feasibility calculator | 🔵 Not started | Payback period from load profile |
+| SEAI grant integration / signposting | 🔵 Not started | Partnership opportunity |
+
+---
+
 ## Phase 5 — Deferred / Future Research 🎓
 *These items (e.g., Shaun Sweeney's PhD Theories) are parked to maintain focus on the MSc-to-Journal comparison.*
 
