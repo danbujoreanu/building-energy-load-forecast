@@ -1,7 +1,7 @@
 # Project Roadmap — Building Energy Load Forecast
 
-**Last updated:** 2026-03-15
-**Status:** Sprint 3 starting
+**Last updated:** 2026-03-15 (Session 30)
+**Status:** Sprint 3 in progress / Phase 7 deployment starting
 
 This roadmap tracks the full journey from research pipeline to commercialised product.
 Each sprint has a concrete, single deliverable and a definition of done.
@@ -53,16 +53,23 @@ Each sprint has a concrete, single deliverable and a definition of done.
 Key finding: LightGBM degrades 48% (H+1→H+48); Ridge degrades 96%. Tree advantage widens with horizon.
 LightGBM R² = 0.967 at H+48 (exceeds DoD threshold of 0.90).
 
-**LSTM degradation sweep** (`--include-dl`): Running 2026-03-15 (task bc448yqmi). Adds LSTM row per
-horizon to `horizon_metrics.csv`. Expected ~45 min. PatchTST multi-horizon deferred — raw sequence
-rebuilds per horizon would take ~3h; cross-paradigm story already complete from H+24 DM (−12.17***).
+**LSTM degradation sweep** (`--include-dl`): Running 2026-03-15 (task b6nbk2ptx, re-kicked after task
+file cleanup). Adds LSTM row per horizon to `horizon_metrics.csv`. PatchTST multi-horizon deferred —
+raw sequence rebuilds per horizon ~3h; cross-paradigm story complete from H+24 DM (−12.17***).
 
 **New code:** `scripts/run_horizon_sweep.py` (checkpoint-aware, `--resume` flag)
 **Journal paper:** Section 5.5 + Table 8 added.
 
 ---
 
-## Sprint 3: Oslo Cross-City Generalisation (Deep Dive) [CURRENT]
+## Sprint 3: Oslo Cross-City Generalisation (Deep Dive) [IN PROGRESS — 2026-03-15]
+
+**Bug fixed (Session 30):** All pipeline scripts shared `data/processed/` — running oslo pipeline
+overwrote drammen processed data. Fixed: `proc_dir = data/processed/{city}/` in `run_pipeline.py`,
+`run_raw_dl.py`, `run_horizon_sweep.py`. Oslo data migrated to `data/processed/oslo/`.
+Oslo PatchTST re-running with correct data path (task bmuhm6q9o).
+
+
 **Goal:** Extend Oslo from Setup A-only to full paradigm parity + per-building breakdown
 
 **Background:** Phase 3A ran Setup A on Oslo (LightGBM R²=0.963). Sprint 3 extends:

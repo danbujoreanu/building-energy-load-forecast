@@ -108,7 +108,8 @@ def _build_features_for_horizon(cfg: dict, horizon: int) -> tuple:
     from energy_forecast.data import make_splits
     from energy_forecast.features import build_temporal_features, select_features
 
-    proc_dir = Path(cfg["paths"]["processed"]) / "splits"
+    city     = cfg.get("city", "drammen")
+    proc_dir = Path(cfg["paths"]["processed"]) / city / "splits"
 
     if horizon == 24 and (proc_dir / "X_train_fs.parquet").exists():
         # Fast path: reuse existing H+24 processed splits
@@ -123,7 +124,7 @@ def _build_features_for_horizon(cfg: dict, horizon: int) -> tuple:
 
     # General path: rebuild features for this specific horizon
     logger.info("H+%d: rebuilding features with horizon-specific lag filter", horizon)
-    model_ready_path = Path(cfg["paths"]["processed"]) / "model_ready.parquet"
+    model_ready_path = Path(cfg["paths"]["processed"]) / city / "model_ready.parquet"
     if not model_ready_path.exists():
         raise FileNotFoundError(
             f"model_ready.parquet not found at {model_ready_path}. "

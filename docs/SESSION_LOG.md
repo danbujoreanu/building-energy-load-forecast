@@ -2088,3 +2088,94 @@ Key finding: LightGBM degrades half as fast as Ridge — paradigm advantage wide
 2. Sprint 3 Oslo full paradigm parity (A+C, per-building breakdown)
 3. Phase 7: Docker + AWS App Runner deployment (started this session)
 
+
+---
+
+## Session 30 — 2026-03-15
+
+### Compute completed this session
+- Sprint 2 sklearn horizon sweep COMPLETE: LightGBM/XGBoost/Ridge at H+1/6/12/24/48 → `outputs/results/horizon_metrics.csv` (15 rows)
+- Oslo Setup A COMPLETE (b9ji82tz1): all sklearn models on Oslo dataset — results match `oslo_final_metrics.csv`
+- Oslo Setup C PatchTST (bh1ml0y67): COMPLETED BUT USED WRONG DATA — bug found and fixed (see below)
+- Drammen PatchTST (--save-predictions): completed, errors saved to `outputs/predictions/PatchTST_SetupC_h24_test_errors.npy`
+- DM significance tests: LightGBM vs PatchTST DM=−12.17***, vs XGBoost DM=−5.25***, vs Ridge DM=−33.52***
+
+### Sprint 2 Horizon Sweep Results (Drammen, MAE kWh)
+| Model | H+1 | H+6 | H+12 | H+24 | H+48 | Degradation |
+|-------|-----|-----|------|------|------|-------------|
+| LightGBM | 3.188 | 3.584 | 3.799 | 4.057 | 4.724 | +48% |
+| XGBoost | 3.339 | 3.678 | 3.906 | 4.182 | 4.824 | +45% |
+| Ridge | 4.301 | 6.306 | 6.883 | 7.487 | 8.447 | +96% |
+| LSTM | pending (bc448yqmi → b6nbk2ptx) | — |
+
+Key finding: LightGBM degrades 48% H+1→H+48; Ridge degrades 96%. LightGBM is more horizon-robust.
+
+### Bug Fixed: shared processed data directory
+- **Problem**: `run_pipeline.py`, `run_raw_dl.py`, `run_horizon_sweep.py` all used `data/processed/` as a single shared path. Running Oslo pipeline OVERWROTE Drammen processed data. Oslo PatchTST run (bh1ml0y67) therefore used Drammen model_ready.parquet, producing identical Drammen results (MAE=6.955, R²=0.9102) — not Oslo results.
+- **Fix**: Added `/city` subdir to all three scripts' `proc_dir`:
+  - `data/processed/drammen/` for Drammen pipeline
+  - `data/processed/oslo/` for Oslo pipeline
+- **Migration**: Verified `model_ready.parquet` = Oslo (48 buildings, 2012-2024). Copied to `data/processed/oslo/model_ready.parquet` + `data/processed/oslo/splits/`
+- **Re-runs**: Oslo PatchTST re-kicked (bmuhm6q9o); LSTM sweep re-kicked (b6nbk2ptx) with `--resume`
+
+### Documents created/updated this session
+- `docs/APP_PRODUCT_SPEC.md` — full product specification (8 Phase 1 features, 5 Phase 2)
+- `docs/SMART_METER_ACCESS.md` — regulatory, privacy, P1 port, GDPR, go-to-market (created this session)
+- `ROADMAP.md` (root) — added Phase 9 product feature table
+- `scripts/run_pipeline.py` — city-specific proc_dir fix (3 locations)
+- `scripts/run_raw_dl.py` — city-specific proc_dir fix
+- `scripts/run_horizon_sweep.py` — city-specific proc_dir fix
+
+### Key decisions locked this session
+
+**Production model architecture:**
+- Inference model: LightGBM ONLY. Never ensemble (marginal gain, high complexity). Never DL.
+- H+24 cadence: once daily at 16:00 (after SEMO day-ahead prices published)
+- H+1 cadence: hourly (real-time stability)
+- Retraining: monthly, rolling 24-month window
+- Drift trigger: rolling 7d MAE > 1.5× training MAE → auto-retrain
+- Cold start: 30 days population-average → household-specific
+- Feedback signal: observed consumption ONLY — do not use user action compliance as training signal
+- Sliding window: rolling 24-month (not expanding) — prevents stale pre-event patterns (pre-heat-pump etc.) polluting current model
+
+**DL sweep scope:**
+- LSTM Setup B across H+1/6/12/24/48: running (b6nbk2ptx). Adds degradation curve narrative.
+- PatchTST multi-horizon: NOT running. Requires separate raw sequence rebuild per horizon (~3h, marginal journal value). Already have H+24 DM result (−12.17***) which tells the full story.
+- CNN-LSTM/GRU/TFT multi-horizon: NOT running. Setup B is negative control — one DL model (LSTM) is sufficient for the degradation narrative.
+
+**PhD direction (serious consideration):**
+- Full-time preferred; open to self-funded
+- Paul Cuffe (UCD EE): re-contact viable for full-time (was against part-time)
+- Better fit supervisors for this research: Aoife Foley (DCU/Queen's Belfast), Brian Ó Gallachóir (UCC), Kazempour group (DTU)
+- Strategy: submit journal paper → 2 more papers → strong PhD proposal
+
+**Product priority over papers:**
+- Commercialisation is the priority. Papers follow.
+- Pipeline IS the product backend — no rewrite needed.
+- Phase 7 (Docker + AWS) is the next implementation milestone.
+
+**LLM energy advisor confirmed for roadmap:**
+- Phase 2 feature; Claude API (claude-haiku-4-5); ~€0.04/user/month
+- Only pre-computed statistics sent to API (no raw consumption data — privacy)
+
+### Smart meter data access — key decisions
+- P1 port (local, on customer's side) = no utility permission needed
+- Ireland's ESB Networks has no live third-party API yet (CRU framework expected 2026+)
+- MVP approach: manual CSV upload from ESB Networks My Account
+- Phase 2: P1 port hardware adapter (customer self-installs, <5 min)
+- GDPR lawful basis: contractual necessity; data residency: AWS eu-west-1 (Ireland)
+- Do NOT send raw consumption data to any external API — only pre-computed statistics
+- Smart meter data at 30-min resolution reveals occupancy/security risk if breached — document in privacy policy
+- Full analysis: `docs/SMART_METER_ACCESS.md`
+
+### Pipeline state after Session 30
+- Sprint 2: sklearn COMPLETE; LSTM pending (b6nbk2ptx)
+- Sprint 3: Oslo Setup A COMPLETE; Oslo PatchTST re-run pending (bmuhm6q9o)
+- Phase 7: Docker + AWS App Runner — next session priority
+- Journal paper: submission-ready pending LSTM row in Table 5.5
+
+### Next session priorities
+1. Check LSTM sweep results → update journal paper Section 5.5
+2. Oslo PatchTST result → add to oslo_final_metrics.csv + journal paper
+3. Phase 7: Docker build + AWS App Runner deploy
+4. Consider MVP web prototype for early user validation (CSV upload → insights)
