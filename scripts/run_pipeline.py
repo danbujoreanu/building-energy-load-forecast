@@ -129,7 +129,8 @@ def _run_eda(cfg: dict) -> None:
 
     city      = cfg["city"]
     raw_dir   = Path(cfg["paths"]["raw_data"][city])
-    proc_dir  = Path(cfg["paths"]["processed"])
+    # City-specific processed dir prevents cross-city data clobbering
+    proc_dir  = Path(cfg["paths"]["processed"]) / city
 
     logger.info("── Stage 1: EDA (%s) ──────────────────────────", city.upper())
     metadata, timeseries = load_city_data(city, raw_dir, cfg)
@@ -165,7 +166,7 @@ def _run_features(cfg: dict) -> None:
     from energy_forecast.data import make_splits
     from energy_forecast.features import build_temporal_features, select_features
 
-    proc_dir = Path(cfg["paths"]["processed"])
+    proc_dir = Path(cfg["paths"]["processed"]) / cfg["city"]
     target   = cfg["data"]["target_column"]
 
     logger.info("── Stage 2: Feature Engineering ──────────────────")
@@ -209,7 +210,7 @@ def _run_training(cfg: dict, skip_slow: bool = False, save_preds: bool = False) 
     from energy_forecast.models.sklearn_models import build_sklearn_models
     from energy_forecast.visualization import plot_model_comparison
 
-    proc_dir  = Path(cfg["paths"]["processed"]) / "splits"
+    proc_dir  = Path(cfg["paths"]["processed"]) / cfg["city"] / "splits"
     res_dir   = Path(cfg["paths"]["outputs"]["results"])
     fig_dir   = Path(cfg["paths"]["outputs"]["figures"])
     preds_dir = Path(cfg["paths"]["outputs"].get("predictions", "outputs/predictions"))
@@ -596,7 +597,7 @@ def _run_explain(cfg: dict) -> None:
     from energy_forecast.evaluation.explainability import explain_model
     from energy_forecast.models.sklearn_models import build_sklearn_models
 
-    proc_dir = Path(cfg["paths"]["processed"]) / "splits"
+    proc_dir = Path(cfg["paths"]["processed"]) / cfg["city"] / "splits"
     fig_dir  = Path(cfg["paths"]["outputs"]["figures"])
 
     logger.info("── Stage 4: SHAP Explainability ────────────────────")

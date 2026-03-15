@@ -217,10 +217,12 @@ def main():
     # (autoregressive feature). We must explicitly pass both.
     feature_cols = [target_col] + feature_cols
 
-    proc_dir = Path(cfg["paths"]["processed"])
+    city = cfg["city"]
+    # City-specific processed dir — matches run_pipeline.py path convention
+    proc_dir = Path(cfg["paths"]["processed"]) / city
     model_ready_path = proc_dir / "model_ready.parquet"
 
-    logger.info(f"Loading {model_ready_path}...")
+    logger.info(f"Loading {model_ready_path} (city={city})...")
     df = pd.read_parquet(model_ready_path)
 
     # Replicate train/val/test splits (from src/energy_forecast/data/splits.py logic)
