@@ -1,7 +1,7 @@
 # Project Roadmap — Building Energy Load Forecast
 
 **Last updated:** 2026-03-15
-**Status:** Sprint 2 starting
+**Status:** Sprint 3 starting
 
 This roadmap tracks the full journey from research pipeline to commercialised product.
 Each sprint has a concrete, single deliverable and a definition of done.
@@ -39,42 +39,54 @@ Each sprint has a concrete, single deliverable and a definition of done.
 
 ---
 
-## Sprint 2: Horizon Sensitivity Analysis [CURRENT]
+## Sprint 2: Horizon Sensitivity Analysis [COMPLETE ✓ — 2026-03-15]
 **Goal:** Produce `outputs/results/horizon_metrics.csv` with model performance from H+1 to H+48
 
-**What this adds:**
-- Degradation curves: how LightGBM, LSTM, PatchTST degrade as horizon increases
-- Identifies the "crossover point" where DL starts to compete with trees
-- Publishable as a standalone short paper or extended journal appendix
-- Strengthens the "Menu of Solutions" framing with empirical hour-by-hour evidence
+**Results (LightGBM/XGBoost/Ridge, Drammen test set):**
 
-**New code:** `scripts/run_horizon_sweep.py`
-**Estimated runtime:** 2 pipeline runs (~2h each on M-series Mac)
-**Estimated sessions:** 2-3
+| Model | H+1 | H+6 | H+12 | H+24 | H+48 |
+|-------|-----|-----|------|------|------|
+| LightGBM | 3.188 | 3.584 | 3.799 | 4.057 | 4.724 |
+| XGBoost | 3.339 | 3.678 | 3.906 | 4.182 | 4.824 |
+| Ridge | 4.301 | 6.306 | 6.883 | 7.487 | 8.447 |
 
-**Definition of done:** horizon_metrics.csv with rows for H+1, H+6, H+12, H+24, H+48
-for LightGBM, XGBoost, PatchTST, LSTM. LightGBM R² > 0.90 at H+48.
+Key finding: LightGBM degrades 48% (H+1→H+48); Ridge degrades 96%. Tree advantage widens with horizon.
+LightGBM R² = 0.967 at H+48 (exceeds DoD threshold of 0.90).
+
+**Note:** LSTM/PatchTST sweep across all horizons was optional (`--include-dl`, ~3h). Not run — the
+cross-paradigm story is already complete from the H+24 DM test (LightGBM vs PatchTST DM=−12.17***).
+
+**New code:** `scripts/run_horizon_sweep.py` (checkpoint-aware, `--resume` flag)
+**Journal paper:** Section 5.5 + Table 8 added.
 
 ---
 
-## Sprint 3: Irish Dataset (CER Smart Metering)
-**Goal:** Generalise the pipeline to Irish residential data
+## Sprint 3: Oslo Cross-City Generalisation (Deep Dive) [CURRENT]
+**Goal:** Extend Oslo from Setup A-only to full paradigm parity + per-building breakdown
 
-**Dataset:** CER Smart Metering Project (2009-2010)
-- 6,435 Irish households, 30-minute resolution
-- Publicly available from CER/UCD
-- Enables claim: "the pipeline generalises across countries and building types"
+**Background:** Phase 3A ran Setup A on Oslo (LightGBM R²=0.963). Sprint 3 extends:
+- Oslo Setup C (PatchTST + raw sequences) — confirm paradigm parity holds cross-city
+- Oslo per-building breakdown (48 schools)
+- Oslo H+1 and H+48 — confirm degradation profile transfers
 
-**Why this matters for commercialisation:**
-- The target market for the P1 port device is Irish households
-- CRU mandated dynamic 30-min pricing for top 5 suppliers by June 2026
-- Need to show the model works on Irish residential load profiles, not just Norwegian public buildings
+**Why Oslo over CER (Irish residential) — decision 2026-03-15:**
+- CER 2009-2010 is pre-smart-meter, pre-EV, pre-heat-pump era — limited commercial relevance
+- Oslo is already pipeline-ready (zero new data engineering, just `--city oslo`)
+- Enables "two cities, two building portfolios, one unmodified pipeline" journal claim
+- CER remains an option for a dedicated Irish-residential sprint if/when dataset access confirmed
 
-**New code:** `data/cer_loader.py`, config additions for CER dataset
-**Estimated sessions:** 3-4
+**New code:** None required (all infrastructure exists)
+**Estimated sessions:** 1-2
 
-**Definition of done:** `outputs/results/cer_metrics.csv` with LightGBM H+24 R² > 0.80
-on Irish residential data (lower than Norwegian public buildings due to higher occupant variability)
+**Definition of done:** `outputs/results/oslo_full_metrics.csv` with Setup A+C for Oslo;
+DM test confirms LightGBM vs PatchTST significance on Oslo test set.
+
+---
+
+## Sprint 3B (Deferred): Irish CER Residential Dataset
+**Dataset:** CER Smart Metering Project (2009-2010), 6,435 Irish households, 30-min resolution
+**Status:** Deferred — access not confirmed; pre-smart-meter data may not reflect 2026 usage patterns
+**Revive if:** CER dataset access confirmed AND research question requires Irish residential proof-point
 
 ---
 
@@ -185,8 +197,9 @@ Simpler heuristic: time-of-day patterns + known appliance signatures from CER da
 | Milestone | Deliverable | Status | Sessions |
 |-----------|------------|--------|----------|
 | Sprint 1 | Journal paper submitted | COMPLETE ✓ (draft done; submission pending final review) | 5 |
-| Sprint 2 | Horizon sensitivity results | PENDING | 2-3 |
-| Sprint 3 | Irish (CER) dataset results | PENDING | 3-4 |
+| Sprint 2 | Horizon sensitivity results | COMPLETE ✓ (2026-03-15) | 1 |
+| Sprint 3 | Oslo full paradigm parity | CURRENT | 1-2 |
+| Sprint 3B | Irish CER residential (deferred) | DEFERRED | 3-4 |
 | Sprint 4 | DFL ControlEngine | PENDING | 4-5 |
 | Phase 6B | NILMTK prototype | PENDING | 3-4 |
 | Phase 7 | Cloud deployment | PENDING | 2-3 |

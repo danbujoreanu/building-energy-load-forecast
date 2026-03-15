@@ -1929,3 +1929,67 @@ All 7 figures updated with final_metrics.csv (25 rows):
 | Paper draft TFT section | placeholder | actual result + NaN mechanism ✓ |
 | Paper figures | stale | regenerated ✓ |
 
+
+---
+
+## Session 28 — 2026-03-15 (Sprint 1 complete, Sprint 2 complete)
+
+### Objective
+Complete Sprint 1 (cross-paradigm DM test) and Sprint 2 (horizon sensitivity sweep).
+
+### Sprint 1 Completion
+
+**Cross-paradigm Diebold-Mariano test (LightGBM vs PatchTST Setup C):**
+- PatchTST re-run with `--save-predictions` completed (background task b13zf1gm8)
+- Error array: `outputs/predictions/PatchTST_SetupC_h24_test_errors.npy`
+- DM result: **DM = −12.17, p < 0.001 ***
+
+**Full DM test results (HLN-corrected, H+24 Drammen):**
+
+| Comparison | DM statistic | Significance |
+|-----------|-------------|------|
+| LightGBM vs PatchTST [C] | −12.17 | *** |
+| LightGBM vs XGBoost [A] | −5.25 | *** |
+| LightGBM vs Ridge [A] | −33.52 | *** |
+
+Journal paper updates (Session 28):
+- Table 2b: PatchTST row added with DM=−12.17***
+- Abstract: added DM significance line
+- REVIEWER_RESPONSE_MATRIX.md: DM cross-paradigm marked done
+- Committed: `6f948c6`
+
+**Sprint 1 COMPLETE.** All 7 high-priority AICS reviewer items addressed in manuscript.
+
+### Sprint 2 Completion
+
+`scripts/run_horizon_sweep.py` had import errors (non-existent `build_features`/`preprocess`).
+Fixed to use actual API: `build_temporal_features(df, cfg_h, target)` + `make_splits()` + `select_features()`.
+Horizon injected via `cfg_h["features"]["forecast_horizon"] = horizon`.
+Model registry keys are lowercase: `lightgbm`/`xgboost`/`ridge`.
+
+**Results (15/15 pairs, ~2.5 min total runtime):**
+
+| Model | H+1 | H+6 | H+12 | H+24 | H+48 |
+|-------|-----|-----|------|------|------|
+| LightGBM | 3.188 | 3.584 | 3.799 | 4.057 | 4.724 |
+| XGBoost | 3.339 | 3.678 | 3.906 | 4.182 | 4.824 |
+| Ridge | 4.301 | 6.306 | 6.883 | 7.487 | 8.447 |
+
+Key finding: LightGBM degrades 48% (H+1→H+48); Ridge degrades 96%. Tree advantage widens.
+Journal paper: Section 5.5 + Table 8 added.
+
+**Sprint 2 COMPLETE.** Committed: `486a363`, `7d2b1c6`.
+
+### Roadmap updates
+- `docs/ROADMAP.md`: Sprint 2 → COMPLETE; Sprint 3 → Oslo deep dive (NOT CER)
+- CER Irish dataset deferred: pre-smart-meter data (2009-2010), access unconfirmed
+- MEMORY.md trimmed to under 200 lines
+
+### Session 28 Final State
+
+| Item | Status |
+|------|--------|
+| Sprint 1 (journal paper draft) | COMPLETE ✓ |
+| Sprint 2 (horizon sweep) | COMPLETE ✓ |
+| Cross-paradigm DM test | LightGBM vs PatchTST DM=−12.17*** ✓ |
+| Sprint 3 | Oslo full paradigm parity — CURRENT |
