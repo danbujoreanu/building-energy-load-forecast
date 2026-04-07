@@ -287,6 +287,16 @@ In VS Code, select the interpreter via `Cmd+Shift+P` → *Python: Select Interpr
 conda activate ml_lab1
 ```
 
+### Reproducibility
+
+To reproduce published results exactly, set `PYTHONHASHSEED` before starting Python (setting it inside a script only affects child processes, not the current interpreter):
+
+```bash
+export PYTHONHASHSEED=42
+```
+
+Add this to your `.zshrc` or `.bashrc` for persistent effect. All model random states are pinned via `seed: 42` in `config/config.yaml`.
+
 ### Run the pipeline
 
 ```bash

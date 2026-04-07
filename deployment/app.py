@@ -10,7 +10,7 @@ import joblib
 import lightgbm as lgb  # noqa: F401 — imported to verify lightweight dep
 import pandas as pd
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 # ── Path setup (src/ package available inside the container) ──────────────────
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -21,7 +21,7 @@ from energy_forecast.control.controller import ControlEngine
 from deployment.connectors import MockDeviceConnector, MockPriceConnector
 from deployment.mock_data import MOCK_SOLAR_24H
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 # Global model cache — loaded once at startup, reused across requests
 models: dict[str, Any] = {}
@@ -39,6 +39,15 @@ class PredictionRequest(BaseModel):
     timestamp: str
     features: dict  # 35 pre-engineered features (see temporal.py)
 
+    @field_validator("features")
+    @classmethod
+    def features_must_be_non_empty(cls, v: dict) -> dict:
+        if not v:
+            raise ValueError("features dict cannot be empty")
+        if len(v) > 500:
+            raise ValueError(f"features dict too large ({len(v)} keys); expected ~35")
+        return v
+
 
 class PredictionResponse(BaseModel):
     building_id: str
@@ -48,6 +57,9 @@ class PredictionResponse(BaseModel):
     inference_mode: str  # "real" or "mock"
 
 
+_KNOWN_CITIES = {"drammen", "oslo", "dublin"}
+
+
 class ControlRequest(BaseModel):
     building_id: str
     city: str = "drammen"
@@ -55,6 +67,13 @@ class ControlRequest(BaseModel):
     """Hours of the day (0–23) to produce control decisions for (default: 6–22)."""
     dry_run: bool = True
     """When True, use mock solar/price data. Set to False once live connectors are active."""
+
+    @field_validator("city")
+    @classmethod
+    def city_must_be_known(cls, v: str) -> str:
+        if v not in _KNOWN_CITIES:
+            raise ValueError(f"city must be one of {sorted(_KNOWN_CITIES)}, got '{v}'")
+        return v
 
 
 class HourDecision(BaseModel):
@@ -220,7 +239,8 @@ def control(request: ControlRequest):
             "Set up CSVConnector or OpenMeteoConnector in deployment/connectors.py."
         )
 
-    p10 = [max(0.0, v * 0.85) for v in p50]
+    p50 = [max(0.0, v) for v in p50]  # load is non-negative; clamp before PI scaling
+    p10 = [v * 0.85 for v in p50]
     p90 = [v * 1.15 for v in p50]
     forecast = ForecastBundle(p10=p10, p50=p50, p90=p90)
 
