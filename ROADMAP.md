@@ -7,9 +7,10 @@ This document tracks completed work and all prioritised future iterations,
 drawn directly from the MSc thesis (2025), the AICS 2025 conference paper, and
 external feedback (AI Studio, AICS reviewers, SINTEF expert).
 
-> **Current focus (March 2026):** Journal paper — H+24 three-way Paradigm Parity comparison (A vs B vs C).
-> **Key Discovery:** Tanh activation triggers hardware acceleration on Apple Silicon (MPS), achieving ~10x speedup over ReLU used in the thesis.
-> **Philosophy:** Focusing on the "Menu of Solutions" narrative (H+1=Stability, H+24=Trading) and deferring AMM economic complexity for now.
+> **Current focus (March 2026):** Journal paper submission (Applied Energy / Energy and Buildings) + product commercialisation (CRU June 2026 dynamic pricing trigger).
+> **Research status:** All experiments complete — LightGBM H+24 R²=0.975, PatchTST DM=−12.17***, Oslo cross-city confirmed, horizon sweep H+1→H+48 done.
+> **Governance:** 4 artefacts complete in `docs/governance/` (Model Card, Data Provenance, AIIA, Data Lineage). 90 tests passing.
+> **Next deploy decision:** AWS App Runner vs Mac Mini M4 Pro (24GB) for self-hosted inference + open-source LLMs.
 
 ---
 
@@ -46,7 +47,7 @@ external feedback (AI Studio, AICS reviewers, SINTEF expert).
 | ✅ DST-robust lag features | Added lag_167h/lag_169h (same-time ±1h weekly) to original thesis lags | Improves weekly pattern stability |
 | ✅ Min/max rolling stats | Added min/max to rolling statistics (thesis had mean/std only) | Tighter load-range bounds |
 | ✅ Temperature interaction features | `temp × hour_sin`, `temp × hour_cos` cross-terms | Captures time-varying thermal sensitivity |
-| ✅ Test suite (24 tests) | `pytest tests/` — data, features, models, metrics | CI-validated, no raw data needed |
+| ✅ Test suite (90 tests) | `pytest tests/` — 78 unit + 12 integration (leakage, horizon guard, E2E LightGBM) | CI-validated, no raw data needed |
 | ✅ GitHub Actions CI | Lint (ruff, black) + tests on Python 3.10 & 3.11 | Every push/PR |
 | ✅ SHAP explainability | Beeswarm, bar, waterfall, heatmap — `--stages explain` | `evaluation/explainability.py` |
 
@@ -107,17 +108,20 @@ DL models (LSTM/GRU/CNN-LSTM) evaluated on 237,313 samples (72 lookback rows per
 
 ## Phase 2 — Next Iteration
 
-### 2A — Explainability / XAI (Q7) — Partially Complete
+### 2A — Explainability / XAI (Q7) — ✅ COMPLETE
 
 | Item | Status | Detail |
 |------|--------|--------|
-| ✅ SHAP beeswarm, bar, waterfall | Done | Global + local explanation for RF/LightGBM/XGBoost |
-| 🟡 Model Card | Planned | Mitchell et al. (2019) format — intended use, metrics on peak vs normal days |
-| 🟡 Dataset Datasheet | Planned | Formal COFACTOR Drammen dataset provenance document |
-| 🟡 Per-building actual vs predicted | Planned | Visual trust-building for building managers |
-| 🟡 Error bands by hour of day | Planned | Show model accuracy range across the 24-hour cycle |
+| ✅ SHAP beeswarm, bar, waterfall, heatmap | Done | Global + local explanation for RF/LightGBM/XGBoost |
+| ✅ Model Card | Done — `docs/governance/MODEL_CARD.md` | HuggingFace format; 10-model table; DM tests; SHAP; usage example |
+| ✅ Data Provenance | Done — `docs/governance/DATA_PROVENANCE.md` | 5-source chain; GDPR Article 6(1)(b); consent; anonymisation |
+| ✅ AI Impact Assessment | Done — `docs/governance/AIIA.md` | EU AI Act Limited Risk (Art. 52); 7 risk categories; home trial harms |
+| ✅ Data Lineage | Done — `docs/governance/DATA_LINEAGE.md` | 8-stage raw CSV → Eddi action; bug impact table |
+| ✅ Governance diagram | Done — `docs/governance/governance_diagram.png` | 1600×900px visual; pipeline + 4 docs + Responsible AI layer |
+| 🟡 Per-building actual vs predicted | Future | Visual trust-building for building managers |
+| 🟡 Error bands by hour of day | Future | Show model accuracy range across the 24-hour cycle |
 
-### 2B — H+24 Day-Ahead Evaluation — Three-Way Paradigm Parity Experiment 🔴
+### 2B — H+24 Day-Ahead Evaluation — Three-Way Paradigm Parity Experiment ✅ COMPLETE
 
 **The journal paper core contribution.** Validated in collaboration with AI Studio (March 2026).
 
@@ -175,11 +179,13 @@ energy journal"* — it perfectly dissects the Feature Engineering vs Deep Learn
 
 #### Current Status
 
-| Setup | Status | Notes |
+| Setup | Status | Result |
 |-------|--------|-------|
-| A (Trees + Features) | 🔄 **Running** (PID 81424, 2026-03-03 09:00) | `run_pipeline.py --city drammen --stages training`; sklearn done 09:06 |
-| B (DL + Features) | 🔄 **Running** (same process as A) | LSTM training on Metal GPU from epoch 1 at 09:07; epochs capped at 20 |
-| C (DL + Raw) | 🔴 Not started | Needs new data loader + PatchTST implementation |
+| A (Trees + Features) | ✅ **Complete** | LightGBM MAE=4.029 kWh, R²=0.9752 · XGBoost 4.197 · RF 4.402 · Ridge 7.460 |
+| B (DL + Features) | ✅ **Complete** (negative control confirmed) | TFT MAE=8.770 · CNN-LSTM 9.375 · LSTM 34.938 (R²=−0.004) |
+| C (DL + Raw) | ✅ **Complete** | PatchTST MAE=6.955, R²=0.9102 — DM vs LightGBM: −12.17 *** |
+| Cross-city (Oslo) | ✅ **Complete** | LightGBM MAE=7.415 R²=0.963 · PatchTST 13.616 (+84% gap) |
+| Horizon sweep H+1→H+48 | ✅ **Complete** | LightGBM: 3.188→4.724 kWh (+48%) · Ridge: 4.301→8.447 (+96%) |
 
 **H+24 Stage 3 results (pipeline running, 2026-03-03 09:06 — sklearn complete, DL in progress):**
 
@@ -530,7 +536,7 @@ DOI: [10.60609/2hvr-wc82](https://data.sintef.no/product/dp-679b0640-834e-46bd-b
 ---
 
 ## Phase 9 — Product Feature Roadmap 🔴
-*Full spec: `docs/APP_PRODUCT_SPEC.md`*
+*Full spec: `docs/commercial/APP_PRODUCT_SPEC.md`*
 
 ### Phase 1 Features (MVP — launch-ready)
 | Feature | Status | Notes |
@@ -671,6 +677,58 @@ Output:        24-step multi-horizon prediction (direct)
 
 ---
 
+## Phase 8 — Dan's Home Trial (Maynooth, Co Kildare) 🔄
+
+*Real-world validation of the pipeline on a residential Irish home with solar PV, myenergi Eddi hot-water diverter, and Bord Gáis Energy Free Time Saturday tariff.*
+*Full detail: `docs/HOME_TRIAL.md`*
+
+### Home Setup Summary
+
+| Device | Detail |
+|--------|--------|
+| Smart meter | ESB Networks (30-min interval CSV export) |
+| Solar PV | Yes — no CT clamp on generation circuit |
+| Hot water diverter | myenergi Eddi (hub serial: 21509692, server: s18.myenergi.net) |
+| Grid CT clamp | myenergi Harvi (serial: 13541598) — measures grid incomer |
+| Tariff | BGE Free Time Saturday + 20% Affinity discount (expires 15 June 2026) |
+
+### Phase 8A — Monitor 🔄
+
+| Item | Status | Notes |
+|------|--------|-------|
+| ✅ ESB CSV ingestion | Done | `scripts/run_home_demo.py` — 30-min pivot, resample, DST-safe |
+| ✅ BGE tariff model | Done | Day/Night/Peak (Mon–Fri)/Free Sat/Export rates |
+| ✅ Open-Meteo live weather | Done | Archive + forecast endpoints, `ambiguous="NaT"` |
+| ✅ Morning brief (LightGBM H+24) | Done | P10/P50/P90, BGE cost estimate, control actions |
+| ✅ Eddi live status | Done | `MyEnergiConnector.get_status()` — monitor-only |
+| ✅ `scripts/log_eddi.py` | Done | Supports: `--once` (cron), `--history N` (cloud pull), `--interval` (continuous) |
+| ✅ `get_history_day()` fix | Done | Was using hub serial; fixed to use Eddi device serial + fallback URL format |
+| 🔴 Test history endpoint | **TODO** | Run `log_eddi.py --history 30` when API key available; confirms -14 resolved |
+| 🔴 BGE contract renewal | **URGENT** | Renewal window open NOW (expires 15 June 2026) |
+
+### Phase 8B — Recommend (App) 🔵
+
+| Item | Status |
+|------|--------|
+| Morning brief push notification | Not started |
+| "Boost now vs wait for solar?" recommendation | Control engine ready; not wired to app |
+| Tank state estimation from Eddi + load profile | Not started |
+| Suppress unnecessary grid boosts (learn first) | Not started |
+| Tariff comparison on renewal | Not started |
+
+### Phase 8C — Automate (Hardware) 🔵
+
+| Item | Status |
+|------|--------|
+| P1 port adapter + Raspberry Pi Zero 2W | Pending hardware |
+| Activate `send_command()` — user approves each action | Connector built, not active |
+| Ecowitt GW1100 personal weather station | Hardware not purchased |
+
+> **Principle**: Monitor → Recommend (user approves) → Automate. Never send commands to Eddi
+> without user approval. Do not draw from the grid when solar surplus can cover house + hot water.
+
+---
+
 ## References
 
 - Chipman, H.A., George, E.I., McCulloch, R.E. (2010). *BART: Bayesian Additive Regression Trees*. Annals of Applied Statistics.
@@ -683,5 +741,5 @@ Output:        24-step multi-horizon prediction (direct)
 
 ---
 
-*Last updated: 2026-03-03 (Session 13 — H+24 pipeline relaunched PID 81424 with ml_lab1 Python + Metal GPU hang fixes (epochs=20, min_delta=1.0); sklearn H+24 results confirmed (LightGBM 4.03, XGBoost 4.20, RF 4.40 kWh); LSTM training in progress; Added §2B.4 Real-World Deployment Scenarios — "Menu of Solutions" narrative crystallised from AI Studio Mar 3 discussion: H+1=Real-Time Stability, H+24=Day-Ahead Market, Quantiles=Risk-Aware MPC; AICS reviewer cross-reference validated; action items logged)*
+*Last updated: 2026-03-15 (Session 31 — Sprint 2 sweep COMPLETE: 16 rows in horizon_metrics.csv (sklearn all 5 horizons ✅ + LSTM H+24 from final_metrics ✅); LSTM H+1–H+48 sweep blocked by TF Metal SIGKILL during inference (training works, Metal GPU context invalidated by gc.collect before predict — not fixable without subprocess isolation); DL gc.collect + chunked predict fixes applied to deep_learning.py; HOME_TRIAL.md + Phase 8 added; get_history_day() fixed to use Eddi device serial; log_eddi.py built with --history/--once/--interval modes)*
 *Maintained by: Dan Alexandru Bujoreanu — dan.bujoreanu@gmail.com*

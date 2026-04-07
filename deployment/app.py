@@ -19,6 +19,7 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 from energy_forecast.control.actions import EnvironmentState, ForecastBundle
 from energy_forecast.control.controller import ControlEngine
 from deployment.connectors import MockDeviceConnector, MockPriceConnector
+from deployment.mock_data import MOCK_SOLAR_24H
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -44,6 +45,7 @@ class PredictionResponse(BaseModel):
     timestamp: str
     horizon: int
     predictions: list[float]
+    inference_mode: str  # "real" or "mock"
 
 
 class ControlRequest(BaseModel):
@@ -130,10 +132,15 @@ app = FastAPI(
 
 @app.get("/health")
 def health_check():
-    """Liveness check — returns loaded model names."""
+    """Liveness check — returns model status (real or mock) for each loaded model."""
+    model_status = {
+        name: ("mock" if isinstance(obj, str) and obj.startswith("MOCK") else "real")
+        for name, obj in models.items()
+    }
     return {
         "status": "healthy",
-        "models_loaded": list(models.keys()),
+        "models": model_status,
+        "inference_ready": any(v == "real" for v in model_status.values()),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -156,8 +163,9 @@ def predict(request: PredictionRequest, model_name: str = "LightGBM"):
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Invalid feature format: {exc}")
 
+    is_mock = isinstance(model, str) and model.startswith("MOCK")
     try:
-        if isinstance(model, str) and model.startswith("MOCK"):
+        if is_mock:
             logger.info("Using mocked inference for %s", model_name)
             preds = [150.0 + i for i in range(24)]
         else:
@@ -173,6 +181,7 @@ def predict(request: PredictionRequest, model_name: str = "LightGBM"):
         timestamp=request.timestamp,
         horizon=len(preds),
         predictions=preds,
+        inference_mode="mock" if is_mock else "real",
     )
 
 
@@ -217,12 +226,7 @@ def control(request: ControlRequest):
 
     # ── Step 2: Environmental signals ─────────────────────────────────────
     if request.dry_run:
-        # Realistic Irish mock curve for demo
-        _mock_solar = [
-            0, 0, 0, 0, 0, 0, 20, 80, 180, 300, 400,
-            480, 520, 500, 450, 380, 280, 150, 60, 10, 0, 0, 0, 0,
-        ]
-        solar_24h = _mock_solar
+        solar_24h = MOCK_SOLAR_24H
         prices_24h = MockPriceConnector().get_day_ahead_prices()
     else:
         # Live connectors — add OpenMeteoConnector + SEMOConnector here
@@ -245,6 +249,11 @@ def control(request: ControlRequest):
 
     # ── Step 3: Control decisions ──────────────────────────────────────────
     target_hours = [h for h in request.target_hours if 0 <= h < 24]
+    if not target_hours:
+        raise HTTPException(
+            status_code=400,
+            detail="target_hours must contain at least one value in [0, 23].",
+        )
     actions = _control_engine.decide(forecast, env, target_hours=target_hours)
 
     # ── Step 4: Send to mock device ────────────────────────────────────────

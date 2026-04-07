@@ -63,6 +63,16 @@ def build_temporal_features(
     target = target or cfg["data"]["target_column"]
     feat_cfg = cfg["features"]
 
+    # ── Guard: features.forecast_horizon and sequence.horizon must match ──────
+    _seq_horizon = cfg.get("sequence", {}).get("horizon")
+    if _seq_horizon is not None:
+        _feat_horizon = int(feat_cfg.get("forecast_horizon", 1))
+        assert _feat_horizon == int(_seq_horizon), (
+            f"Config mismatch: features.forecast_horizon={_feat_horizon} "
+            f"!= sequence.horizon={_seq_horizon}. "
+            "Update config.yaml to keep both values in sync."
+        )
+
     # ── Forecast horizon enforcement ──────────────────────────────────────────
     horizon: int = int(feat_cfg.get("forecast_horizon", 1))
     logger.info("Building temporal features (forecast_horizon=%dh) …", horizon)

@@ -65,6 +65,7 @@ from deployment.connectors import (
     MockPriceConnector,
     OpenMeteoConnector,
 )
+from deployment.mock_data import MOCK_SOLAR_24H
 
 logging.basicConfig(
     level=logging.INFO,
@@ -76,15 +77,6 @@ logger = logging.getLogger("live_inference")
 # ---------------------------------------------------------------------------
 # Mock data helpers (for --dry-run mode)
 # ---------------------------------------------------------------------------
-
-_MOCK_SOLAR_24H: list[float] = [
-    0, 0, 0, 0, 0, 0,      # 00–05: night
-    20, 80, 180, 300, 400,  # 06–10: sunrise ramp
-    480, 520, 500, 450,     # 11–14: midday
-    380, 280, 150, 60,      # 15–18: afternoon decline
-    10, 0, 0, 0, 0, 0,      # 19–23: dusk/night
-]
-
 
 def _mock_historical_df(n_hours: int = 72) -> pd.DataFrame:
     """Generate a plausible 72h load + weather history for demo mode."""
@@ -102,7 +94,7 @@ def _mock_historical_df(n_hours: int = 72) -> pd.DataFrame:
             "Electricity_Imported_Total_kWh": np.clip(base_load + noise, 5, 80),
             "Temperature_Outdoor_C": temperature,
             "Global_Solar_Horizontal_Radiation_W_m2": [
-                _MOCK_SOLAR_24H[h % 24] + rng.uniform(-10, 10) for h in hours
+                MOCK_SOLAR_24H[h % 24] + rng.uniform(-10, 10) for h in hours
             ],
             "hour_of_day": hours,
             "day_of_week": idx.dayofweek,
@@ -165,10 +157,16 @@ def _build_inference_features(
 
     # Apply saved scaler if available
     if scaler_path and scaler_path.exists():
-        with open(scaler_path, "rb") as f:
-            scaler = pickle.load(f)
-        X_scaled = pd.DataFrame(scaler.transform(X), columns=X.columns, index=X.index)
-        logger.info("Scaler applied from %s", scaler_path)
+        try:
+            with open(scaler_path, "rb") as f:
+                scaler = pickle.load(f)
+            X_scaled = pd.DataFrame(scaler.transform(X), columns=X.columns, index=X.index)
+            logger.info("Scaler applied from %s", scaler_path)
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed to load scaler from {scaler_path}: {exc}. "
+                "Re-run run_pipeline.py to regenerate the scaler."
+            ) from exc
     else:
         logger.warning("No scaler found at %s — using unscaled features.", scaler_path)
         X_scaled = X
@@ -221,7 +219,7 @@ def run_morning_brief(
     # ── Step 2: Solar + temperature forecast (next 24h) ────────────────────
     if dry_run:
         logger.info("DRY-RUN: using mock solar forecast")
-        solar_24h = _MOCK_SOLAR_24H[:24]
+        solar_24h = MOCK_SOLAR_24H[:24]
         temp_24h = [10.0] * 24
     else:
         logger.info("Fetching weather forecast via OpenMeteoConnector for %s", location)

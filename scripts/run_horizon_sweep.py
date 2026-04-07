@@ -198,9 +198,27 @@ def _run_sklearn_model(name: str, cfg: dict, horizon: int,
     }
 
 
+def _subsample_per_building(X, y, max_rows: int = 4380):
+    """Keep only the last `max_rows` rows per building to stay within memory.
+
+    build_sequences() materialises (n × lookback × features) float32 arrays.
+    Full training set: 1,144,535 × 72 × 35 × 4 B ≈ 11.6 GB → OOM on 16 GB.
+    At max_rows=4380 (~6 months × 44 buildings ≈ 193k rows): ~1.9 GB ✓
+    Horizon sensitivity (relative MAE H+1..H+48) is unaffected by subsampling.
+    """
+    X_sub = X.groupby(level="building_id", group_keys=False).tail(max_rows)
+    y_sub = y.loc[X_sub.index]
+    return X_sub, y_sub
+
+
 def _run_lstm_model(cfg: dict, horizon: int,
                     X_train, y_train, X_val, y_val, X_test, y_test) -> dict:
-    """Train and evaluate LSTM at a given horizon (Setup B, tabular features)."""
+    """Train and evaluate LSTM at a given horizon (Setup B, tabular features).
+
+    Training/val data is subsampled to last 4,380 rows per building (~6 months)
+    to avoid OOM: full 1.14M × 72 × 35 × float32 ≈ 11.6 GB which exceeds
+    16 GB unified memory.  Test set is kept full for fair evaluation.
+    """
     import copy
     from energy_forecast.models.deep_learning import LSTMForecaster
 
@@ -208,9 +226,13 @@ def _run_lstm_model(cfg: dict, horizon: int,
     cfg_h["forecast_horizon"] = horizon
     cfg_h["sequence"]["horizon"] = horizon
 
+    X_tr_sub, y_tr_sub = _subsample_per_building(X_train, y_train, max_rows=4380)
+    X_v_sub,  y_v_sub  = _subsample_per_building(X_val,   y_val,   max_rows=1460)
+    logger.info("LSTM sweep: training on %d rows (subsampled from %d)", len(X_tr_sub), len(X_train))
+
     model = LSTMForecaster(cfg_h)
     t0 = time.time()
-    model.fit(X_train, y_train, X_val, y_val)
+    model.fit(X_tr_sub, y_tr_sub, X_v_sub, y_v_sub)
     train_time = round(time.time() - t0, 1)
 
     preds = model.predict(X_test)  # shape (n, horizon)

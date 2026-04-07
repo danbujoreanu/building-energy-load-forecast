@@ -26,15 +26,16 @@ COPY deployment/requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application source and models
-# (In production, models might be downloaded from S3 or a model registry rather than baked)
+# Copy application source
 COPY deployment/__init__.py ./deployment/
 COPY deployment/app.py ./deployment/
 COPY deployment/connectors.py ./deployment/
 COPY deployment/live_inference.py ./deployment/
 COPY src/ ./src/
 COPY config/ ./config/
-# Bundle .joblib model files (~20 MB total — no DL frameworks needed for inference)
+
+# Copy inference models — RandomForest files (~400MB each) are excluded via .dockerignore
+# What arrives here: LightGBM (~2.8MB), XGBoost (~2.3MB), Ridge (~4KB) per city = ~11MB total
 COPY outputs/models/ ./outputs/models/
 
 # Expose port for FastAPI
