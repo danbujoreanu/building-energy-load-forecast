@@ -26,6 +26,9 @@ COPY deployment/requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Run as non-root user (required for App Runner / ECS security posture)
+RUN useradd -m -u 1000 appuser
+
 # Copy application source
 COPY deployment/__init__.py ./deployment/
 COPY deployment/app.py ./deployment/
@@ -40,6 +43,8 @@ COPY outputs/models/ ./outputs/models/
 
 # Expose port for FastAPI
 EXPOSE 8000
+
+USER appuser
 
 # Run Uvicorn specifically targeting our deployment app
 CMD ["uvicorn", "deployment.app:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -214,10 +214,24 @@ class OpenMeteoConnector(DataConnector):
 
         logger.info("OpenMeteoConnector: fetching %d hours from %s", hours, url)
         response = requests.get(url, timeout=10)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as exc:
+            logger.error(
+                "OpenMeteoConnector HTTP %s: %s", response.status_code, response.reason
+            )
+            raise ValueError(
+                f"Open-Meteo returned {response.status_code}: {response.reason}"
+            ) from exc
         data: dict[str, Any] = response.json()
 
         hourly = data.get("hourly", {})
+        _required = {"time", "temperature_2m", "direct_radiation"}
+        _missing = _required - hourly.keys()
+        if _missing:
+            raise ValueError(
+                f"Open-Meteo response missing expected fields: {sorted(_missing)}"
+            )
         times = pd.to_datetime(hourly["time"], utc=True)
         temps = hourly["temperature_2m"]
         solar = hourly["direct_radiation"]
