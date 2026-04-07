@@ -84,3 +84,5 @@ secrets.yaml
 # To create a public academic snapshot:
 #   bash scripts/create_public_snapshot.sh
 outputs/predictions/
+# One-off utility scripts (machine-specific paths)
+extract_pdf.py

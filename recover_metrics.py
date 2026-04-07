@@ -1,7 +1,7 @@
 import pandas as pd
 from pathlib import Path
 
-csv_path = Path("/Users/danalexandrubujoreanu/building-energy-load-forecast/outputs/results/final_metrics.csv")
+csv_path = Path(__file__).parent / "outputs" / "results" / "final_metrics.csv"
 
 recovery_data = [
     {"model": "PatchTST_SetupC", "MAE": 6.955, "RMSE": 14.1184, "MAPE": 26.8142, "R2": 0.9102, "n_samples": 241393, "Daily_Peak_MAE": 10.6095, "train_time_s": 3026.3},

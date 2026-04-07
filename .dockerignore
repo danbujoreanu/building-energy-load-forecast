@@ -4,8 +4,10 @@ outputs/predictions/
 outputs/figures/
 outputs/results/
 
-# Models ARE baked in (small .joblib files, ~5-20 MB each)
-# outputs/models/ is intentionally NOT excluded
+# Exclude RandomForest model files — research artefacts, ~400MB each, never used in production
+# LightGBM/XGBoost/Ridge models (~5MB each) are retained for inference
+outputs/models/*RandomForest*
+outputs/models/*random_forest*
 
 # Dev artefacts
 notebooks/

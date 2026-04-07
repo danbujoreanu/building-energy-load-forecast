@@ -31,6 +31,31 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Chunked prediction helper
+# ---------------------------------------------------------------------------
+
+def _chunked_predict(model, X_seq: np.ndarray, chunk_size: int = 4096) -> np.ndarray:
+    """Run model.predict in chunks to avoid staging the full array on Metal GPU.
+
+    TF Metal's model.predict() copies the entire input array to GPU memory
+    before batching, regardless of the batch_size parameter.  For large test
+    sets (e.g. 242k × 72 × 35 × float32 = 2.44 GB) this exceeds the Metal
+    cache (10.67 GB) when combined with the model's own Metal buffers.
+
+    This helper breaks X_seq into chunks of `chunk_size` samples, calls
+    model.predict() on each chunk separately, and concatenates the results.
+    Each chunk: 4096 × 72 × 35 × 4 B = 40 MB — well within Metal limits.
+    """
+    n = len(X_seq)
+    parts = []
+    for start in range(0, n, chunk_size):
+        end = min(start + chunk_size, n)
+        chunk_raw = model.predict(X_seq[start:end], verbose=0)
+        parts.append(chunk_raw)
+    return np.concatenate(parts, axis=0)
+
+
+# ---------------------------------------------------------------------------
 # Sequence builder
 # ---------------------------------------------------------------------------
 
@@ -131,6 +156,17 @@ class LSTMForecaster(BaseForecaster):
         self.history_ = model.fit(X_tr_seq, y_tr_seq, **fit_kwargs)
         self.model_ = model
         self._seq_cfg = seq_cfg
+
+        # Free training/val sequence arrays immediately after fit().
+        # On Apple Silicon unified memory these large float32 arrays stay
+        # resident until GC'd.  The caller immediately calls predict() which
+        # builds test sequences — keeping training arrays alive triggers OOM.
+        import gc
+        del X_tr_seq, y_tr_seq
+        if "validation_data" in fit_kwargs:
+            del fit_kwargs["validation_data"]
+        gc.collect()
+
         return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
@@ -139,7 +175,7 @@ class LSTMForecaster(BaseForecaster):
         X_seq, _ = build_sequences(  # noqa: N806
             X, y_placeholder, self._seq_cfg["lookback"], self._seq_cfg["horizon"]
         )
-        raw = self.model_.predict(X_seq, verbose=0)  # (n_samples, horizon)
+        raw = _chunked_predict(self.model_, X_seq)  # (n_samples, horizon)
         # BUG-C5: Do NOT blindly flatten.  For H+24, flat shape is (n_samples*24,)
         # which mixes all 24 prediction steps and breaks evaluation.
         # AI Studio verdict: return (n_samples, horizon) matrix; caller handles.
@@ -207,6 +243,11 @@ class CNNLSTMForecaster(BaseForecaster):
         self.history_ = model.fit(X_tr_seq, y_tr_seq, **fit_kwargs)
         self.model_ = model
         self._seq_cfg = seq_cfg
+        import gc
+        del X_tr_seq, y_tr_seq
+        if "validation_data" in fit_kwargs:
+            del fit_kwargs["validation_data"]
+        gc.collect()
         return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
@@ -214,7 +255,7 @@ class CNNLSTMForecaster(BaseForecaster):
         X_seq, _ = build_sequences(  # noqa: N806
             X, y_placeholder, self._seq_cfg["lookback"], self._seq_cfg["horizon"]
         )
-        raw = self.model_.predict(X_seq, verbose=0)  # (n_samples, horizon)
+        raw = _chunked_predict(self.model_, X_seq)  # (n_samples, horizon)
         return raw.flatten() if self._seq_cfg["horizon"] == 1 else raw
 
 
@@ -272,6 +313,11 @@ class GRUForecaster(BaseForecaster):
         self.history_ = model.fit(X_tr_seq, y_tr_seq, **fit_kwargs)
         self.model_ = model
         self._seq_cfg = seq_cfg
+        import gc
+        del X_tr_seq, y_tr_seq
+        if "validation_data" in fit_kwargs:
+            del fit_kwargs["validation_data"]
+        gc.collect()
         return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
@@ -279,7 +325,7 @@ class GRUForecaster(BaseForecaster):
         X_seq, _ = build_sequences(  # noqa: N806
             X, y_placeholder, self._seq_cfg["lookback"], self._seq_cfg["horizon"]
         )
-        raw = self.model_.predict(X_seq, verbose=0)  # (n_samples, horizon)
+        raw = _chunked_predict(self.model_, X_seq)  # (n_samples, horizon)
         return raw.flatten() if self._seq_cfg["horizon"] == 1 else raw
 
 

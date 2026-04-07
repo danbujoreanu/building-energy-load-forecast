@@ -3,7 +3,7 @@
 # Usage: make <target>
 # ────────────────────────────────────────────────────────────────────────────
 
-PYTHON      := /Users/danalexandrubujoreanu/miniconda3/envs/ml_lab1/bin/python
+PYTHON      := $(shell which python3 || which python)
 IMAGE_NAME  := energy-forecast-api
 IMAGE_TAG   := latest
 ECR_REPO    ?= $(AWS_ACCOUNT_ID).dkr.ecr.eu-west-1.amazonaws.com/$(IMAGE_NAME)

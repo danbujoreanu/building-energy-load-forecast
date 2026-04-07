@@ -1,0 +1,1237 @@
+{
+  "date_range": {
+    "start": "2024-03-15",
+    "end": "2026-03-05"
+  },
+  "total_days": 721,
+  "total_import_kwh": 6163.98,
+  "total_export_kwh": 907.99,
+  "monthly_breakdown": [
+    {
+      "month": "2024-03",
+      "days_in_month": 31,
+      "import_kwh": 176.67,
+      "export_kwh": 13.83,
+      "free_kwh": 39.85,
+      "peak_kwh": 3.3,
+      "night_kwh": 55.8,
+      "day_kwh": 77.72,
+      "overflow_kwh": 0.0,
+      "energy_cost": 39.62,
+      "export_credit": 2.56,
+      "standing_charge": 19.07,
+      "net_bill": 56.13
+    },
+    {
+      "month": "2024-04",
+      "days_in_month": 30,
+      "import_kwh": 237.61,
+      "export_kwh": 34.19,
+      "free_kwh": 53.62,
+      "peak_kwh": 5.29,
+      "night_kwh": 77.91,
+      "day_kwh": 100.78,
+      "overflow_kwh": 0.0,
+      "energy_cost": 53.09,
+      "export_credit": 6.32,
+      "standing_charge": 18.46,
+      "net_bill": 65.22
+    },
+    {
+      "month": "2024-05",
+      "days_in_month": 31,
+      "import_kwh": 272.82,
+      "export_kwh": 41.37,
+      "free_kwh": 48.23,
+      "peak_kwh": 6.46,
+      "night_kwh": 89.6,
+      "day_kwh": 128.53,
+      "overflow_kwh": 0.0,
+      "energy_cost": 65.28,
+      "export_credit": 7.65,
+      "standing_charge": 19.07,
+      "net_bill": 76.7
+    },
+    {
+      "month": "2024-06",
+      "days_in_month": 30,
+      "import_kwh": 193.57,
+      "export_kwh": 58.29,
+      "free_kwh": 53.95,
+      "peak_kwh": 3.44,
+      "night_kwh": 69.93,
+      "day_kwh": 66.24,
+      "overflow_kwh": 0.0,
+      "energy_cost": 39.32,
+      "export_credit": 10.78,
+      "standing_charge": 18.46,
+      "net_bill": 46.99
+    },
+    {
+      "month": "2024-07",
+      "days_in_month": 31,
+      "import_kwh": 219.23,
+      "export_kwh": 44.36,
+      "free_kwh": 32.22,
+      "peak_kwh": 2.88,
+      "night_kwh": 93.58,
+      "day_kwh": 90.54,
+      "overflow_kwh": 0.0,
+      "energy_cost": 52.55,
+      "export_credit": 8.21,
+      "standing_charge": 19.07,
+      "net_bill": 63.42
+    },
+    {
+      "month": "2024-08",
+      "days_in_month": 31,
+      "import_kwh": 302.82,
+      "export_kwh": 44.62,
+      "free_kwh": 49.55,
+      "peak_kwh": 5.6,
+      "night_kwh": 116.27,
+      "day_kwh": 131.39,
+      "overflow_kwh": 0.0,
+      "energy_cost": 72.19,
+      "export_credit": 8.25,
+      "standing_charge": 19.07,
+      "net_bill": 83.01
+    },
+    {
+      "month": "2024-09",
+      "days_in_month": 30,
+      "import_kwh": 295.71,
+      "export_kwh": 42.6,
+      "free_kwh": 33.43,
+      "peak_kwh": 3.51,
+      "night_kwh": 109.83,
+      "day_kwh": 148.93,
+      "overflow_kwh": 0.0,
+      "energy_cost": 75.5,
+      "export_credit": 7.88,
+      "standing_charge": 18.46,
+      "net_bill": 86.08
+    },
+    {
+      "month": "2024-10",
+      "days_in_month": 31,
+      "import_kwh": 306.96,
+      "export_kwh": 26.46,
+      "free_kwh": 47.64,
+      "peak_kwh": 12.59,
+      "night_kwh": 109.93,
+      "day_kwh": 136.8,
+      "overflow_kwh": 0.0,
+      "energy_cost": 75.19,
+      "export_credit": 4.9,
+      "standing_charge": 19.07,
+      "net_bill": 89.36
+    },
+    {
+      "month": "2024-11",
+      "days_in_month": 30,
+      "import_kwh": 353.73,
+      "export_kwh": 12.63,
+      "free_kwh": 69.24,
+      "peak_kwh": 11.91,
+      "night_kwh": 108.02,
+      "day_kwh": 164.56,
+      "overflow_kwh": 0.0,
+      "energy_cost": 83.42,
+      "export_credit": 2.34,
+      "standing_charge": 18.46,
+      "net_bill": 99.54
+    },
+    {
+      "month": "2024-12",
+      "days_in_month": 31,
+      "import_kwh": 371.42,
+      "export_kwh": 4.17,
+      "free_kwh": 61.49,
+      "peak_kwh": 15.41,
+      "night_kwh": 81.1,
+      "day_kwh": 213.41,
+      "overflow_kwh": 0.0,
+      "energy_cost": 94.19,
+      "export_credit": 0.77,
+      "standing_charge": 19.07,
+      "net_bill": 112.49
+    },
+    {
+      "month": "2025-01",
+      "days_in_month": 31,
+      "import_kwh": 359.77,
+      "export_kwh": 12.9,
+      "free_kwh": 65.13,
+      "peak_kwh": 13.94,
+      "night_kwh": 102.39,
+      "day_kwh": 178.31,
+      "overflow_kwh": 0.0,
+      "energy_cost": 87.33,
+      "export_credit": 2.39,
+      "standing_charge": 19.07,
+      "net_bill": 104.01
+    },
+    {
+      "month": "2025-02",
+      "days_in_month": 28,
+      "import_kwh": 307.59,
+      "export_kwh": 14.49,
+      "free_kwh": 59.96,
+      "peak_kwh": 9.79,
+      "night_kwh": 92.89,
+      "day_kwh": 144.95,
+      "overflow_kwh": 0.0,
+      "energy_cost": 72.67,
+      "export_credit": 2.68,
+      "standing_charge": 17.23,
+      "net_bill": 87.22
+    },
+    {
+      "month": "2025-03",
+      "days_in_month": 31,
+      "import_kwh": 279.51,
+      "export_kwh": 41.05,
+      "free_kwh": 82.2,
+      "peak_kwh": 6.6,
+      "night_kwh": 89.31,
+      "day_kwh": 101.41,
+      "overflow_kwh": 0.0,
+      "energy_cost": 56.51,
+      "export_credit": 7.59,
+      "standing_charge": 19.07,
+      "net_bill": 67.99
+    },
+    {
+      "month": "2025-04",
+      "days_in_month": 30,
+      "import_kwh": 219.48,
+      "export_kwh": 72.54,
+      "free_kwh": 35.44,
+      "peak_kwh": 7.17,
+      "night_kwh": 70.86,
+      "day_kwh": 106.0,
+      "overflow_kwh": 0.0,
+      "energy_cost": 53.84,
+      "export_credit": 13.42,
+      "standing_charge": 18.46,
+      "net_bill": 58.88
+    },
+    {
+      "month": "2025-05",
+      "days_in_month": 31,
+      "import_kwh": 166.31,
+      "export_kwh": 90.49,
+      "free_kwh": 42.1,
+      "peak_kwh": 4.71,
+      "night_kwh": 37.03,
+      "day_kwh": 82.46,
+      "overflow_kwh": 0.0,
+      "energy_cost": 37.25,
+      "export_credit": 16.74,
+      "standing_charge": 19.07,
+      "net_bill": 39.59
+    },
+    {
+      "month": "2025-06",
+      "days_in_month": 30,
+      "import_kwh": 162.35,
+      "export_kwh": 64.11,
+      "free_kwh": 20.18,
+      "peak_kwh": 2.18,
+      "night_kwh": 45.36,
+      "day_kwh": 94.64,
+      "overflow_kwh": 0.0,
+      "energy_cost": 42.16,
+      "export_credit": 11.86,
+      "standing_charge": 18.46,
+      "net_bill": 48.76
+    },
+    {
+      "month": "2025-07",
+      "days_in_month": 31,
+      "import_kwh": 151.18,
+      "export_kwh": 71.93,
+      "free_kwh": 37.3,
+      "peak_kwh": 3.11,
+      "night_kwh": 43.62,
+      "day_kwh": 67.15,
+      "overflow_kwh": 0.0,
+      "energy_cost": 33.24,
+      "export_credit": 13.31,
+      "standing_charge": 19.07,
+      "net_bill": 39.01
+    },
+    {
+      "month": "2025-08",
+      "days_in_month": 31,
+      "import_kwh": 175.8,
+      "export_kwh": 69.65,
+      "free_kwh": 44.13,
+      "peak_kwh": 6.16,
+      "night_kwh": 41.65,
+      "day_kwh": 83.85,
+      "overflow_kwh": 0.0,
+      "energy_cost": 39.37,
+      "export_credit": 12.89,
+      "standing_charge": 19.07,
+      "net_bill": 45.56
+    },
+    {
+      "month": "2025-09",
+      "days_in_month": 30,
+      "import_kwh": 227.38,
+      "export_kwh": 57.56,
+      "free_kwh": 45.2,
+      "peak_kwh": 7.03,
+      "night_kwh": 60.08,
+      "day_kwh": 115.07,
+      "overflow_kwh": 0.0,
+      "energy_cost": 54.16,
+      "export_credit": 10.65,
+      "standing_charge": 18.46,
+      "net_bill": 61.96
+    },
+    {
+      "month": "2025-10",
+      "days_in_month": 31,
+      "import_kwh": 221.46,
+      "export_kwh": 35.28,
+      "free_kwh": 42.73,
+      "peak_kwh": 13.14,
+      "night_kwh": 68.59,
+      "day_kwh": 97.0,
+      "overflow_kwh": 0.0,
+      "energy_cost": 52.75,
+      "export_credit": 6.53,
+      "standing_charge": 19.07,
+      "net_bill": 65.3
+    },
+    {
+      "month": "2025-11",
+      "days_in_month": 30,
+      "import_kwh": 241.59,
+      "export_kwh": 27.04,
+      "free_kwh": 65.4,
+      "peak_kwh": 11.36,
+      "night_kwh": 60.85,
+      "day_kwh": 103.99,
+      "overflow_kwh": 0.0,
+      "energy_cost": 52.47,
+      "export_credit": 5.0,
+      "standing_charge": 18.46,
+      "net_bill": 65.92
+    },
+    {
+      "month": "2025-12",
+      "days_in_month": 31,
+      "import_kwh": 339.8,
+      "export_kwh": 6.49,
+      "free_kwh": 72.17,
+      "peak_kwh": 13.32,
+      "night_kwh": 89.24,
+      "day_kwh": 165.07,
+      "overflow_kwh": 0.0,
+      "energy_cost": 79.69,
+      "export_credit": 1.2,
+      "standing_charge": 19.07,
+      "net_bill": 97.56
+    },
+    {
+      "month": "2026-01",
+      "days_in_month": 31,
+      "import_kwh": 293.98,
+      "export_kwh": 7.36,
+      "free_kwh": 76.37,
+      "peak_kwh": 13.37,
+      "night_kwh": 73.08,
+      "day_kwh": 131.15,
+      "overflow_kwh": 0.0,
+      "energy_cost": 64.93,
+      "export_credit": 1.36,
+      "standing_charge": 19.07,
+      "net_bill": 82.64
+    },
+    {
+      "month": "2026-02",
+      "days_in_month": 28,
+      "import_kwh": 254.18,
+      "export_kwh": 6.54,
+      "free_kwh": 68.03,
+      "peak_kwh": 9.55,
+      "night_kwh": 66.51,
+      "day_kwh": 110.09,
+      "overflow_kwh": 0.0,
+      "energy_cost": 55.07,
+      "export_credit": 1.21,
+      "standing_charge": 17.23,
+      "net_bill": 71.09
+    },
+    {
+      "month": "2026-03",
+      "days_in_month": 31,
+      "import_kwh": 33.09,
+      "export_kwh": 8.06,
+      "free_kwh": 0.0,
+      "peak_kwh": 3.55,
+      "night_kwh": 13.4,
+      "day_kwh": 16.14,
+      "overflow_kwh": 0.0,
+      "energy_cost": 9.79,
+      "export_credit": 1.49,
+      "standing_charge": 19.07,
+      "net_bill": 27.37
+    }
+  ],
+  "saturday_analysis": {
+    "per_saturday": [
+      {
+        "date": "2024-03-16",
+        "free_kwh": 17.83,
+        "sat_export_kwh": 0.03,
+        "solar_active": false
+      },
+      {
+        "date": "2024-03-23",
+        "free_kwh": 6.86,
+        "sat_export_kwh": 2.92,
+        "solar_active": true
+      },
+      {
+        "date": "2024-03-30",
+        "free_kwh": 15.16,
+        "sat_export_kwh": 0.17,
+        "solar_active": false
+      },
+      {
+        "date": "2024-04-06",
+        "free_kwh": 20.8,
+        "sat_export_kwh": 0.2,
+        "solar_active": false
+      },
+      {
+        "date": "2024-04-13",
+        "free_kwh": 18.03,
+        "sat_export_kwh": 0.21,
+        "solar_active": false
+      },
+      {
+        "date": "2024-04-20",
+        "free_kwh": 5.16,
+        "sat_export_kwh": 3.85,
+        "solar_active": true
+      },
+      {
+        "date": "2024-04-27",
+        "free_kwh": 9.64,
+        "sat_export_kwh": 1.53,
+        "solar_active": true
+      },
+      {
+        "date": "2024-05-04",
+        "free_kwh": 14.75,
+        "sat_export_kwh": 0.04,
+        "solar_active": false
+      },
+      {
+        "date": "2024-05-11",
+        "free_kwh": 5.54,
+        "sat_export_kwh": 4.17,
+        "solar_active": true
+      },
+      {
+        "date": "2024-05-18",
+        "free_kwh": 16.03,
+        "sat_export_kwh": 0.08,
+        "solar_active": false
+      },
+      {
+        "date": "2024-05-25",
+        "free_kwh": 11.92,
+        "sat_export_kwh": 0.33,
+        "solar_active": false
+      },
+      {
+        "date": "2024-06-01",
+        "free_kwh": 13.35,
+        "sat_export_kwh": 1.19,
+        "solar_active": true
+      },
+      {
+        "date": "2024-06-08",
+        "free_kwh": 8.43,
+        "sat_export_kwh": 1.47,
+        "solar_active": true
+      },
+      {
+        "date": "2024-06-15",
+        "free_kwh": 13.9,
+        "sat_export_kwh": 0.24,
+        "solar_active": false
+      },
+      {
+        "date": "2024-06-22",
+        "free_kwh": 6.8,
+        "sat_export_kwh": 1.48,
+        "solar_active": true
+      },
+      {
+        "date": "2024-06-29",
+        "free_kwh": 11.47,
+        "sat_export_kwh": 0.2,
+        "solar_active": false
+      },
+      {
+        "date": "2024-07-06",
+        "free_kwh": 6.97,
+        "sat_export_kwh": 1.97,
+        "solar_active": true
+      },
+      {
+        "date": "2024-07-13",
+        "free_kwh": 3.37,
+        "sat_export_kwh": 2.6,
+        "solar_active": true
+      },
+      {
+        "date": "2024-07-20",
+        "free_kwh": 11.42,
+        "sat_export_kwh": 0.11,
+        "solar_active": false
+      },
+      {
+        "date": "2024-07-27",
+        "free_kwh": 10.46,
+        "sat_export_kwh": 1.66,
+        "solar_active": true
+      },
+      {
+        "date": "2024-08-03",
+        "free_kwh": 7.47,
+        "sat_export_kwh": 1.26,
+        "solar_active": true
+      },
+      {
+        "date": "2024-08-10",
+        "free_kwh": 9.93,
+        "sat_export_kwh": 2.28,
+        "solar_active": true
+      },
+      {
+        "date": "2024-08-17",
+        "free_kwh": 17.73,
+        "sat_export_kwh": 0.1,
+        "solar_active": false
+      },
+      {
+        "date": "2024-08-24",
+        "free_kwh": 9.97,
+        "sat_export_kwh": 0.75,
+        "solar_active": true
+      },
+      {
+        "date": "2024-08-31",
+        "free_kwh": 4.44,
+        "sat_export_kwh": 3.14,
+        "solar_active": true
+      },
+      {
+        "date": "2024-09-07",
+        "free_kwh": 8.41,
+        "sat_export_kwh": 1.31,
+        "solar_active": true
+      },
+      {
+        "date": "2024-09-14",
+        "free_kwh": 6.06,
+        "sat_export_kwh": 0.47,
+        "solar_active": false
+      },
+      {
+        "date": "2024-09-21",
+        "free_kwh": 10.79,
+        "sat_export_kwh": 0.58,
+        "solar_active": true
+      },
+      {
+        "date": "2024-09-28",
+        "free_kwh": 8.17,
+        "sat_export_kwh": 1.01,
+        "solar_active": true
+      },
+      {
+        "date": "2024-10-05",
+        "free_kwh": 15.65,
+        "sat_export_kwh": 0.01,
+        "solar_active": false
+      },
+      {
+        "date": "2024-10-12",
+        "free_kwh": 8.0,
+        "sat_export_kwh": 1.05,
+        "solar_active": true
+      },
+      {
+        "date": "2024-10-19",
+        "free_kwh": 19.49,
+        "sat_export_kwh": 0.43,
+        "solar_active": false
+      },
+      {
+        "date": "2024-10-26",
+        "free_kwh": 4.51,
+        "sat_export_kwh": 1.27,
+        "solar_active": true
+      },
+      {
+        "date": "2024-11-02",
+        "free_kwh": 12.16,
+        "sat_export_kwh": 0.0,
+        "solar_active": false
+      },
+      {
+        "date": "2024-11-09",
+        "free_kwh": 14.55,
+        "sat_export_kwh": 0.0,
+        "solar_active": false
+      },
+      {
+        "date": "2024-11-16",
+        "free_kwh": 12.48,
+        "sat_export_kwh": 0.12,
+        "solar_active": false
+      },
+      {
+        "date": "2024-11-23",
+        "free_kwh": 14.39,
+        "sat_export_kwh": 0.0,
+        "solar_active": false
+      },
+      {
+        "date": "2024-11-30",
+        "free_kwh": 15.66,
+        "sat_export_kwh": 0.02,
+        "solar_active": false
+      },
+      {
+        "date": "2024-12-07",
+        "free_kwh": 18.12,
+        "sat_export_kwh": 0.25,
+        "solar_active": false
+      },
+      {
+        "date": "2024-12-14",
+        "free_kwh": 10.34,
+        "sat_export_kwh": 0.07,
+        "solar_active": false
+      },
+      {
+        "date": "2024-12-21",
+        "free_kwh": 21.79,
+        "sat_export_kwh": 0.04,
+        "solar_active": false
+      },
+      {
+        "date": "2024-12-28",
+        "free_kwh": 11.24,
+        "sat_export_kwh": 0.22,
+        "solar_active": false
+      },
+      {
+        "date": "2025-01-04",
+        "free_kwh": 22.23,
+        "sat_export_kwh": 0.0,
+        "solar_active": false
+      },
+      {
+        "date": "2025-01-11",
+        "free_kwh": 24.86,
+        "sat_export_kwh": 0.0,
+        "solar_active": false
+      },
+      {
+        "date": "2025-01-18",
+        "free_kwh": 10.7,
+        "sat_export_kwh": 0.84,
+        "solar_active": true
+      },
+      {
+        "date": "2025-01-25",
+        "free_kwh": 7.33,
+        "sat_export_kwh": 1.2,
+        "solar_active": true
+      },
+      {
+        "date": "2025-02-01",
+        "free_kwh": 20.26,
+        "sat_export_kwh": 0.0,
+        "solar_active": false
+      },
+      {
+        "date": "2025-02-08",
+        "free_kwh": 18.13,
+        "sat_export_kwh": 0.01,
+        "solar_active": false
+      },
+      {
+        "date": "2025-02-15",
+        "free_kwh": 13.99,
+        "sat_export_kwh": 0.11,
+        "solar_active": false
+      },
+      {
+        "date": "2025-02-22",
+        "free_kwh": 7.58,
+        "sat_export_kwh": 1.8,
+        "solar_active": true
+      },
+      {
+        "date": "2025-03-01",
+        "free_kwh": 12.85,
+        "sat_export_kwh": 1.6,
+        "solar_active": true
+      },
+      {
+        "date": "2025-03-08",
+        "free_kwh": 9.77,
+        "sat_export_kwh": 0.29,
+        "solar_active": false
+      },
+      {
+        "date": "2025-03-15",
+        "free_kwh": 9.85,
+        "sat_export_kwh": 1.27,
+        "solar_active": true
+      },
+      {
+        "date": "2025-03-22",
+        "free_kwh": 25.91,
+        "sat_export_kwh": 0.01,
+        "solar_active": false
+      },
+      {
+        "date": "2025-03-29",
+        "free_kwh": 23.81,
+        "sat_export_kwh": 0.04,
+        "solar_active": false
+      },
+      {
+        "date": "2025-04-05",
+        "free_kwh": 12.75,
+        "sat_export_kwh": 1.36,
+        "solar_active": true
+      },
+      {
+        "date": "2025-04-12",
+        "free_kwh": 12.95,
+        "sat_export_kwh": 0.38,
+        "solar_active": false
+      },
+      {
+        "date": "2025-04-19",
+        "free_kwh": 5.08,
+        "sat_export_kwh": 0.2,
+        "solar_active": false
+      },
+      {
+        "date": "2025-04-26",
+        "free_kwh": 4.66,
+        "sat_export_kwh": 3.57,
+        "solar_active": true
+      },
+      {
+        "date": "2025-05-03",
+        "free_kwh": 9.59,
+        "sat_export_kwh": 1.36,
+        "solar_active": true
+      },
+      {
+        "date": "2025-05-10",
+        "free_kwh": 14.83,
+        "sat_export_kwh": 0.69,
+        "solar_active": true
+      },
+      {
+        "date": "2025-05-17",
+        "free_kwh": 14.19,
+        "sat_export_kwh": 0.83,
+        "solar_active": true
+      },
+      {
+        "date": "2025-05-24",
+        "free_kwh": 3.11,
+        "sat_export_kwh": 0.15,
+        "solar_active": false
+      },
+      {
+        "date": "2025-05-31",
+        "free_kwh": 0.37,
+        "sat_export_kwh": 1.1,
+        "solar_active": true
+      },
+      {
+        "date": "2025-06-07",
+        "free_kwh": 0.37,
+        "sat_export_kwh": 0.54,
+        "solar_active": true
+      },
+      {
+        "date": "2025-06-14",
+        "free_kwh": 1.64,
+        "sat_export_kwh": 0.24,
+        "solar_active": false
+      },
+      {
+        "date": "2025-06-21",
+        "free_kwh": 4.35,
+        "sat_export_kwh": 2.09,
+        "solar_active": true
+      },
+      {
+        "date": "2025-06-28",
+        "free_kwh": 13.82,
+        "sat_export_kwh": 0.22,
+        "solar_active": false
+      },
+      {
+        "date": "2025-07-05",
+        "free_kwh": 8.98,
+        "sat_export_kwh": 0.69,
+        "solar_active": true
+      },
+      {
+        "date": "2025-07-12",
+        "free_kwh": 8.63,
+        "sat_export_kwh": 2.8,
+        "solar_active": true
+      },
+      {
+        "date": "2025-07-19",
+        "free_kwh": 10.88,
+        "sat_export_kwh": 0.79,
+        "solar_active": true
+      },
+      {
+        "date": "2025-07-26",
+        "free_kwh": 8.81,
+        "sat_export_kwh": 0.58,
+        "solar_active": true
+      },
+      {
+        "date": "2025-08-02",
+        "free_kwh": 1.24,
+        "sat_export_kwh": 2.67,
+        "solar_active": true
+      },
+      {
+        "date": "2025-08-09",
+        "free_kwh": 8.53,
+        "sat_export_kwh": 2.06,
+        "solar_active": true
+      },
+      {
+        "date": "2025-08-16",
+        "free_kwh": 8.22,
+        "sat_export_kwh": 2.06,
+        "solar_active": true
+      },
+      {
+        "date": "2025-08-23",
+        "free_kwh": 13.51,
+        "sat_export_kwh": 0.25,
+        "solar_active": false
+      },
+      {
+        "date": "2025-08-30",
+        "free_kwh": 12.63,
+        "sat_export_kwh": 0.17,
+        "solar_active": false
+      },
+      {
+        "date": "2025-09-06",
+        "free_kwh": 10.02,
+        "sat_export_kwh": 0.08,
+        "solar_active": false
+      },
+      {
+        "date": "2025-09-13",
+        "free_kwh": 11.22,
+        "sat_export_kwh": 1.15,
+        "solar_active": true
+      },
+      {
+        "date": "2025-09-20",
+        "free_kwh": 11.72,
+        "sat_export_kwh": 0.11,
+        "solar_active": false
+      },
+      {
+        "date": "2025-09-27",
+        "free_kwh": 12.24,
+        "sat_export_kwh": 0.27,
+        "solar_active": false
+      },
+      {
+        "date": "2025-10-04",
+        "free_kwh": 1.61,
+        "sat_export_kwh": 2.26,
+        "solar_active": true
+      },
+      {
+        "date": "2025-10-11",
+        "free_kwh": 19.89,
+        "sat_export_kwh": 0.0,
+        "solar_active": false
+      },
+      {
+        "date": "2025-10-18",
+        "free_kwh": 12.17,
+        "sat_export_kwh": 0.0,
+        "solar_active": false
+      },
+      {
+        "date": "2025-10-25",
+        "free_kwh": 9.05,
+        "sat_export_kwh": 1.78,
+        "solar_active": true
+      },
+      {
+        "date": "2025-11-01",
+        "free_kwh": 10.99,
+        "sat_export_kwh": 0.37,
+        "solar_active": false
+      },
+      {
+        "date": "2025-11-08",
+        "free_kwh": 6.42,
+        "sat_export_kwh": 0.5,
+        "solar_active": true
+      },
+      {
+        "date": "2025-11-15",
+        "free_kwh": 6.9,
+        "sat_export_kwh": 0.0,
+        "solar_active": false
+      },
+      {
+        "date": "2025-11-22",
+        "free_kwh": 20.05,
+        "sat_export_kwh": 0.03,
+        "solar_active": false
+      },
+      {
+        "date": "2025-11-29",
+        "free_kwh": 21.04,
+        "sat_export_kwh": 0.06,
+        "solar_active": false
+      },
+      {
+        "date": "2025-12-06",
+        "free_kwh": 26.14,
+        "sat_export_kwh": 0.01,
+        "solar_active": false
+      },
+      {
+        "date": "2025-12-13",
+        "free_kwh": 17.7,
+        "sat_export_kwh": 0.01,
+        "solar_active": false
+      },
+      {
+        "date": "2025-12-20",
+        "free_kwh": 15.63,
+        "sat_export_kwh": 0.05,
+        "solar_active": false
+      },
+      {
+        "date": "2025-12-27",
+        "free_kwh": 12.7,
+        "sat_export_kwh": 0.36,
+        "solar_active": false
+      },
+      {
+        "date": "2026-01-03",
+        "free_kwh": 18.43,
+        "sat_export_kwh": 0.32,
+        "solar_active": false
+      },
+      {
+        "date": "2026-01-10",
+        "free_kwh": 14.72,
+        "sat_export_kwh": 0.25,
+        "solar_active": false
+      },
+      {
+        "date": "2026-01-17",
+        "free_kwh": 11.06,
+        "sat_export_kwh": 0.22,
+        "solar_active": false
+      },
+      {
+        "date": "2026-01-24",
+        "free_kwh": 15.76,
+        "sat_export_kwh": 0.0,
+        "solar_active": false
+      },
+      {
+        "date": "2026-01-31",
+        "free_kwh": 16.4,
+        "sat_export_kwh": 0.07,
+        "solar_active": false
+      },
+      {
+        "date": "2026-02-07",
+        "free_kwh": 21.1,
+        "sat_export_kwh": 0.0,
+        "solar_active": false
+      },
+      {
+        "date": "2026-02-14",
+        "free_kwh": 14.93,
+        "sat_export_kwh": 0.09,
+        "solar_active": false
+      },
+      {
+        "date": "2026-02-21",
+        "free_kwh": 23.74,
+        "sat_export_kwh": 0.02,
+        "solar_active": false
+      },
+      {
+        "date": "2026-02-28",
+        "free_kwh": 8.26,
+        "sat_export_kwh": 1.24,
+        "solar_active": true
+      }
+    ],
+    "monthly_saturday": [
+      {
+        "month": "2024-03",
+        "monthly_free_kwh": 39.85,
+        "monthly_sat_export_kwh": 3.12,
+        "cap_used_pct": 39.8,
+        "headroom_kwh": 60.15,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2024-04",
+        "monthly_free_kwh": 53.62,
+        "monthly_sat_export_kwh": 5.78,
+        "cap_used_pct": 53.6,
+        "headroom_kwh": 46.38,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2024-05",
+        "monthly_free_kwh": 48.23,
+        "monthly_sat_export_kwh": 4.62,
+        "cap_used_pct": 48.2,
+        "headroom_kwh": 51.77,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2024-06",
+        "monthly_free_kwh": 53.95,
+        "monthly_sat_export_kwh": 4.59,
+        "cap_used_pct": 54.0,
+        "headroom_kwh": 46.05,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2024-07",
+        "monthly_free_kwh": 32.22,
+        "monthly_sat_export_kwh": 6.35,
+        "cap_used_pct": 32.2,
+        "headroom_kwh": 67.78,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2024-08",
+        "monthly_free_kwh": 49.55,
+        "monthly_sat_export_kwh": 7.53,
+        "cap_used_pct": 49.6,
+        "headroom_kwh": 50.45,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2024-09",
+        "monthly_free_kwh": 33.43,
+        "monthly_sat_export_kwh": 3.36,
+        "cap_used_pct": 33.4,
+        "headroom_kwh": 66.57,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2024-10",
+        "monthly_free_kwh": 47.64,
+        "monthly_sat_export_kwh": 2.76,
+        "cap_used_pct": 47.6,
+        "headroom_kwh": 52.36,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2024-11",
+        "monthly_free_kwh": 69.24,
+        "monthly_sat_export_kwh": 0.15,
+        "cap_used_pct": 69.2,
+        "headroom_kwh": 30.76,
+        "solar_undercount_flag": false
+      },
+      {
+        "month": "2024-12",
+        "monthly_free_kwh": 61.49,
+        "monthly_sat_export_kwh": 0.56,
+        "cap_used_pct": 61.5,
+        "headroom_kwh": 38.51,
+        "solar_undercount_flag": false
+      },
+      {
+        "month": "2025-01",
+        "monthly_free_kwh": 65.13,
+        "monthly_sat_export_kwh": 2.04,
+        "cap_used_pct": 65.1,
+        "headroom_kwh": 34.87,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2025-02",
+        "monthly_free_kwh": 59.96,
+        "monthly_sat_export_kwh": 1.92,
+        "cap_used_pct": 60.0,
+        "headroom_kwh": 40.04,
+        "solar_undercount_flag": false
+      },
+      {
+        "month": "2025-03",
+        "monthly_free_kwh": 82.2,
+        "monthly_sat_export_kwh": 3.22,
+        "cap_used_pct": 82.2,
+        "headroom_kwh": 17.8,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2025-04",
+        "monthly_free_kwh": 35.44,
+        "monthly_sat_export_kwh": 5.5,
+        "cap_used_pct": 35.4,
+        "headroom_kwh": 64.56,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2025-05",
+        "monthly_free_kwh": 42.1,
+        "monthly_sat_export_kwh": 4.12,
+        "cap_used_pct": 42.1,
+        "headroom_kwh": 57.9,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2025-06",
+        "monthly_free_kwh": 20.18,
+        "monthly_sat_export_kwh": 3.08,
+        "cap_used_pct": 20.2,
+        "headroom_kwh": 79.82,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2025-07",
+        "monthly_free_kwh": 37.3,
+        "monthly_sat_export_kwh": 4.86,
+        "cap_used_pct": 37.3,
+        "headroom_kwh": 62.7,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2025-08",
+        "monthly_free_kwh": 44.13,
+        "monthly_sat_export_kwh": 7.21,
+        "cap_used_pct": 44.1,
+        "headroom_kwh": 55.87,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2025-09",
+        "monthly_free_kwh": 45.2,
+        "monthly_sat_export_kwh": 1.62,
+        "cap_used_pct": 45.2,
+        "headroom_kwh": 54.8,
+        "solar_undercount_flag": false
+      },
+      {
+        "month": "2025-10",
+        "monthly_free_kwh": 42.73,
+        "monthly_sat_export_kwh": 4.05,
+        "cap_used_pct": 42.7,
+        "headroom_kwh": 57.27,
+        "solar_undercount_flag": true
+      },
+      {
+        "month": "2025-11",
+        "monthly_free_kwh": 65.4,
+        "monthly_sat_export_kwh": 0.96,
+        "cap_used_pct": 65.4,
+        "headroom_kwh": 34.6,
+        "solar_undercount_flag": false
+      },
+      {
+        "month": "2025-12",
+        "monthly_free_kwh": 72.17,
+        "monthly_sat_export_kwh": 0.42,
+        "cap_used_pct": 72.2,
+        "headroom_kwh": 27.83,
+        "solar_undercount_flag": false
+      },
+      {
+        "month": "2026-01",
+        "monthly_free_kwh": 76.37,
+        "monthly_sat_export_kwh": 0.86,
+        "cap_used_pct": 76.4,
+        "headroom_kwh": 23.63,
+        "solar_undercount_flag": false
+      },
+      {
+        "month": "2026-02",
+        "monthly_free_kwh": 68.03,
+        "monthly_sat_export_kwh": 1.36,
+        "cap_used_pct": 68.0,
+        "headroom_kwh": 31.97,
+        "solar_undercount_flag": false
+      }
+    ],
+    "avg_saturday_kwh": 12.09,
+    "max_saturday_kwh": 26.14,
+    "min_saturday_kwh": 0.37,
+    "monthly_free_avg_kwh": 51.9,
+    "monthly_headroom_avg": 48.1,
+    "avg_sat_export_kwh": 0.78,
+    "solar_active_saturdays": 44,
+    "solar_undercount_note": "free_kwh = grid import only. In summer, Eddi diverts solar to hot water before it reaches the grid meter \u2014 not counted here. True Saturday consumption = free_kwh + eddi_diverted_kwh. Months with solar_undercount_flag=True have >2 kWh Saturday export; true free usage is likely 3\u20138 kWh/Saturday higher in those months. Full correction requires Eddi history API (log_eddi.py --once via cron)."
+  },
+  "optimisation_score": {
+    "overall": 59.9,
+    "free_score": 51.9,
+    "peak_score": 52.5,
+    "night_score": 90.9,
+    "free_utilisation_pct": 51.9,
+    "peak_pct": 3.17,
+    "night_pct": 30.29
+  },
+  "money_on_table": {
+    "unused_free_kwh_monthly_avg": 48.1,
+    "monthly_saving_potential_eur": 15.52,
+    "annual_saving_potential_eur": 186.27,
+    "peak_overpay_total_eur": 13.97
+  },
+  "recommendations": [
+    "Shift laundry, dishwasher, EV charging to Saturday 09:00\u201317:00. You're using only 52% of your 100 kWh free allowance (avg 51.9 kWh/month).",
+    "You have 7.8 kWh at peak rate monthly. Shift Eddi or appliances away from Mon\u2013Fri 17:00\u201319:00."
+  ],
+  "tariff_used": {
+    "day": 0.32272,
+    "night": 0.2372,
+    "peak": 0.39424000000000003,
+    "free": 0.0,
+    "export": 0.185,
+    "standing_daily": 0.6152
+  }
+}
