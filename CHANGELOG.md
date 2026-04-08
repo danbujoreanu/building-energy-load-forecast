@@ -56,7 +56,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - `docs/governance/DATA_PROVENANCE.md` — 5-source chain (COFACTOR, OpenMeteo, ESB HDF, Eddi API, SINTEF Oslo); GDPR Article 6(1)(b); consent; anonymisation status; regulatory compliance table
 - `docs/governance/AIIA.md` — EU AI Act Limited Risk (Article 52); 7 risk categories; home trial harm findings; safeguards table; override mechanism; drift trigger
 - `docs/governance/DATA_LINEAGE.md` — 8-stage raw CSV → Eddi physical action flow; bug impact audit table cross-referenced to `knowledge/ERRORS.md`
-- `CAREER_CONTEXT.md` — cross-project bridge for career coaching; maps project artefacts to role requirements (enterprise AI governance lead target)
+- `CAREER_CONTEXT.md` — cross-project context file for career coaching (not committed to repo)
 - Docker image size optimised: 1.92GB → 169MB (RandomForest .joblib excluded from COPY layer)
 
 ### Changed

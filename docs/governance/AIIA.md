@@ -12,7 +12,7 @@ This document serves as:
 - Internal governance record for the product
 - Evidence for Enterprise Ireland funding applications
 - Foundation for ESCO registration under CRU202517
-- Template for the kind of governance artefact enterprise AI governance manages for all tools
+- Reference template for enterprise AI governance programmes (EU AI Act, ISO/IEC 42001)
 
 ---
 

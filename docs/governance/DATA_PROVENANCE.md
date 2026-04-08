@@ -6,7 +6,7 @@
 
 ## What Is Data Provenance?
 
-Data provenance answers: *Where did this data come from? Who owns it? Under what terms is it used? How was it transformed?* This document exists to ensure any deployment of this model can demonstrate that its training data was obtained and used appropriately — a requirement under GDPR, EU AI Act Article 10, and enterprise-standard AI Impact Assessment frameworks.
+Data provenance answers: *Where did this data come from? Who owns it? Under what terms is it used? How was it transformed?* This document exists to ensure any deployment of this model can demonstrate that its training data was obtained and used appropriately — a requirement under GDPR, EU AI Act Article 10, and enterprise AI governance frameworks (ISO/IEC 42001, NIST AI RMF).
 
 ---
 
