@@ -454,7 +454,7 @@ This project implements a production-grade AI governance framework across four l
 | Document | Governs | Key content |
 |----------|---------|-------------|
 | [**📄 DATA PROVENANCE**](docs/governance/DATA_PROVENANCE.md) | Raw data → Feature engineering | Dataset licences (CC BY 4.0), ESB Networks legal basis, MICE imputation log, no-PII declaration |
-| [**📋 MODEL CARD**](docs/governance/MODEL_CARD.md) | Training → Evaluation | **MAE 4.03 kWh / R²=0.975** (Drammen H+24) · Oslo MAE 7.28 kWh / R²=0.964 · DM −12.17*** vs PatchTST · horizon sweep H+1→H+48 |
+| [**📋 MODEL CARD**](docs/governance/MODEL_CARD.md) | Training → Evaluation | **MAE 4.03 kWh / R²=0.975** (Drammen H+24) · Oslo MAE 7.28 kWh / R²=0.9635 · DM −12.17*** vs PatchTST · horizon sweep H+1→H+48 |
 | [**⚖️ AI IMPACT ASSESSMENT**](docs/governance/AIIA.md) | Inference → Control | EU AI Act Art. 52 classification, affected parties, CRU June 2026 compliance, drift trigger: 7d MAE > 1.5× |
 | [**🔗 DATA LINEAGE**](docs/governance/DATA_LINEAGE.md) | All stages | End-to-end audit trail: Raw CSV → Parquet → 35 features → StandardScaler → LightGBM → FastAPI → ControlEngine → Eddi command |
 
