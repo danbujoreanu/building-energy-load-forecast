@@ -86,3 +86,6 @@ secrets.yaml
 outputs/predictions/
 # One-off utility scripts (machine-specific paths)
 extract_pdf.py
+
+# Claude agent config (local only)
+.claude/
