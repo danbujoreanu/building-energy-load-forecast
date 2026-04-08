@@ -89,3 +89,13 @@ extract_pdf.py
 
 # Claude agent config (local only)
 .claude/
+
+# Private operational, commercial & personal files — NEVER commit
+CLAUDE.md
+CAREER_CONTEXT.md
+docs/ops/
+docs/commercial/
+knowledge/procedural/EDDI_API.md
+.env
+.env*
+*.env
