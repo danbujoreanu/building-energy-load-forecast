@@ -688,7 +688,7 @@ Output:        24-step multi-horizon prediction (direct)
 |--------|--------|
 | Smart meter | ESB Networks (30-min interval CSV export) |
 | Solar PV | Yes — no CT clamp on generation circuit |
-| Hot water diverter | myenergi Eddi (hub serial: 21509692, server: s18.myenergi.net) |
+| Hot water diverter | myenergi Eddi (hub serial: HUB_SERIAL_REDACTED, server: s18.myenergi.net) |
 | Grid CT clamp | myenergi Harvi (serial: 13541598) — measures grid incomer |
 | Tariff | BGE Free Time Saturday + 20% Affinity discount (expires 15 June 2026) |
 

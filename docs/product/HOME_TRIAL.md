@@ -14,7 +14,7 @@
 | **Tariff** | BGE Free Time Saturday + 20% Affinity discount (to 15 June 2026) |
 | **Smart meter** | ESB Networks smart meter (30-min interval data via My Account CSV export) |
 | **Solar PV** | Yes — panels installed; no CT clamp on generation |
-| **Hot water diverter** | myenergi **Eddi** (hub serial: **21509692**) |
+| **Hot water diverter** | myenergi **Eddi** (hub serial: **HUB_SERIAL_REDACTED**) |
 | **CT clamp (grid)** | myenergi **Harvi** (serial: **13541598**) — measures grid incomer |
 | **Occupants** | 2 people |
 | **Shower time** | ~09:30 (gym days vary) |
@@ -40,7 +40,7 @@
 ## Devices
 
 ### myenergi Eddi (hot water diverter)
-- Hub serial: `21509692` — server: `s18.myenergi.net` (confirmed from CORS header)
+- Hub serial: `HUB_SERIAL_REDACTED` — server: `s18.myenergi.net` (confirmed from CORS header)
 - **API key**: stored in `.env` file (gitignored). See `.env` for `MYENERGI_API_KEY`.
   - To load: `export $(cat .env | xargs)` or `source .env` — then run any script.
   - Key reference: stored in `.env` only — never commit to repo. Regenerate in myenergi app if exposed.
@@ -314,7 +314,7 @@ to record `today_kwh` before midnight reset (one row/day, requires Mac to be on)
 ### Tier 3 — Once-daily snapshot via cron (low-effort, for data completeness)
 ```bash
 # Add to crontab: crontab -e
-55 23 * * * export MYENERGI_SERIAL=21509692 && export MYENERGI_API_KEY=<key> && \
+55 23 * * * export MYENERGI_SERIAL=HUB_SERIAL_REDACTED && export MYENERGI_API_KEY=<key> && \
   /Users/danalexandrubujoreanu/miniconda3/envs/ml_lab1/bin/python \
   /Users/danalexandrubujoreanu/building-energy-load-forecast/scripts/log_eddi.py --once
 ```
