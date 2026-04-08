@@ -16,14 +16,14 @@ MSc Artificial Intelligence · National College of Ireland · 2025
 > *Dan Alexandru Bujoreanu*
 > 33rd Irish Conference on Artificial Intelligence and Cognitive Science (AICS 2025)
 
-This research was accepted at **AICS 2025** in two tracks:
+This research was submitted to and presented at **AICS 2025** in two tracks:
 
-- 📄 **Full Paper** — published in the [Springer CCIS Series](https://www.springer.com/series/7899) (peer-reviewed archival proceedings)
+- 📄 **Full Paper** — submitted to the [Springer CCIS Series](https://www.springer.com/series/7899) (peer-reviewed archival proceedings) · *awaiting final Springer publication confirmation*
 - 📄 **Student Paper** — published in the DCU Press Companion Proceedings (dedicated student research track)
 
 The paper benchmarks tree-based models (Random Forest, LightGBM, XGBoost) against deep learning (LSTM, CNN-LSTM, GRU, TFT) for hourly building electricity load forecasting, and demonstrates that tree-based models consistently outperform deep nets on this tabular, high-autocorrelation time series — at a fraction of the training cost.
 
-See [`docs/PAPER_JOURNEY.md`](docs/PAPER_JOURNEY.md) for the full story: from 3 Jupyter notebooks to a production package to a peer-reviewed conference paper.
+See [`docs/research/PAPER_JOURNEY.md`](docs/research/PAPER_JOURNEY.md) for the full story: from 3 Jupyter notebooks to a production package to a peer-reviewed conference paper.
 
 ---
 
@@ -447,13 +447,15 @@ To use: place files in `data/raw/oslo/` and set `city: oslo` in `config/config.y
 
 This project implements a production-grade AI governance framework across four living documents. Each document is linked to the pipeline stages it governs.
 
-![Governance Map](docs/figures/governance_map.png)
+> **Champion model: LightGBM H+24 · MAE 4.03 kWh · R² 0.975 · Diebold-Mariano vs PatchTST: −12.17 (p<0.001)** — validated on 93 buildings across two Norwegian cities.
+
+![Governance Diagram](docs/figures/governance_diagram.png)
 
 | Document | Governs | Key content |
 |----------|---------|-------------|
 | [**📄 DATA PROVENANCE**](docs/governance/DATA_PROVENANCE.md) | Raw data → Feature engineering | Dataset licences (CC BY 4.0), ESB Networks legal basis, MICE imputation log, no-PII declaration |
-| [**📋 MODEL CARD**](docs/governance/MODEL_CARD.md) | Training → Evaluation | LightGBM H+24 facts sheet, MAE 4.03 kWh / R²=0.975, DM significance tests, known limitations |
-| [**⚖️ AI IMPACT ASSESSMENT**](docs/governance/AIIA.md) | Inference → Control | EU AI Act Art. 52 classification, affected parties, CRU June 2026 compliance, drift trigger |
+| [**📋 MODEL CARD**](docs/governance/MODEL_CARD.md) | Training → Evaluation | **MAE 4.03 kWh / R²=0.975** (Drammen H+24) · Oslo MAE 7.28 kWh / R²=0.964 · DM −12.17*** vs PatchTST · horizon sweep H+1→H+48 |
+| [**⚖️ AI IMPACT ASSESSMENT**](docs/governance/AIIA.md) | Inference → Control | EU AI Act Art. 52 classification, affected parties, CRU June 2026 compliance, drift trigger: 7d MAE > 1.5× |
 | [**🔗 DATA LINEAGE**](docs/governance/DATA_LINEAGE.md) | All stages | End-to-end audit trail: Raw CSV → Parquet → 35 features → StandardScaler → LightGBM → FastAPI → ControlEngine → Eddi command |
 
 Regulatory context:
@@ -531,6 +533,8 @@ pytest tests/ -v --cov=src/energy_forecast
 
 **Conference paper (AICS 2025 — preferred citation):**
 
+*Presented at the 33rd Irish Conference on Artificial Intelligence and Cognitive Science (AICS 2025). Submitted to Springer CCIS — publication pending confirmation.*
+
 ```bibtex
 @inproceedings{bujoreanu2025trees,
   author    = {Dan Alexandru Bujoreanu},
@@ -541,6 +545,7 @@ pytest tests/ -v --cov=src/energy_forecast
   series    = {Communications in Computer and Information Science},
   publisher = {Springer},
   year      = {2025},
+  note      = {Publication pending},
 }
 ```
 
