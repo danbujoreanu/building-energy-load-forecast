@@ -28,6 +28,11 @@ seed: 42
 data:
   timestamp_format: "%Y-%m-%dT%H:%M:%S%z"
   timezone: "Etc/Gmt-1"
+  timezones:
+    drammen: "Europe/Oslo"
+    oslo: "Europe/Oslo"
+    ireland: "Europe/Dublin"
+    default: "UTC"
   target_column: "Electricity_Imported_Total_kWh"
   weather_columns:
     - Temperature_Outdoor_C

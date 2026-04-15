@@ -30,6 +30,26 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# Timezone helper
+# ---------------------------------------------------------------------------
+
+def _get_timezone(cfg: dict, city: str | None = None) -> str:
+    """Return the timezone string for a given city, with fallback chain.
+
+    Priority:
+        1. ``cfg["data"]["timezones"][city]``  — per-city override
+        2. ``cfg["data"]["timezones"]["default"]``  — explicit default
+        3. ``cfg["data"]["timezone"]``  — legacy single-timezone field
+        4. ``"Europe/Oslo"``  — hardcoded fallback (should never be needed)
+    """
+    tz_map = cfg["data"].get("timezones", {})
+    if city and city.lower() in tz_map:
+        return tz_map[city.lower()]
+    return tz_map.get("default", cfg["data"].get("timezone", "Europe/Oslo"))
+
+
 # ---------------------------------------------------------------------------
 # Column-name mapping: raw codes → human-readable names
 # ---------------------------------------------------------------------------
@@ -117,7 +137,7 @@ def load_city_data(
 
     for fp in files:
         try:
-            meta, ts = _parse_building_file(fp, cfg)
+            meta, ts = _parse_building_file(fp, cfg, city=city)
             meta_rows.append(meta)
             ts_frames.append(ts)
         except Exception as exc:  # noqa: BLE001
@@ -146,6 +166,7 @@ def load_city_data(
 def _parse_building_file(
     filepath: Path,
     cfg: dict[str, Any],
+    city: str | None = None,
 ) -> tuple[dict, pd.DataFrame]:
     """Parse a single building file into (metadata dict, timeseries DataFrame).
 
@@ -196,7 +217,7 @@ def _parse_building_file(
         # BUG-C4: infer_datetime_format was deprecated in pandas 2.2 and removed
         # in pandas 3.0.  Pandas infers the format by default without the flag.
         df["TimeStamp"] = pd.to_datetime(df["TimeStamp"], utc=True)
-    df["TimeStamp"] = df["TimeStamp"].dt.tz_convert(cfg["data"].get("timezone", "Europe/Oslo"))
+    df["TimeStamp"] = df["TimeStamp"].dt.tz_convert(_get_timezone(cfg, city))
 
     # ── Step 6: rename columns & coerce numeric ───────────────────────────────
     rename_map = {k: v for k, v in _COLUMN_MAP.items() if k in df.columns}

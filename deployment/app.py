@@ -1,3 +1,4 @@
+import json
 import logging
 import math
 import sys
@@ -146,6 +147,56 @@ app = FastAPI(
 
 
 # ---------------------------------------------------------------------------
+# Drift report helper
+# ---------------------------------------------------------------------------
+
+def _load_latest_drift_report(city: str) -> dict:
+    """Load the most recent drift report JSON for a city.
+
+    Looks for files matching ``outputs/results/drift_reports/drift_{city}_*.json``
+    and returns the last one in sorted filename order (most recent by filename).
+
+    Returns a minimal dict with the fields relevant to the health endpoint.
+    Falls back to a safe default dict on any error so the /health endpoint
+    never fails because of drift reporting.
+
+    Args:
+        city: City identifier, e.g. "drammen".
+
+    Returns:
+        Dict with keys: severity, recommended_action, checked_at, rolling_mae_triggered.
+    """
+    try:
+        drift_dir = _REPO_ROOT / "outputs" / "results" / "drift_reports"
+        candidates = sorted(drift_dir.glob(f"drift_{city}_*.json"))
+        if not candidates:
+            return {
+                "severity": "unknown",
+                "recommended_action": "run scripts/run_drift_check.py",
+                "checked_at": None,
+                "rolling_mae_triggered": None,
+            }
+        latest = candidates[-1]
+        with open(latest, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        rolling = data.get("rolling_mae_result") or {}
+        return {
+            "severity": data.get("overall_severity", "unknown"),
+            "recommended_action": data.get("recommended_action", "unknown"),
+            "checked_at": data.get("checked_at"),
+            "rolling_mae_triggered": rolling.get("is_triggered"),
+        }
+    except Exception as exc:
+        logger.debug("Could not load drift report for city='%s': %s", city, exc)
+        return {
+            "severity": "unknown",
+            "recommended_action": "run scripts/run_drift_check.py",
+            "checked_at": None,
+            "rolling_mae_triggered": None,
+        }
+
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
@@ -156,10 +207,13 @@ def health_check():
         name: ("mock" if isinstance(obj, str) and obj.startswith("MOCK") else "real")
         for name, obj in models.items()
     }
+    # Read latest drift report if available (failure-safe — health endpoint must not fail)
+    drift_status = _load_latest_drift_report(city="drammen")
     return {
         "status": "healthy",
         "models": model_status,
         "inference_ready": any(v == "real" for v in model_status.values()),
+        "drift": drift_status,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 

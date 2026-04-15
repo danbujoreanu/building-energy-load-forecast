@@ -233,14 +233,39 @@ def run_morning_brief(
 
     # ── Step 4: Feature engineering + model inference ─────────────────────
     scaler_path = REPO_ROOT / "data" / "processed" / "splits" / f"{city}_scaler.pkl"
-    model_glob = sorted((REPO_ROOT / "outputs" / "models").glob(f"{city}_LightGBM_*.joblib"))
 
-    if model_glob:
-        import joblib
-        model_path = model_glob[-1]  # most recent
-        model = joblib.load(model_path)
-        logger.info("Loaded model from %s", model_path)
+    # Registry-aware loading: prefer the ACTIVE registry model, fall back to file-glob
+    model = None
+    try:
+        from energy_forecast.registry.model_registry import ModelRegistry
+        registry = ModelRegistry(REPO_ROOT / "outputs" / "models" / "registry")
+        active = registry.get_active(city, "lightgbm")
+        if active is not None:
+            import joblib
+            model_path = Path(active.artifact_path)
+            model = joblib.load(model_path)
+            logger.info(
+                "Loaded ACTIVE registry model: %s (MAE=%.4f)",
+                active.version_id,
+                active.test_metrics.MAE if active.test_metrics else float("nan"),
+            )
+        else:
+            logger.warning(
+                "No active model in registry for %s/%s — falling back to file-glob",
+                city, "lightgbm",
+            )
+    except Exception as exc:
+        logger.warning("Registry lookup failed (%s) — falling back to file-glob", exc)
 
+    if model is None:
+        model_glob = sorted((REPO_ROOT / "outputs" / "models").glob(f"{city}_LightGBM_*.joblib"))
+        if model_glob:
+            import joblib
+            model_path = model_glob[-1]  # most recent
+            model = joblib.load(model_path)
+            logger.info("Loaded model from %s (file-glob fallback)", model_path)
+
+    if model is not None:
         try:
             X_scaled, _ = _build_inference_features(history_df, cfg, scaler_path=scaler_path)
             # Use last row for H+24 prediction
