@@ -122,6 +122,8 @@ class SklearnForecaster(BaseForecaster):
         y_val: pd.Series | None = None,
         **kwargs: Any,
     ) -> SklearnForecaster:
+        from energy_forecast.validation import DataValidator
+        DataValidator.validate_training_data(X_train, y_train, X_val, y_val, split_name=self.name)
         logger.info("Training %s ...", self.name)
         fit_params: dict = {}
 
@@ -185,6 +187,8 @@ class LightGBMQuantileForecaster(BaseForecaster):
         y_val: pd.Series | None = None,
         **kwargs: Any,
     ) -> LightGBMQuantileForecaster:
+        from energy_forecast.validation import DataValidator
+        DataValidator.validate_training_data(X_train, y_train, X_val, y_val, split_name=self.name)
         try:
             import lightgbm as lgb
         except ImportError as e:

@@ -22,7 +22,10 @@ it coordinates independent pipeline stages without them knowing about each other
 """
 
 import argparse
+import datetime
+import fcntl
 import logging
+import os
 import time
 from pathlib import Path
 
@@ -305,7 +308,12 @@ def _run_training(cfg: dict, skip_slow: bool = False, save_preds: bool = False) 
             fitted_models["TFT"] = tft
             logger.info("TFT  n_eval=%d", len(y_tft))
         except Exception as exc:
-            logger.warning("TFT training/evaluation failed: %s", exc)
+            logger.error(
+                "TFT training/evaluation failed — skipping TFT results. "
+                "This is the most expensive model; investigate root cause. Error: %s",
+                exc,
+                exc_info=True,
+            )
 
     # ── Stacking ensemble ─────────────────────────────────────────────────────
     # Sklearn models only — DL models return trimmed-length predictions that
@@ -327,7 +335,7 @@ def _run_training(cfg: dict, skip_slow: bool = False, save_preds: bool = False) 
             results.append(evaluate(y_test, preds, ensemble.name,
                                     building_ids=test_bids, timestamps=test_ts))
         except Exception as exc:
-            logger.warning("Stacking ensemble failed: %s", exc)
+            logger.error("Stacking ensemble training failed: %s", exc, exc_info=True)
 
     comparison = compare_models(results)
 
@@ -355,16 +363,16 @@ def _run_training(cfg: dict, skip_slow: bool = False, save_preds: bool = False) 
                 old_metrics = old_metrics.rename(columns={"Model": "model"})
 
             combined = pd.concat([old_metrics, comparison_to_save], ignore_index=True)
-            combined.to_csv(metrics_path)
+            _write_metrics_atomic(metrics_path, combined)
             logger.info("Merged results into %s", metrics_path)
             # Use combined for plot/log below
             comparison_final = combined
-        except Exception as e:
-            logger.warning("Failed to merge with existing metrics: %s. Overwriting.", e)
-            comparison_to_save.to_csv(metrics_path)
+        except (pd.errors.ParserError, OSError, KeyError) as e:
+            logger.error("Failed to merge with existing metrics: %s. Overwriting.", e, exc_info=True)
+            _write_metrics_atomic(metrics_path, comparison_to_save)
             comparison_final = comparison_to_save
     else:
-        comparison_to_save.to_csv(metrics_path)
+        _write_metrics_atomic(metrics_path, comparison_to_save)
         comparison_final = comparison_to_save
 
     logger.info("\n%s", comparison_final.to_string())
@@ -383,11 +391,9 @@ def _run_training(cfg: dict, skip_slow: bool = False, save_preds: bool = False) 
     #   Keras DL   → .keras file      (model_.save)
     #   Sklearn    → .joblib          (joblib.dump of model.estimator)
     #   Ensemble   → .joblib          (joblib.dump of meta_learner_)
-    import datetime
-
     import joblib as _joblib
 
-    _today = datetime.date.today().isoformat()
+    _now = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
     model_dir = Path(cfg["paths"]["outputs"]["models"])
     model_dir.mkdir(parents=True, exist_ok=True)
     city = cfg["city"]
@@ -395,7 +401,7 @@ def _run_training(cfg: dict, skip_slow: bool = False, save_preds: bool = False) 
     for mname, model in fitted_models.items():
         try:
             safe_name = mname.replace(" ", "_").replace("(", "").replace(")", "")
-            stem = f"{city}_{safe_name}_{_today}"
+            stem = f"{city}_{safe_name}_{_now}"
 
             if hasattr(model, "trainer_") and model.trainer_ is not None:
                 # TFT: Lightning trainer checkpoint — preserves weights + epoch
@@ -429,12 +435,122 @@ def _run_training(cfg: dict, skip_slow: bool = False, save_preds: bool = False) 
                     mname, type(model).__name__,
                 )
 
+        except OSError as exc:
+            logger.error("Could not save model '%s' to disk: %s", mname, exc, exc_info=True)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Could not save model '%s': %s", mname, exc)
+            logger.error("Unexpected error saving model '%s': %s", mname, exc, exc_info=True)
 
     logger.info("Model artefacts saved → %s", model_dir)
 
+    # ── Model Registry: register + promote each trained model ─────────────────
+    from energy_forecast.registry import (  # noqa: PLC0415
+        ModelMetrics,
+        ModelRegressionError,
+        ModelRegistry,
+        ModelStatus,
+        ModelVersion,
+    )
+
+    registry = ModelRegistry(model_dir / "registry")
+
+    # Build a lookup: model name → its result dict
+    _metrics_by_name: dict[str, dict] = {r["model"]: r for r in results}
+
+    for mname, model in fitted_models.items():
+        result = _metrics_by_name.get(mname)
+        if result is None:
+            continue
+
+        # Determine artifact path for this model (mirrors the save logic above)
+        safe_name = mname.replace(" ", "_").replace("(", "").replace(")", "")
+        stem = f"{city}_{safe_name}_{_now}"
+
+        if hasattr(model, "trainer_") and model.trainer_ is not None:
+            artifact_path = str(model_dir / f"{stem}.ckpt")
+        elif hasattr(model, "model_") and model.model_ is not None:
+            artifact_path = str(model_dir / f"{stem}.keras")
+        elif hasattr(model, "meta_learner_") and model.meta_learner_ is not None:
+            artifact_path = str(model_dir / f"{stem}_meta.joblib")
+        elif hasattr(model, "estimator"):
+            artifact_path = str(model_dir / f"{stem}.joblib")
+        else:
+            continue  # Baselines — not registered
+
+        test_mae_val = float(result.get("MAE", 0.0))
+        test_rmse_val = float(result.get("RMSE", 0.0))
+        test_r2_val = float(result.get("R2", result.get("R²", 0.0)))
+
+        test_metrics = ModelMetrics(
+            MAE=test_mae_val,
+            RMSE=test_rmse_val,
+            R2=test_r2_val,
+            MAPE=float(result.get("MAPE", 0.0)) if "MAPE" in result else None,
+            training_seconds=float(train_times.get(mname, 0.0)),
+        )
+
+        version = ModelVersion(
+            version_id="",  # auto-generated by register()
+            city=city,
+            model_name=mname,
+            artifact_path=artifact_path,
+            trained_at=datetime.datetime.now().isoformat(),
+            git_commit="",  # auto-resolved by register()
+            feature_names=X_train.columns.tolist(),
+            train_metrics=test_metrics,  # test metrics used as proxy (train not separately computed)
+            val_metrics=None,
+            test_metrics=test_metrics,
+            status=ModelStatus.CANDIDATE,
+            config_snapshot=cfg.get("training", {}),
+        )
+
+        try:
+            registered = registry.register(version)
+            try:
+                registry.promote_to_active(registered.version_id)
+                logger.info(
+                    "Registry: promoted %s → ACTIVE (%s)", mname, registered.version_id
+                )
+            except ModelRegressionError as exc:
+                logger.error(
+                    "Registry: %s FAILED quality gate — new MAE (%.3f) > threshold × previous. "
+                    "Previous ACTIVE version retained. Run with force=True to override. Error: %s",
+                    mname, test_mae_val, exc,
+                )
+        except Exception as exc:
+            logger.error("Registry: failed to register %s: %s", mname, exc, exc_info=True)
+
+    logger.info("Registry summary:\n%s", registry.summary())
+
     logger.info("Stage 3 complete. Results → %s", res_dir / "final_metrics.csv")
+
+
+def _write_metrics_atomic(path: "Path", df: "pd.DataFrame") -> None:  # noqa: F821
+    """Write DataFrame to CSV atomically with advisory file lock.
+
+    Uses write-to-temp + atomic rename to prevent partial-write corruption.
+    Acquires an exclusive fcntl lock to prevent concurrent pipeline runs
+    from interleaving writes.
+    """
+    import pandas as pd  # noqa: PLC0415
+
+    tmp_path = path.with_suffix(".csv.tmp")
+    lock_path = path.with_suffix(".csv.lock")
+    lock_path.touch(exist_ok=True)
+
+    try:
+        with open(lock_path, "w") as lock_fh:
+            fcntl.flock(lock_fh, fcntl.LOCK_EX)
+            try:
+                df.to_csv(tmp_path)
+                os.replace(tmp_path, path)
+            finally:
+                fcntl.flock(lock_fh, fcntl.LOCK_UN)
+    except AttributeError:
+        # fcntl not available on Windows — fall back to direct write
+        df.to_csv(path)
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
 
 
 def _trim_dl_targets(y, lookback: int):
@@ -561,8 +677,13 @@ def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted
             if save_preds and preds_dir is not None:
                 errors = y_te_aligned.values - preds
                 _save_error_array(preds_dir, model.name, errors)
+    except MemoryError as exc:
+        logger.error(
+            "%s training failed with OOM — try reducing batch_size in config.yaml. Error: %s",
+            arch.upper(), exc,
+        )
     except Exception as exc:
-        logger.warning("%s training failed: %s", arch.upper(), exc)
+        logger.error("%s training failed: %s", arch.upper(), exc, exc_info=True)
 
 
 def _save_error_array(preds_dir: "Path", model_name: str, errors: "np.ndarray") -> None:  # noqa: F821

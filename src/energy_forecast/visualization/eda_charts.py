@@ -470,8 +470,14 @@ def plot_temperature_vs_electricity_by_category(
             p2 = np.poly1d(z2)
             x2 = np.linspace(grp[temp_col].min(), grp[temp_col].max(), 200)
             ax2.plot(x2, p2(x2), color=color, linewidth=2.5, label=cat)
-        except Exception:  # noqa: BLE001
-            pass
+        except (np.linalg.LinAlgError, TypeError, ValueError) as _poly_err:
+            # Polynomial fit failed for this building category — singular matrix
+            # (too few points or colinear data). Skip the trend line for this
+            # category; the scatter plot is still rendered.
+            logger.debug(
+                "Quadratic fit failed for category (skipping trend line): %s",
+                _poly_err,
+            )
     ax2.set_xlabel("Outdoor Temperature (°C)")
     ax2.set_ylabel("Electricity Imported (kWh)")
     ax2.set_title("B  Quadratic Regression per Building Category\n"

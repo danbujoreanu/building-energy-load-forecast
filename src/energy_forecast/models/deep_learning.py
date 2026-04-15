@@ -102,6 +102,50 @@ def build_sequences(
 
 
 # ---------------------------------------------------------------------------
+# Prediction reshape utility
+# ---------------------------------------------------------------------------
+
+def reshape_dl_predictions(raw: np.ndarray, horizon: int) -> np.ndarray:
+    """Reshape raw DL model output to the expected evaluation format.
+
+    BUG-C5 guard: Do NOT blindly flatten multi-step predictions.
+
+    For H+1  (horizon=1): flatten to 1-D (n_samples,) — backward-compatible
+                           with evaluate() scalar target comparison.
+    For H+N  (horizon>1): validate and return (n_samples, horizon) matrix.
+                           Flattening would interleave all N prediction steps,
+                           producing a 1-D array of shape (n_samples*N,) that
+                           makes evaluate() compute meaningless global MAE.
+
+    Args:
+        raw: Output from model.predict() — shape (n_samples, horizon) or
+             (n_samples,) for degenerate single-output models.
+        horizon: Expected number of prediction steps.
+
+    Returns:
+        1-D array for horizon=1, (n_samples, horizon) array for horizon>1.
+
+    Raises:
+        ValueError: If raw shape is inconsistent with horizon.
+    """
+    if horizon == 1:
+        return raw.flatten()
+
+    if raw.ndim == 1:
+        raise ValueError(
+            f"BUG-C5: expected 2-D predictions for horizon={horizon}, "
+            f"got 1-D array shape={raw.shape}. "
+            "The model output was flattened before reaching reshape_dl_predictions()."
+        )
+    if raw.shape[-1] != horizon:
+        raise ValueError(
+            f"BUG-C5: prediction shape mismatch — expected last dim={horizon}, "
+            f"got shape={raw.shape}."
+        )
+    return raw
+
+
+# ---------------------------------------------------------------------------
 # LSTM
 # ---------------------------------------------------------------------------
 
@@ -176,11 +220,7 @@ class LSTMForecaster(BaseForecaster):
             X, y_placeholder, self._seq_cfg["lookback"], self._seq_cfg["horizon"]
         )
         raw = _chunked_predict(self.model_, X_seq)  # (n_samples, horizon)
-        # BUG-C5: Do NOT blindly flatten.  For H+24, flat shape is (n_samples*24,)
-        # which mixes all 24 prediction steps and breaks evaluation.
-        # AI Studio verdict: return (n_samples, horizon) matrix; caller handles.
-        # H+1 special case: squeeze to 1-D for backward-compat with evaluate().
-        return raw.flatten() if self._seq_cfg["horizon"] == 1 else raw
+        return reshape_dl_predictions(raw, self._seq_cfg["horizon"])
 
 
 # ---------------------------------------------------------------------------
@@ -256,7 +296,7 @@ class CNNLSTMForecaster(BaseForecaster):
             X, y_placeholder, self._seq_cfg["lookback"], self._seq_cfg["horizon"]
         )
         raw = _chunked_predict(self.model_, X_seq)  # (n_samples, horizon)
-        return raw.flatten() if self._seq_cfg["horizon"] == 1 else raw
+        return reshape_dl_predictions(raw, self._seq_cfg["horizon"])
 
 
 # ---------------------------------------------------------------------------
@@ -326,7 +366,7 @@ class GRUForecaster(BaseForecaster):
             X, y_placeholder, self._seq_cfg["lookback"], self._seq_cfg["horizon"]
         )
         raw = _chunked_predict(self.model_, X_seq)  # (n_samples, horizon)
-        return raw.flatten() if self._seq_cfg["horizon"] == 1 else raw
+        return reshape_dl_predictions(raw, self._seq_cfg["horizon"])
 
 
 # ---------------------------------------------------------------------------

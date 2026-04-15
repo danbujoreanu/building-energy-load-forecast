@@ -164,7 +164,7 @@ Short-term (next 24 hours) electricity consumption forecasting for public buildi
 
 ### Environmental impact
 - LightGBM is computationally efficient — training runs in minutes on standard hardware.
-- Production inference runs on Raspberry Pi-class hardware (edge deployment) — minimal energy overhead.
+- Production inference is designed for edge deployment — LightGBM inference runs in ~2ms on standard hardware. Development and home trial run on Mac Mini M5 (Apple Silicon, macOS, no GPU required). Production hardware at scale is TBD (cost-optimised form factor, target <€30 BOM at >500 units/month). The P1 port USB adapter interface is hardware-agnostic (DSMR standard).
 - Purpose of the model is energy efficiency — net environmental benefit expected.
 
 ---
