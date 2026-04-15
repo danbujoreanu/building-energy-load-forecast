@@ -54,8 +54,9 @@ def make_splits(
         X_train, y_train, X_val, y_val, X_test, y_test, scaler
     """
     target = target or cfg["data"]["target_column"]
-    train_end = pd.Timestamp(cfg["splits"]["train_end"], tz="Europe/Oslo")
-    val_end   = pd.Timestamp(cfg["splits"]["val_end"],   tz="Europe/Oslo")
+    tz = cfg["data"].get("timezone", "Europe/Oslo")
+    train_end = pd.Timestamp(cfg["splits"]["train_end"], tz=tz)
+    val_end   = pd.Timestamp(cfg["splits"]["val_end"],   tz=tz)
 
     ts = df.index.get_level_values("timestamp")
 
@@ -90,6 +91,17 @@ def make_splits(
     X_train = X_train.fillna(train_medians)  # noqa: N806
     X_val   = X_val.fillna(train_medians)  # noqa: N806
     X_test  = X_test.fillna(train_medians)  # noqa: N806
+
+    # Post-imputation validation: fillna with medians should eliminate all NaN.
+    # If any remain, the column had no non-NaN training values — a data quality issue.
+    _residual_nan_cols = [c for c in X_train.columns if X_train[c].isna().any()]
+    if _residual_nan_cols:
+        logger.warning(
+            "Post-imputation NaN in %d column(s) of X_train — "
+            "these columns had no non-NaN training values: %s",
+            len(_residual_nan_cols),
+            _residual_nan_cols[:10],
+        )
 
     # ── Fit scaler on train only (avoid data leakage) ─────────────────────────
     scaler = StandardScaler()

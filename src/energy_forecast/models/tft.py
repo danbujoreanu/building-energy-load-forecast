@@ -343,8 +343,8 @@ class TFTForecaster(BaseForecaster):
         )  # tensor: (n_samples, horizon), already denormalised to kWh
         preds = raw_preds.cpu().numpy()
         horizon = self._seq_cfg_.get("horizon", 1)
-        # BUG-C5: Do NOT blindly flatten H+24. For H+1, flatten to (n_samples,).
-        return preds.flatten() if horizon == 1 else preds
+        from energy_forecast.models.deep_learning import reshape_dl_predictions
+        return reshape_dl_predictions(preds, horizon)
 
     # ------------------------------------------------------------------
     # Helper

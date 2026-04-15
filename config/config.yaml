@@ -209,3 +209,23 @@ evaluation:
 #   lightgbm →      3 s
 #   xgboost  →      3 s
 slow_models: [lstm, cnn_lstm, tft]
+
+# ── Model monitoring & drift detection ───────────────────────────────────────
+monitoring:
+  # Rolling MAE window: number of days to compute rolling MAE over.
+  # A 7-day window gives enough signal without reacting to single-day spikes.
+  rolling_window_days: 7
+
+  # Retrain trigger: if 7-day rolling MAE > this multiple of training MAE → retrain.
+  # 1.5× = 50% degradation before triggering — conservative for monthly retraining cadence.
+  mae_threshold_multiplier: 1.5
+
+  # KS test significance level for feature drift detection.
+  ks_alpha: 0.05
+
+  # PSI thresholds for feature distribution shift severity.
+  psi_warning:  0.10   # PSI >= 0.10 → WARNING
+  psi_critical: 0.20   # PSI >= 0.20 → CRITICAL
+
+  # Path for drift report JSON output (relative to repo root).
+  report_output_dir: outputs/results/drift_reports

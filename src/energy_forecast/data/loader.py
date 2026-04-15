@@ -196,7 +196,7 @@ def _parse_building_file(
         # BUG-C4: infer_datetime_format was deprecated in pandas 2.2 and removed
         # in pandas 3.0.  Pandas infers the format by default without the flag.
         df["TimeStamp"] = pd.to_datetime(df["TimeStamp"], utc=True)
-    df["TimeStamp"] = df["TimeStamp"].dt.tz_convert("Europe/Oslo")
+    df["TimeStamp"] = df["TimeStamp"].dt.tz_convert(cfg["data"].get("timezone", "Europe/Oslo"))
 
     # ── Step 6: rename columns & coerce numeric ───────────────────────────────
     rename_map = {k: v for k, v in _COLUMN_MAP.items() if k in df.columns}
