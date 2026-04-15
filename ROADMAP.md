@@ -1,378 +1,367 @@
 # Sparc Energy — Product Engineering Roadmap
 
 **Project:** Building Energy Load Forecast → Sparc Energy Ltd (pre-incorporated)
-**Last updated:** 2026-04-15 (Session 40)
+**Last updated:** 2026-04-15 (Session 41)
 **Mission:** Day-ahead electricity load forecasting for Irish residential homes, enabling
 demand-response optimisation against dynamic pricing. MSc AI thesis → cleantech startup.
 
-> **Single source of truth.** This file replaces the previous split between root `ROADMAP.md`
-> (research diary) and `docs/ROADMAP.md` (commercial roadmap). Both are now archived here.
+> **Single source of truth.** Every new item discovered during any session must be added here
+> before closing. Reference items by ID (e.g. `E-22`) in conversation, commit messages, and ADRs.
 
 ---
 
 ## How to Read This Roadmap
 
+### Reference System
+
+Every item has a unique ID: **`{TRACK}-{NN}`** — track letter + two-digit sequence number.
+In conversation: say "P-01" and we both know exactly which item is meant. Zero ambiguity.
+
+| Track | Code | Domain |
+|-------|------|--------|
+| Research & Publication | **R** | Papers, PhD, academic experiments |
+| Engineering & MLOps | **E** | Pipeline, models, monitoring, code quality |
+| Product & Consumer App | **P** | Features, UX, consumer value |
+| Deployment & Infrastructure | **D** | Cloud, hardware, connectors, live system |
+| Commercial & Regulatory | **C** | Funding, CRU, GDPR, go-to-market |
+| Bug Registry | **BUG** | Active and resolved defects |
+
 ### Status Legend
 
 | Symbol | Meaning |
 |--------|---------|
-| ✅ | Complete — date shown in parentheses |
-| 🔄 | In progress — active this quarter |
+| ✅ | Complete — date in parentheses |
+| 🔄 | In progress this quarter |
 | 🔴 | High priority — next in queue |
 | 🟡 | Medium — planned, not yet started |
 | 🔵 | Low / exploratory |
-| 🎓 | PhD-track (longer-term research) |
+| 🎓 | PhD-track / long-term research |
 | ⏸️ | Deferred — blocked or deprioritised |
-
-### Item Metadata
-
-Each item carries: **Added** (when it entered the backlog) · **Resolved** (when closed) ·
-**Owner** (staff persona responsible) · **Priority** · **Depends On** (blockers).
+| 🚨 | Urgent — has a hard deadline |
 
 ### Ownership Personas
 
 | Persona | Responsibilities |
 |---------|-----------------|
-| Staff ML Engineer | Models, features, training pipeline, MLOps, registry |
-| Staff Data Engineer | Data connectors, preprocessing, schema, provenance |
-| Staff Backend Engineer | FastAPI, Docker, AWS, CI/CD |
-| Staff Data Scientist | Evaluation, significance tests, paper figures |
-| Staff Product Manager | Product vision, PRDs, commercial priorities, Phases A/B/C |
-| Staff Product Marketing | Consumer insights, positioning, go-to-market |
-| Staff Energy Expert | Tariff modelling, demand-response logic, grid regulations |
-| Staff Governance Lead | EU AI Act, GDPR, Model Cards, AIIAs, data lineage |
-| Dan (founder) | All of the above — single contributor |
+| **Staff ML Engineer** | Models, features, training pipeline, MLOps, registry |
+| **Staff Data Engineer** | Data connectors, preprocessing, schema, provenance |
+| **Staff Backend Engineer** | FastAPI, Docker, AWS, CI/CD, API contracts |
+| **Staff Reliability Engineer** | Retry logic, timeouts, fallbacks, circuit breakers, chaos testing |
+| **Staff Data Scientist** | Evaluation, significance tests, paper figures, observability |
+| **Staff Product Manager** | Product vision, PRDs, sequencing, commercial priorities |
+| **Rory** | Consumer psychology, behavioural economics, product trust, framing. Challenges automation-for-cost thinking. Asks: "Does this feel like a knowledgeable friend, or a cost-reduction FAQ bot?" Applies to every consumer-facing output — morning brief, control actions, LLM advisor. |
+| **Staff Product Marketing** | Positioning, go-to-market, consumer segmentation, pricing |
+| **Staff Energy Expert** | Tariff modelling, demand-response, CRU regulations, grid mechanics |
+| **Staff Governance Lead** | EU AI Act, GDPR, Model Cards, AIIAs, data lineage, audit trails |
+| **Dan (founder)** | All of the above — single contributor |
 
 ---
 
 ## Status Snapshot — Q2 2026
 
-| Track | State | Next Milestone | Deadline |
-|-------|-------|---------------|---------|
-| Research & Publication | 🔄 Journal paper in draft | Applied Energy submission | TBD |
-| Core ML & MLOps | ✅ Production-grade (Session 40) | Quantile registry + SRP refactor | Q2 2026 |
-| Product — Consumer App | 🔄 Phase A in flight | BTM asset detection module | Jun 2026 |
-| Deployment & Infrastructure | 🔄 Phase 7 started (Dockerfile ✅) | AWS App Runner live endpoint | Q2 2026 |
-| Commercial & Regulatory | 🔴 Dynamic pricing trigger 47 days away | ESCO Appendix A draft ready | 1 Jun 2026 |
-| PhD | 🔄 Decarb-AI interview Apr 21 | Outcome decision | 21 Apr 2026 |
+| Track | State | Blocking Item | Hard Deadline |
+|-------|-------|--------------|---------------|
+| Research | 🔄 Journal paper in draft | R-09: final review + submit | TBD |
+| Engineering | ✅ Production-grade as of Session 40/41 | E-17: SRP refactor (pre-Phase 7) | Before D-12 |
+| Product | 🔄 Pre-tariff sprint | P-01: BTM detection | Before 1 Jun 2026 |
+| Deployment | 🔄 Phase 7 started | D-12: App Runner live | Before C1 market |
+| Commercial | 🚨 47 days to CRU mandate | C-07: AWS Activate (apply now) | 1 Jun 2026 |
+| PhD | 🔄 Interview 21 Apr | R-12: Decarb-AI outcome | 21 Apr 2026 |
 
 ---
 
-## TRACK 1 — Research & Publication
+## TRACK R — Research & Publication
 
-### R1 — Thesis & Conference Papers
+### R-01 through R-03: Conference & Thesis (COMPLETE)
 
-| Status | Item | Added | Resolved | Owner | Notes |
-|--------|------|-------|----------|-------|-------|
-| ✅ | MSc Thesis — *ML Approaches for Building Energy Load Forecasting in Norwegian Public Buildings* (NCI Dublin) | 2024 | 2025-09 | Staff Data Scientist | Foundation document |
-| ✅ | AICS 2025 Full Paper — *Forecasting Energy Demand: The Case for Trees over Deep Nets* (Springer CCIS) | 2025-09 | 2025-12 | Staff Data Scientist | 76/100, 85/100, 78/100 reviewer scores |
-| ✅ | AICS 2025 Student Paper — DCU Press Companion Proceedings (dual-track acceptance) | 2025-09 | 2025-12 | Staff Data Scientist | 19/100 student reviewer — accepted trade-off |
+| ID | Item | Status | Added | Resolved | Owner |
+|----|------|--------|-------|----------|-------|
+| R-01 | MSc Thesis — *ML Approaches for Building Energy Load Forecasting in Norwegian Public Buildings* (NCI Dublin) | ✅ | 2024 | 2025-09 | Staff Data Scientist |
+| R-02 | AICS 2025 Full Paper — *Forecasting Energy Demand: The Case for Trees over Deep Nets* (Springer CCIS) | ✅ | 2025-09 | 2025-12 | Staff Data Scientist |
+| R-03 | AICS 2025 Student Paper — DCU Press Companion Proceedings (dual-track acceptance) | ✅ | 2025-09 | 2025-12 | Staff Data Scientist |
 
-### R2 — Journal Paper (Applied Energy / Energy and Buildings)
+### R-04 through R-08: Journal Paper Experiments (COMPLETE)
 
-**Goal:** Extend AICS paper with H+24 paradigm parity, Oslo cross-city, horizon sweep, DM tests, Section 7 Responsible AI.
+| ID | Item | Status | Added | Resolved | Owner | Notes |
+|----|------|--------|-------|----------|-------|-------|
+| R-04 | H+24 Three-Way Paradigm Parity (Setup A/B/C) | ✅ | 2026-01 | 2026-03-15 | Staff ML Engineer | LightGBM 4.029 kWh R²=0.975; PatchTST DM=−12.17*** |
+| R-05 | Oslo cross-city generalisation | ✅ | 2026-01 | 2026-03-15 | Staff ML Engineer | LightGBM MAE=7.415 R²=0.963; paradigm gap widens +84% cross-city |
+| R-06 | Horizon sweep H+1→H+48 | ✅ | 2026-01 | 2026-03-15 | Staff ML Engineer | LightGBM +48% degradation; Ridge +96%; tree advantage widens with horizon |
+| R-07 | Diebold-Mariano significance tests | ✅ | 2026-01 | 2026-03-15 | Staff Data Scientist | vs Ridge −33.52***, XGBoost −5.25***, PatchTST −12.17*** |
+| R-08 | Section 7: Responsible AI, Ethics, Deployment Governance | ✅ | 2026-03 | 2026-03-28 | Staff Governance Lead | EU AI Act Art. 52 Limited Risk; GDPR; 5 subsections |
 
-| Status | Item | Added | Resolved | Owner | Notes |
-|--------|------|-------|----------|-------|-------|
-| ✅ | H+24 Three-Way Paradigm Parity (Setup A/B/C) | 2026-01 | 2026-03-15 | Staff ML Engineer | LightGBM 4.029 kWh R²=0.975; PatchTST DM=−12.17*** |
-| ✅ | Oslo cross-city generalisation (Sprint 3) | 2026-01 | 2026-03-15 | Staff ML Engineer | Oslo LightGBM MAE=7.415 R²=0.963; +84% PatchTST gap |
-| ✅ | Horizon sweep H+1→H+48 (Sprint 2) | 2026-01 | 2026-03-15 | Staff ML Engineer | LightGBM +48%; Ridge +96%; results in horizon_metrics.csv |
-| ✅ | Diebold-Mariano significance tests | 2026-01 | 2026-03-15 | Staff Data Scientist | vs Ridge −33.52***, XGBoost −5.25***, PatchTST −12.17*** |
-| ✅ | Section 7: Responsible AI, Ethics, Deployment Governance | 2026-03 | 2026-03-28 | Staff Governance Lead | EU AI Act Limited Risk (Art. 52); GDPR; 5 subsections |
-| 🔄 | Final manuscript review and journal selection decision | 2026-04 | — | Dan | Applied Energy target; Energy and Buildings backup |
-| 🔴 | Submit to journal | 2026-04 | — | Dan | Priority once next session scheduled |
-| 🟡 | Forecast Uncertainty Penalty (oracle vs NWP weather) | 2026-03 | — | Staff Data Scientist | Swap oracle temperature for NWP forecast archive; measure Δ MAE. "Highly publishable." — AI Studio |
-| 🟡 | Daily Peak Error + Time of Peak Error metrics | 2026-03 | — | Staff Data Scientist | Peak metrics = what matters for Demand Response and grid operators |
+### R-09 through R-11: Journal Paper — In Progress & Planned
 
-**Key results (Drammen H+24, 240,481 test samples):**
+| ID | Item | Status | Priority | Added | Owner | Notes |
+|----|------|--------|----------|-------|-------|-------|
+| R-09 | Final manuscript review + journal submission (Applied Energy / Energy and Buildings) | 🔄 | HIGH | 2026-04 | Dan | Draft complete. Applied Energy = target; Energy and Buildings = backup |
+| R-10 | Forecast Uncertainty Penalty — oracle vs NWP weather Δ MAE | 🟡 | MEDIUM | 2026-03 | Staff Data Scientist | AI Studio: "Highly publishable — proves production-readiness." Swap oracle temperature for archived NWP forecast; measure degradation |
+| R-11 | Daily Peak Error + Time of Peak Error metrics | 🟡 | MEDIUM | 2026-03 | Staff Data Scientist | The metrics that matter for Demand Response operators. Peak MAE sells to Viotas, ESB, data centres |
 
-| Model | MAE (kWh) | R² | Setup |
-|-------|-----------|----|----|
-| LightGBM | 4.029 | 0.9752 | A — Trees + Features |
-| Stacking (Ridge meta) | 4.034 | 0.9751 | A |
-| PatchTST | 6.955 | 0.9102 | C — DL + Raw Sequences |
-| TFT | 8.770 | 0.8646 | B — DL + Features |
-| Mean Baseline | 22.673 | 0.442 | — |
+### R-12 through R-18: PhD Track
 
-**Oslo cross-city (48 schools):** LightGBM MAE=7.415 R²=0.963; Stacking MAE=7.280 R²=0.9635; PatchTST MAE=13.616 (paradigm gap widens cross-city).
-
-### R3 — PhD Track
-
-| Status | Item | Added | Resolved | Owner | Notes |
-|--------|------|-------|----------|-------|-------|
-| 🔄 | **Decarb-AI (UCD-led)** — interview Tue 21 Apr 2026 with Andrew Parnell | 2026-03 | — | Dan | €31k/yr tax-free + fees; 4 years; 10 positions; Autumn 2026 start |
-| 🟡 | RENEW / Pallonetto research collaboration (Maynooth) | 2026-04 | — | Dan | Call Apr 8 — no response. Pursue as **research-only** once Decarb-AI outcome known. See `docs/PALLONETTO_EMAIL.md` |
-| 🎓 | PhD Route 2: Pallonetto (IRESI/MU) if Decarb-AI unsuccessful | 2026-04 | — | Dan | Joint paper on AI-driven load forecasting for Irish residential HEMS |
-| 🎓 | Decision-Focused Learning ControlEngine (Favaro arXiv:2501.14708) | 2026-02 | — | Staff ML Engineer | Train with dispatch cost loss not MSE; requires SEMO prices |
-| 🎓 | Hierarchical BART — cross-building pooling | 2026-01 | — | Staff ML Engineer | Very high effort; PhD-level |
-| 🎓 | OOD generalisation (extreme weather) | 2026-01 | — | Staff ML Engineer | Liu et al. 2023 — applied ML safety research |
-| 🎓 | Cross-domain transfer to Data Centre IT/Cooling load | 2026-03 | — | Staff Data Scientist | AI Studio suggestion — proves architecture generalises beyond buildings |
-| 🎓 | Energy community dynamic pricing agents (Kazempour/Mitridati) | 2026-01 | — | Staff Energy Expert | RL-based prosumer behaviour; bridges to arXiv:2501.18017 |
+| ID | Item | Status | Priority | Added | Owner | Notes |
+|----|------|--------|----------|-------|-------|-------|
+| R-12 | **Decarb-AI (UCD-led) PhD — interview 21 Apr 2026** | 🔄 | HIGH | 2026-03 | Dan | €31k/yr tax-free + fees; 4 years; 10 positions; Andrew Parnell (UCD Statistics) |
+| R-13 | RENEW / Pallonetto research collaboration (Maynooth) | 🟡 | MEDIUM | 2026-04 | Dan | Call Apr 8 — awaiting response. Pursue as research-only post Decarb-AI outcome. See `docs/PALLONETTO_EMAIL.md` |
+| R-14 | Decision-Focused Learning ControlEngine (Favaro arXiv:2501.14708) | 🎓 | — | 2026-02 | Staff ML Engineer | Train with dispatch cost loss not MSE; requires SEMO prices (D-20) |
+| R-15 | Hierarchical BART — cross-building pooling | 🎓 | — | 2026-01 | Staff ML Engineer | Very high effort; PhD-level; Chipman et al. 2010 |
+| R-16 | OOD generalisation for extreme weather | 🎓 | — | 2026-01 | Staff ML Engineer | Liu et al. 2023 — applied ML safety research |
+| R-17 | Cross-domain transfer to Data Centre IT/Cooling load | 🎓 | — | 2026-03 | Staff Data Scientist | AI Studio suggestion — proves architecture generalises beyond Norwegian buildings |
+| R-18 | Energy community dynamic pricing agents (Kazempour/Mitridati) | 🎓 | — | 2026-01 | Staff Energy Expert | RL-based prosumer behaviour; arXiv:2501.18017; bridges to P-01 BTM inference |
 
 ---
 
-## TRACK 2 — Core ML & MLOps Engineering
+## TRACK E — Engineering & MLOps
 
-### E1 — Model Pipeline (COMPLETE)
+### E-01 through E-16: Model Pipeline & Technical Debt Sprint (COMPLETE)
 
-| Status | Item | Added | Resolved | Owner |
-|--------|------|-------|----------|-------|
-| ✅ | Modularisation — 3 notebooks → `src/energy_forecast/` package | 2025 | 2025-12 | Staff ML Engineer |
-| ✅ | Config-driven design — `config/config.yaml` single source of truth | 2025 | 2025-12 | Staff ML Engineer |
-| ✅ | 35-feature vector — lags, rolling stats, cyclical encoding, weather interactions | 2025 | 2026-01 | Staff ML Engineer |
-| ✅ | Oracle-safe features — only lags ≥ forecast_horizon (no leakage) | 2026-01 | 2026-01 | Staff ML Engineer |
-| ✅ | DST-robust lags — lag_167h / lag_168h / lag_169h | 2026-01 | 2026-01 | Staff ML Engineer |
-| ✅ | 3-stage feature selection — Variance → Correlation → LightGBM top-35 | 2026-01 | 2026-01 | Staff ML Engineer |
-| ✅ | SHAP explainability — beeswarm, bar, waterfall, heatmap | 2026-01 | 2026-02 | Staff Data Scientist |
-| ✅ | LightGBM Quantile P10/P50/P90 | 2026-02 | 2026-02 | Staff ML Engineer |
-| ✅ | Horizon guard assertion — `forecast_horizon == sequence.horizon` | 2026-02 | 2026-02 | Staff ML Engineer |
-| ✅ | BUG-C5 fix — `reshape_dl_predictions()` shared utility | 2026-03 | 2026-04-15 | Staff ML Engineer |
-| ✅ | Test suite — 151 tests, 0 failures (CI on Python 3.10 & 3.11) | 2026-01 | 2026-04-15 | Staff ML Engineer |
+| ID | Item | Status | Added | Resolved | Owner | Notes |
+|----|------|--------|-------|----------|-------|-------|
+| E-01 | Core ML pipeline — 35-feature vector, LightGBM, Stacking, SHAP, 153 tests | ✅ | 2025 | 2026-04-15 | Staff ML Engineer | See Appendix A for all results |
+| E-02 | ModelRegistry — CANDIDATE→ACTIVE→RETIRED lifecycle | ✅ | 2026-04-15 | 2026-04-15 | Staff ML Engineer | Regression gate 1.05×, rollback, atomic writes, git lineage; `src/energy_forecast/registry/` |
+| E-03 | DriftDetector — KS+PSI per feature, target drift, rolling MAE trigger | ✅ | 2026-04-15 | 2026-04-15 | Staff ML Engineer | 7-day window, 1.5× threshold; `src/energy_forecast/monitoring/` |
+| E-04 | DataValidator — hard fail on empty/NaN/Inf/shape | ✅ | 2026-04-15 | 2026-04-15 | Staff ML Engineer | >1% negatives = WARNING only (valid solar export); `src/energy_forecast/validation.py` |
+| E-05 | BUG-C5 fix — `reshape_dl_predictions()` shared utility | ✅ | 2026-04-15 | 2026-04-15 | Staff ML Engineer | Eliminates H+24 interleaving bug across LSTM/GRU/CNN-LSTM/TFT |
+| E-06 | Exception hardening — `logger.error(exc_info=True)` on all 5 critical paths | ✅ | 2026-04-15 | 2026-04-15 | Staff ML Engineer | OOM → MemoryError with actionable hint; atomic metrics writes |
+| E-07 | Timezone config — `cfg["data"].get("timezone", ...)` in loader + splits | ✅ | 2026-04-15 | 2026-04-15 | Staff Data Engineer | Per-city timezone map: `data.timezones` in config.yaml |
+| E-08 | ADR-001 through ADR-010 — all architectural decisions documented | ✅ | 2026-04-15 | 2026-04-15 | Staff ML Engineer | `docs/adr/` — all committed |
+| E-09 | Governance docs — Model Card, AIIA, Data Provenance, Data Lineage | ✅ | 2026-03 | 2026-03-28 | Staff Governance Lead | `docs/governance/` — interview-ready for Okta |
+| E-10 | `live_inference.py` registry-aware | ✅ | 2026-04-15 | 2026-04-15 | Staff Backend Engineer | `registry.get_active()` first; file-glob fallback with `logger.warning` |
+| E-11 | Per-city timezone config (`data.timezones` map in config.yaml) | ✅ | 2026-04-15 | 2026-04-15 | Staff Data Engineer | drammen/oslo/ireland/default |
+| E-12 | `CSVConnector` schema validation — required columns, tz-aware index | ✅ | 2026-04-15 | 2026-04-15 | Staff Data Engineer | `_REQUIRED_COLUMNS` frozenset; `_validate_schema()` classmethod |
+| E-13 | `/health` endpoint drift status | ✅ | 2026-04-15 | 2026-04-15 | Staff Backend Engineer | `_load_latest_drift_report(city)` — never raises; exposes severity/recommended_action |
+| E-14 | Quantile Forecaster registry-aware | ✅ | 2026-04-15 | 2026-04-15 | Staff ML Engineer | `model_name="lightgbm_quantile"` in `run_pipeline.py` registry block |
+| E-15 | DriftDetector integration test | ✅ | 2026-04-15 | 2026-04-15 | Staff ML Engineer | `TestDriftDetectorIntegration` — asserts severity != CRITICAL on identical data; JSON round-trip |
+| E-16 | CI rollback test — full bad-deploy→rollback scenario | ✅ | 2026-04-15 | 2026-04-15 | Staff ML Engineer | v1 ACTIVE → v2 raises `ModelRegressionError` → force → rollback restores v1 |
 
-**Production model decision (locked 2026-03-15):** LightGBM only in production. Not ensemble (+0.5% R² at 10× complexity). H+24 daily at 16:00 post-SEMO prices; H+1 hourly. Monthly retrain, rolling 24-month window. Drift trigger: 7-day rolling MAE > 1.5× training MAE. Cold start: 30 days population average → household-specific.
+### E-17 through E-26: Outstanding Engineering Items
 
-### E2 — MLOps & Production Readiness (COMPLETE — 2026-04-15, Session 40)
+| ID | Item | Status | Priority | Added | Owner | Depends On | Source |
+|----|------|--------|----------|-------|-------|-----------|--------|
+| E-17 | `run_pipeline.py` SRP refactor — 634-line monolith → stage modules | 🔴 | HIGH | 2026-04-15 | Staff Backend Engineer | — | Audit |
+| E-18 | `run_grand_ensemble.py` registry-aware | 🟡 | MEDIUM | 2026-04-15 | Staff ML Engineer | — | Audit |
+| E-19 | Strict Pydantic schemas for FastAPI — model-derived 35-feature `PredictionRequest` | 🔴 | HIGH | 2026-04-15 | Staff Backend Engineer | — | IBM Skill 2 |
+| E-20 | ControlEngine JSONL audit log — structured per-decision trail | 🔴 | HIGH | 2026-04-15 | Staff Data Scientist | — | IBM Skill 6 |
+| E-21 | ModelRegistry human review gate — CANDIDATE→ACTIVE requires explicit approval flag | 🟡 | MEDIUM | 2026-04-15 | Staff ML Engineer | — | Screenshot audit |
+| E-22 | Drift check post-training hook — auto-run `run_drift_check.py` after Stage 3 | 🔴 | HIGH | 2026-04-15 | Staff ML Engineer | — | Screenshot audit |
+| E-23 | Connector retry / timeout / circuit breaker — all live HTTP connectors | 🔴 | HIGH | 2026-04-15 | Staff Reliability Engineer | — | IBM Skill 4 |
+| E-24 | `ControlAction.user_message` — plain-English translation of every action | 🔴 | HIGH | 2026-04-15 | Rory + Staff Backend Engineer | — | IBM Skill 7 |
+| E-25 | `src/energy_forecast/llm/context_builder.py` — deterministic system-prompt formatter | 🟡 | MEDIUM | 2026-04-15 | Staff ML Engineer | P-13 LLM Advisor | IBM Skill 3 |
+| E-26 | LLM output filter / safety guard — block out-of-scope LLM advisor responses | 🟡 | MEDIUM | 2026-04-15 | Staff Governance Lead | P-13 LLM Advisor | IBM Skill 5 |
 
-| Status | Item | Added | Resolved | Owner | Notes |
-|--------|------|-------|----------|-------|-------|
-| ✅ | **ModelRegistry** — CANDIDATE→ACTIVE→RETIRED lifecycle | 2026-04-15 | 2026-04-15 | Staff ML Engineer | Regression gate 1.05×, rollback, atomic writes, git lineage; `src/energy_forecast/registry/` |
-| ✅ | **DriftDetector** — KS+PSI per feature, target drift, rolling MAE | 2026-04-15 | 2026-04-15 | Staff ML Engineer | PSI thresholds 0.10/0.20; 7-day window; `src/energy_forecast/monitoring/` |
-| ✅ | **DataValidator** — hard fail (empty/NaN/Inf/shape) + solar WARNING | 2026-04-15 | 2026-04-15 | Staff ML Engineer | Wired into SklearnForecaster and LightGBMQuantileForecaster |
-| ✅ | **`scripts/run_drift_check.py`** — CLI with CI-compatible exit codes | 2026-04-15 | 2026-04-15 | Staff Backend Engineer | Exit 1 on CRITICAL; auto-discovers training MAE |
-| ✅ | **Exception hardening** — `logger.error(exc_info=True)` on all 5 critical paths | 2026-04-15 | 2026-04-15 | Staff ML Engineer | OOM split as MemoryError with actionable hint |
-| ✅ | **Timezone config** — `cfg["data"].get("timezone", ...)` in loader + splits | 2026-04-15 | 2026-04-15 | Staff Data Engineer | Enables Irish household data without code changes |
-| ✅ | **Monitoring config block** in `config/config.yaml` | 2026-04-15 | 2026-04-15 | Staff ML Engineer | rolling_window_days, mae_threshold_multiplier, PSI thresholds |
-| ✅ | ADR-009 — City-specific processed paths (`data/processed/{city}/`) | 2026-04-15 | 2026-04-15 | Staff ML Engineer | Retroactive — Session 30 silent-overwrite bug |
-| ✅ | ADR-010 — LightGBM-only production decision | 2026-04-15 | 2026-04-15 | Staff ML Engineer | Full 8-model comparison table |
-| ✅ | **Stale docs cleanup** — 10 root-level duplicates deleted | 2026-04-15 | 2026-04-15 | Staff Governance Lead | Canonical versions in `docs/research/` + `docs/governance/` |
-| 🔴 | `live_inference.py` registry-aware — replace file-glob with `registry.get_active()` | 2026-04-15 | — | Staff Backend Engineer | **Risk:** any pipeline re-run with worse MAE silently replaces live model |
-| 🔴 | `run_pipeline.py` — SRP refactor (634-line monolith) | 2026-04-15 | — | Staff Backend Engineer | Refactor before Phase 7 productionisation — `train_stage.py`, `evaluate_stage.py`, `explain_stage.py` |
-| 🔴 | Quantile Forecaster registry-aware | 2026-04-15 | — | Staff ML Engineer | P10/P50/P90 models also need registry lifecycle |
-| 🟡 | `run_horizon_sweep.py` — hardcoded `"Europe/Oslo"` timezone | 2026-04-15 | — | Staff Data Engineer | Same fix as loader/splits — one-liner |
-| 🟡 | `run_grand_ensemble.py` not registry-aware | 2026-04-15 | — | Staff ML Engineer | Grand ensemble outputs unversioned |
-| 🟡 | Per-city timezone config (`data.timezones` map in config.yaml) | 2026-04-15 | — | Staff Data Engineer | Full solution beyond current `get("timezone", fallback)` |
-| 🟡 | Integration tests — DriftDetector not exercised | 2026-04-15 | — | Staff ML Engineer | E2E test should assert drift report is written after pipeline run |
-| 🟡 | CI rollback test — `ModelRegressionError` assertion | 2026-04-15 | — | Staff ML Engineer | Bad deploy → rollback flow tested end-to-end |
-| 🟡 | `/health` endpoint drift status | 2026-04-15 | — | Staff Backend Engineer | Read latest drift report JSON and include in `/health` response |
-| 🟡 | `CSVConnector` schema validation on load | 2026-04-15 | — | Staff Data Engineer | Validate column names and dtypes; raises `ValueError` with specifics |
+**Notes on outstanding items:**
 
-### E3 — Governance & Documentation (COMPLETE)
+- **E-17 (SRP refactor):** `run_pipeline.py` at 634 lines is a single-file monolith. Target: `scripts/stages/train_stage.py`, `evaluate_stage.py`, `explain_stage.py`, each ≤200 lines. `run_pipeline.py` becomes a thin orchestrator. Must be done before D-12 (App Runner deploy) or it ships with the debt baked in.
 
-| Status | Item | Added | Resolved | Owner |
-|--------|------|-------|----------|-------|
-| ✅ | `docs/governance/MODEL_CARD.md` — HuggingFace format, 10-model table | 2026-03 | 2026-04-15 | Staff Governance Lead |
-| ✅ | `docs/governance/DATA_PROVENANCE.md` — 5-source GDPR chain | 2026-03 | 2026-03-28 | Staff Governance Lead |
-| ✅ | `docs/governance/AIIA.md` — EU AI Act Limited Risk (Art. 52) | 2026-03 | 2026-03-28 | Staff Governance Lead |
-| ✅ | `docs/governance/DATA_LINEAGE.md` — 8-stage raw CSV → Eddi action | 2026-03 | 2026-03-28 | Staff Governance Lead |
-| ✅ | ADR-001 through ADR-010 — all major architectural decisions documented | 2026-02 | 2026-04-15 | Staff ML Engineer |
+- **E-19 (Pydantic schemas):** Current `PredictionRequest` accepts `features: dict[str, float]` — any key, any count. The production LightGBM model expects exactly the 35 features selected by the 3-stage process (stored in `model.feature_name_`). The fix: at server startup, load the active model and read its `feature_name_` attribute to build a dynamic Pydantic model. Wrong feature names → 400 error with specific message, not a silent prediction with wrong inputs. New module: `src/energy_forecast/api/schemas.py`.
 
----
+- **E-20 (JSONL audit log):** Every `ControlAction` decision appended to `outputs/logs/control_decisions.jsonl`. Fields: timestamp, building_id, city, action_type, confidence, reasoning, p50_load_kwh, solar_forecast_wm2, price_eur_kwh, dry_run, user_message. Required for EU AI Act Art. 52 ("every action logged") and for debugging overnight runs. `log_eddi.py` already does this for hardware status — ControlEngine needs the same discipline.
 
-## TRACK 3 — Product: Consumer Energy App
+- **E-21 (Human review gate):** Currently `promote_to_active()` is fully automated (regression gate = only check). For a production system, add a `require_approval: bool = False` parameter. When `True`, new CANDIDATE models wait in registry with status `PENDING_REVIEW` until `registry.approve(version_id)` is called. Default `False` preserves current behaviour. Documented as a deliberate solo-founder trade-off in ADR-011.
 
-### P1 — Phase A: Pre-Dynamic-Tariff Builds (April–June 2026) 🔄
+- **E-22 (Drift check hook):** After `run_pipeline.py` Stage 3 completes, automatically call `DriftDetector.full_report()` and write JSON to `outputs/results/drift_reports/`. Log severity at INFO/WARNING/ERROR. This closes the gap between "we have drift detection" and "drift detection actually runs".
 
-**Trigger:** CRU dynamic pricing mandate live **1 June 2026**. Build the core product now, flip to live prices on mandate day.
+- **E-23 (Reliability):** Use `tenacity` library. Pattern: `@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))` on all live connector `fetch_*` methods. Add `timeout=10` to every `requests.get()`. Fallback: if `OpenMeteoConnector` fails → use last-known cached weather from parquet with `logger.warning`. This is the highest-leverage reliability fix in the system — a 45-minute change that prevents 06:00 morning-brief failures.
 
-| Status | Item | Priority | Added | Owner | Depends On | Notes |
-|--------|------|----------|-------|-------|-----------|-------|
-| 🔴 | **BTM Asset Detection** — Kazempour et al. (DTU, arXiv:2501.18017) | HIGH | 2026-04-15 | Staff ML Engineer | HDF data pipeline | Infer solar/EV/HP from 30-min profile; replaces onboarding survey; new `src/energy_forecast/btm/inference.py` |
-| 🔴 | **WhatsApp / SMS Push** — extend Phase 6 morning brief | MEDIUM | 2026-04-15 | Staff Backend Engineer | Phase 6 complete | 71% Cost-Driven consumers won't open an app (SEAI BI); WhatsApp Business API or Twilio fallback |
-| 🟡 | **Consumer Survey** — WTP for €3.99/month + €99-149 hardware | MEDIUM | 2026-04-15 | Staff Product Marketing | None | 5 questions, ~400 respondents via Pollfish; €200-400 budget; pricing validation before launch |
-| 🟡 | **saveon.ie referral integration** | LOW | 2026-04-15 | Staff Product Manager | Written agreement | Step 1 (which tariff?) → Step 2 (optimise within it); shared HDF upload pipeline |
-
-### P2 — Phase B: Dynamic Pricing Loop (June 2026) ⏳
-
-**Trigger:** 1 June 2026 CRU mandate. 5 obligated suppliers: Electric Ireland, Bord Gáis, Energia, SSE Airtricity, Yuno.
-
-| Status | Item | Priority | Added | Owner | Depends On | Notes |
-|--------|------|----------|-------|-------|-----------|-------|
-| 🔴 | **SEMO DAM price ingestion** — `SEMOConnector` stub → real API | CRITICAL | 2026-04-15 | Staff Energy Expert | ENTSO-E token | Day-ahead prices published ~16:00; 30-min resolution |
-| 🔴 | **Dynamic tariff optimisation loop** | CRITICAL | 2026-04-15 | Staff ML Engineer | PB-1 (DAM prices) | H+24 forecast + price vector → device scheduling; extend ControlEngine |
-| 🔴 | **ESCO registration** — File Appendix A with ESB Networks | CRITICAL | 2026-04-15 | Staff Energy Expert | SMDS live (at risk) | Free data access once SMDS live; draft Appendix A in `docs/regulatory/` |
-| 🟡 | **Heat pump BTM detection variant** | HIGH | 2026-04-15 | Staff ML Engineer | PA-1 BTM complete | HP load signature; SEAI HPSS grant = acquisition channel; 400k HP target by 2030 |
-
-### P3 — Phase C: Scale (H2 2026)
-
-| Status | Item | Priority | Added | Owner | Depends On | Notes |
-|--------|------|----------|-------|-------|-----------|-------|
-| 🔵 | **Social comparison** — "Homes like yours save 23% more" | MEDIUM | 2026-04-15 | Staff Product Manager | Multi-household data | Blocked until RENEW pilot or first users; aggregate server-side only |
-| 🔵 | **P1 hardware MVP** — Pi Zero 2W (€15) + DSMR P1 USB adapter (€8-12) | MEDIUM | 2026-04-15 | Staff Backend Engineer | ESB Networks P1 activation | Customer self-install <5 min; custom PCB only at >1k units/month |
-| 🔵 | **Battery storage scheduling** — charge/discharge optimisation | MEDIUM | 2026-04-15 | Staff ML Engineer | PB-2 dynamic loop | New `CHARGE_BATTERY` action in `actions.py` |
-| 🔵 | **Commercial beta launch** | HIGH | 2026-04-15 | Staff Product Manager | Phase B + pilot hardware | 10-household pilot; saveon.ie + SEAI HPSS channel |
-| 🎓 | **LLM Energy Advisor** — `claude-haiku-4-5`, ~€0.04/user/month | LOW | 2026-03 | Staff ML Engineer | Phase B | Context injection: 30d stats + tariff + forecast; no raw time-series to API |
-| 🎓 | **Smart Meter Analyst Agent** — Claude Code + trust hierarchy + CER schema | 2026-03 | — | Staff ML Engineer | CER dataset access | Natural language → Pandas → shareable report; EI Innovation Voucher artefact |
+- **E-24 (user_message):** Add `user_message: str` field to `ControlAction` dataclass. Populated by a `_format_user_message(action_type, confidence, env_state, forecast)` function. Rory's principle: every automated suggestion explains *why* in the language of the person reading it, not the engineer who wrote it. Examples:
+  - `DEFER_HEATING` → "Good morning! Your panels should cover hot water heating after 11am — waiting could save you €0.18 today."
+  - `HEAT_NOW` → "Night rate runs until 08:00 — Eddi will boost the tank now at the lower rate."
+  - `ALERT_HIGH_DEMAND` → "Heads up: we expect high usage between 17–19h today. Running the dishwasher earlier could help."
 
 ---
 
-## TRACK 4 — Deployment & Infrastructure
+## TRACK P — Product & Consumer App
 
-### D1 — Phase 7: Cloud Deployment (STARTED — commit a15d297)
+### P-01 through P-04: Phase 1 — Pre-Dynamic-Tariff Builds (April–June 2026)
 
-**Platform decision (locked):** AWS App Runner, eu-west-1 (Irish data residency).
+**Context:** CRU dynamic pricing mandate live **1 June 2026**. These items build the core product now so it's ready on mandate day. Phase 1 does not require live SEMO prices — uses static tariff logic.
 
-| Status | Item | Added | Resolved | Owner | Notes |
-|--------|------|-------|----------|-------|-------|
-| ✅ | FastAPI app — `/predict`, `/control`, `/health` endpoints | 2026-02 | 2026-02 | Staff Backend Engineer | `deployment/app.py` |
-| ✅ | Dockerfile — production image, non-root user, HEALTHCHECK | 2026-03 | 2026-03-15 | Staff Backend Engineer | commit a15d297 |
-| ✅ | `apprunner.yaml` — App Runner config | 2026-03 | 2026-03-15 | Staff Backend Engineer | commit a15d297 |
-| ✅ | `Makefile` — `docker-build` / `ecr-push` / `apprunner-deploy` targets | 2026-03 | 2026-03-15 | Staff Backend Engineer | |
-| 🔴 | ECR push + App Runner initial deploy | 2026-04-15 | — | Staff Backend Engineer | AWS account | Smoke test: `/health` → `/predict` → `/control` |
-| 🔴 | `live_inference.py` registry-aware | 2026-04-15 | — | Staff Backend Engineer | ModelRegistry | See E2 above — CRITICAL risk |
-| 🟡 | `/health` endpoint — drift status from latest report JSON | 2026-04-15 | — | Staff Backend Engineer | DriftDetector | |
-| 🟡 | S3 model artefact store — push `outputs/models/*.joblib` to S3 | 2026-04-15 | — | Staff Backend Engineer | AWS account | Replace baked-in Docker model copy |
-| 🟡 | AWS Secrets Manager — API keys (SEMO, myenergi, Ecowitt) | 2026-04-15 | — | Staff Backend Engineer | AWS account | Remove `.env` dependency |
-| 🔵 | CloudWatch alarm — MAE drift → SNS alert | 2026-04-15 | — | Staff Backend Engineer | App Runner live | |
+| ID | Item | Status | Priority | Added | Owner | Depends On | Notes |
+|----|------|--------|----------|-------|-------|-----------|-------|
+| P-01 | **BTM Asset Detection** — infer solar/EV/HP from 30-min HDF profile | 🔴 | HIGH | 2026-04-15 | Staff ML Engineer | HDF pipeline | Kazempour et al. (DTU, arXiv:2501.18017). Replaces onboarding survey. New: `src/energy_forecast/btm/inference.py` |
+| P-02 | WhatsApp / SMS Push — extend morning brief to delivery channel | 🟡 | MEDIUM | 2026-04-15 | Staff Backend Engineer | Phase 6 complete | 71% Cost-Driven consumers won't open an app (SEAI BI). WhatsApp Business API or Twilio SMS fallback |
+| P-03 | Consumer Survey — willingness to pay for €3.99/month + €99-149 hardware | 🟡 | MEDIUM | 2026-04-15 | Staff Product Marketing | — | 5 questions, ~400 respondents via Pollfish; €200-400 budget; pricing validation before any public launch |
+| P-04 | saveon.ie referral integration | 🔵 | LOW | 2026-04-15 | Staff Product Manager | Written agreement | Step 1: which tariff? (saveon.ie) → Step 2: optimise within it (us). Confirm no forecasting plans first |
 
-### D2 — Phase 8: Home Trial Hardware (Pending)
+### P-05 through P-08: Phase 2 — Dynamic Pricing Loop (June 2026)
 
-**Hardware decision (locked 2026-04-15):** Mac Mini M5 (~€699) + DSMR P1 USB adapter (~€10) = ~€709 total. Production hardware TBD (<€30 BOM target at >500 units/month).
+**Context:** CRU mandate live. 5 obligated suppliers: Electric Ireland, Bord Gáis, Energia, SSE Airtricity, Yuno. Day-ahead prices published daily ~16:00 at 30-min resolution, capped €0.50/kWh.
 
-| Status | Item | Added | Resolved | Owner | Notes |
-|--------|------|-------|----------|-------|-------|
-| ✅ | ESB CSV ingestion — `scripts/run_home_demo.py` | 2026-03 | 2026-03 | Staff Data Engineer | 30-min pivot, resample, DST-safe |
-| ✅ | BGE tariff model — Day/Night/Peak/Free Sat/Export rates | 2026-03 | 2026-03 | Staff Energy Expert | Single source of truth: `src/energy_forecast/tariff.py` |
-| ✅ | OpenMeteo live weather connector | 2026-02 | 2026-02 | Staff Data Engineer | Free, no API key required |
-| ✅ | Morning brief CLI — `python deployment/live_inference.py --dry-run` | 2026-02 | 2026-02 | Staff Backend Engineer | P10/P50/P90, BGE cost, control actions |
-| ✅ | myenergi Eddi live status — `MyEnergiConnector.get_status()` | 2026-03 | 2026-03 | Staff Data Engineer | Hub serial 21509692 |
-| ✅ | `scripts/log_eddi.py` — `--once`, `--history N`, `--interval` | 2026-03 | 2026-03 | Staff Data Engineer | |
-| ✅ | Home Plan Score — 62/100, €178.65/yr saving identified | 2026-03 | 2026-03 | Staff Product Manager | Oct 2023–Oct 2025, 730 days |
-| 🔴 | Mac Mini M5 + P1 adapter setup | 2026-04-15 | — | Dan | Hardware purchase | P1 adapter: DSMR USB, €8-12 from NL |
-| 🔴 | **BGE contract renewal** — URGENT (expires 15 Jun 2026) | 2026-04 | — | Dan | — | Renewal window open NOW. Target: dynamic tariff from BGE or switch to dynamic supplier |
-| 🟡 | EcowittConnector — personal weather station API | 2026-04 | — | Staff Data Engineer | Hardware | GW1100, api.ecowitt.net/api/v3/device/real_time — stub exists |
-| 🔵 | `send_command()` activation — Eddi scheduling via API | 2026-04 | — | Staff Backend Engineer | User approval flow | Monitor → Recommend → Automate. Never send commands without user approval |
+| ID | Item | Status | Priority | Added | Owner | Depends On | Notes |
+|----|------|--------|----------|-------|-------|-----------|-------|
+| P-05 | **SEMO DAM price ingestion** — `SEMOConnector` stub → real ENTSO-E API | 🔴 | CRITICAL | 2026-04-15 | Staff Energy Expert | ENTSO-E token | Stub exists in `deployment/connectors.py`. Unblocks P-06 |
+| P-06 | **Dynamic tariff optimisation loop** — H+24 + price vector → device scheduling | 🔴 | CRITICAL | 2026-04-15 | Staff ML Engineer | P-05 | Extend ControlEngine. Mock with synthetic DAM prices until P-05 live |
+| P-07 | Heat pump BTM detection variant | 🟡 | HIGH | 2026-04-15 | Staff ML Engineer | P-01 | HP load signature; SEAI HPSS grant = acquisition channel; Ireland 400k HP target by 2030 |
+| P-08 | **ESCO / Eligible Party registration** — Appendix A with ESB Networks | 🔴 | CRITICAL | 2026-04-15 | Staff Energy Expert | SMDS live | Free data access. Draft in `docs/regulatory/`. Consent: 3-click "Active Permission" |
 
-### D3 — Connectors & Data Access
+### P-09 through P-13: Phase 3 — Scale (H2 2026)
 
-| Status | Item | Added | Resolved | Owner | Notes |
-|--------|------|-------|----------|-------|-------|
-| ✅ | `CSVConnector` — demo/test mode from parquet | 2026-02 | 2026-02 | Staff Data Engineer | |
-| ✅ | `OpenMeteoConnector` — live weather + solar irradiance | 2026-02 | 2026-02 | Staff Data Engineer | |
-| ✅ | `SEMOConnector` stub — day-ahead prices | 2026-02 | 2026-02 | Staff Energy Expert | ENTSO-E API token needed |
-| ✅ | `MockDeviceConnector` — CI/demo safe command logging | 2026-02 | 2026-02 | Staff Backend Engineer | |
-| 🟡 | `CSVConnector` schema validation — column names, dtypes, DatetimeTz index | 2026-04-15 | — | Staff Data Engineer | |
-| 🟡 | `SEMOConnector` — real ENTSO-E API implementation | 2026-05 | — | Staff Energy Expert | ENTSO-E token | Unblocks Phase B dynamic pricing |
-| 🔵 | `MQTTConnector` — industrial sensor feeds | 2026-03 | — | Staff Data Engineer | MQTT broker | B2B use case |
-| 🔵 | P1Connector — real-time ESB smart meter via P1 port USB | 2026-03 | — | Staff Data Engineer | P1 hardware | Same DSMR P1 standard as NL/BE/LU/ES |
+| ID | Item | Status | Priority | Added | Owner | Depends On | Notes |
+|----|------|--------|----------|-------|-------|-----------|-------|
+| P-09 | Social comparison — "Homes like yours save 23% more" | 🔵 | MEDIUM | 2026-04-15 | Staff Product Manager | Multi-household data | Blocked until RENEW pilot or first users. Aggregate server-side only (privacy) |
+| P-10 | P1 hardware MVP — Pi Zero 2W (€15) + DSMR P1 USB adapter (€8-12) | 🔵 | MEDIUM | 2026-04-15 | Staff Backend Engineer | ESB Networks P1 activation | Customer self-install <5 min; custom PCB only at >1k units/month |
+| P-11 | Battery storage scheduling — charge/discharge optimisation | 🔵 | MEDIUM | 2026-04-15 | Staff ML Engineer | P-06 | New `CHARGE_BATTERY` action in `actions.py` |
+| P-12 | Commercial beta launch — 10-household pilot | 🔵 | HIGH | 2026-04-15 | Staff Product Manager | D-12 + P-06 + P-08 | saveon.ie referral + SEAI HPSS channel |
+| P-13 | LLM Energy Advisor — `claude-haiku-4-5`, ~€0.04/user/month | 🎓 | LOW | 2026-03 | Staff ML Engineer | E-25 + E-26 | Context injection: 30d stats + tariff + forecast; no raw time-series to API. Rory's principle: conversation, not query |
+| P-14 | Smart Meter Analyst Agent — Claude Code + CER trust hierarchy | 🎓 | LOW | 2026-03 | Staff ML Engineer | CER dataset | Natural language → Pandas → shareable report; EI Innovation Voucher artefact |
+
+### P-15: Rory Design Principle (Cross-Cutting)
+
+| ID | Item | Status | Priority | Added | Owner | Notes |
+|----|------|--------|----------|-------|-------|-------|
+| P-15 | **Rory design principle** — every consumer-facing output explains itself in plain human language | 🔴 | HIGH | 2026-04-15 | Rory + Staff Product Manager | Codified in `docs/APP_PRODUCT_SPEC.md`. Applies to: `ControlAction.user_message` (E-24), LLM Advisor framing (P-13), morning brief text, WhatsApp push copy (P-02). The principle: an AI that says "run dishwasher at 23:00" without explanation is a cost-reduction FAQ bot. An AI that says "your tariff drops to night rate at 23:00 — running it then saves you €0.40 tonight" is a knowledgeable friend. Trust is the product, not the automation. |
 
 ---
 
-## TRACK 5 — Commercial & Regulatory
+## TRACK D — Deployment & Infrastructure
 
-### C1 — Regulatory & Compliance
+### D-01 through D-11: Phase 7 (Cloud) + Phase 8 (Home Trial) Started
 
-| Status | Item | Added | Resolved | Owner | Notes |
-|--------|------|-------|----------|-------|-------|
-| ✅ | EU AI Act classification — Limited Risk (Art. 52) | 2026-03 | 2026-03-28 | Staff Governance Lead | Transparency obligations: confidence range always shown, always an override, every action logged |
-| ✅ | GDPR compliance — Art. 6(1)(a) consent for own meter data | 2026-03 | 2026-03-28 | Staff Governance Lead | |
-| ✅ | CRU PCW accreditation — definitively NOT needed | 2026-04 | 2026-04-15 | Staff Energy Expert | We are ESCO / Eligible Party under CRU202517, not a PCW |
-| 🔴 | ESCO / Eligible Party registration — Appendix A with ESB Networks | 2026-04-15 | — | Staff Energy Expert | SMDS live (mid-2026 target, at risk) | Draft ready in `docs/regulatory/` |
-| 🟡 | SMDS status tracking — ESB Networks near-real-time data access | 2026-03 | — | Staff Energy Expert | ESB Networks decision | P1 port hardware already installed on all Irish meters; software activation pending |
-| 🟡 | GDPR privacy policy — 30-min data reveals occupancy | 2026-04-15 | — | Staff Governance Lead | Phase 7 live | On-device inference preferred long-term; disclose in privacy policy |
+| ID | Item | Status | Added | Resolved | Owner | Notes |
+|----|------|--------|-------|----------|-------|-------|
+| D-01 | FastAPI app — `/predict`, `/control`, `/health` endpoints | ✅ | 2026-02 | 2026-02 | Staff Backend Engineer | `deployment/app.py` |
+| D-02 | Dockerfile — production image, non-root user, HEALTHCHECK | ✅ | 2026-03 | 2026-03-15 | Staff Backend Engineer | commit a15d297 |
+| D-03 | `apprunner.yaml` — AWS App Runner config | ✅ | 2026-03 | 2026-03-15 | Staff Backend Engineer | commit a15d297 |
+| D-04 | `Makefile` — `docker-build` / `ecr-push` / `apprunner-deploy` targets | ✅ | 2026-03 | 2026-03-15 | Staff Backend Engineer | |
+| D-05 | ESB CSV ingestion — `scripts/run_home_demo.py`, 30-min pivot, DST-safe | ✅ | 2026-03 | 2026-03 | Staff Data Engineer | |
+| D-06 | BGE tariff model — Day/Night/Peak/Free Sat/Export rates | ✅ | 2026-03 | 2026-03 | Staff Energy Expert | `src/energy_forecast/tariff.py` — single source of truth |
+| D-07 | `OpenMeteoConnector` — live weather + solar irradiance | ✅ | 2026-02 | 2026-02 | Staff Data Engineer | Free, no API key required |
+| D-08 | Morning brief CLI — `python deployment/live_inference.py --dry-run` | ✅ | 2026-02 | 2026-02 | Staff Backend Engineer | P10/P50/P90, BGE cost, control actions. Always dry_run safe |
+| D-09 | myenergi Eddi live status — `MyEnergiConnector.get_status()` | ✅ | 2026-03 | 2026-03 | Staff Data Engineer | Hub 21509692 |
+| D-10 | `scripts/log_eddi.py` — `--once`, `--history N`, `--interval` modes | ✅ | 2026-03 | 2026-03 | Staff Data Engineer | |
+| D-11 | Home Plan Score — 62/100, €178.65/yr saving identified | ✅ | 2026-03 | 2026-03 | Staff Product Manager | Oct 2023–Oct 2025, 730 days |
 
-### C2 — Funding & Go-to-Market
+### D-12 through D-22: Outstanding Deployment Items
 
-| Status | Item | Priority | Added | Owner | Notes |
-|--------|------|----------|-------|-------|-------|
-| 🔴 | **AWS Activate** — free compute credits (no company needed) | HIGH | 2026-04-15 | Dan | Apply immediately |
-| 🟡 | **SEAI RD&D** — research funding call (May–Jul 2026) | HIGH | 2026-04-15 | Dan | NCI partner route |
-| 🟡 | **Enterprise Ireland HPSU Feasibility Grant** — €35k pre-revenue | MEDIUM | 2026-04-15 | Dan | Requires company formation first |
-| 🟡 | **New Frontiers** programme — via Orla Byrne (NCI) | MEDIUM | 2026-04-15 | Dan | Pre-incorporation pathway |
-| 🔵 | **EI iHPSU** — up to €1.2M, needs 6-month traction | LOW | 2026-04-15 | Dan | Phase C |
-| 🔵 | **Dogpatch 2050 Accelerator** — ESB partner, equity-free | LOW | 2026-04-15 | Dan | Jan 2027 cohort |
-| 🔵 | Heat pump angle — SEAI HPSS grant as acquisition channel | MEDIUM | 2026-04-15 | Staff Product Marketing | BTM HP detection | Ireland 400k HP target by 2030 |
-| 🔵 | RENEW collaboration (Pallonetto/MU) — research-only | LOW | 2026-04-15 | Dan | Decarb-AI outcome | 20-50 household pilot network; joint paper |
+| ID | Item | Status | Priority | Added | Owner | Depends On | Notes |
+|----|------|--------|----------|-------|-------|-----------|-------|
+| D-12 | **ECR push + AWS App Runner initial deploy** | 🔴 | HIGH | 2026-04 | Staff Backend Engineer | AWS account | Smoke test: `/health` → `/predict` → `/control` against mock. Must precede D-13 market launch |
+| D-13 | S3 model artefact store — push `outputs/models/*.joblib` to S3 | 🟡 | MEDIUM | 2026-04-15 | Staff Backend Engineer | D-12 | Replace Docker-baked model copy with runtime pull |
+| D-14 | AWS Secrets Manager — API keys (SEMO, myenergi, Ecowitt) | 🟡 | MEDIUM | 2026-04-15 | Staff Backend Engineer | D-12 | Remove `.env` file dependency |
+| D-15 | CloudWatch alarm — MAE drift → SNS alert | 🔵 | LOW | 2026-04-15 | Staff Reliability Engineer | D-12 | |
+| D-16 | **Mac Mini M5 + P1 adapter home setup** | 🔴 | HIGH | 2026-04-15 | Dan | Hardware purchase | Mac Mini M5 ~€699 + DSMR P1 USB ~€10 = ~€709. P1 adapter: DSMR USB from NL |
+| D-17 | **BGE contract renewal** | 🚨 | URGENT | 2026-04 | Dan | — | Expires **15 June 2026**. Renewal window open NOW. Evaluate switching to dynamic tariff supplier |
+| D-18 | `EcowittConnector` — personal weather station | 🟡 | LOW | 2026-03 | Staff Data Engineer | GW1100 hardware | `api.ecowitt.net/api/v3/device/real_time` — stub exists |
+| D-19 | `send_command()` activation — Eddi scheduling via myenergi API | 🔵 | LOW | 2026-04 | Staff Backend Engineer | User approval flow | Monitor → Recommend → Automate. Never without explicit user approval. `user_approved=True` parameter required (E-23 safety boundary) |
+| D-20 | `SEMOConnector` real implementation — ENTSO-E API | 🔴 | HIGH | 2026-03 | Staff Energy Expert | ENTSO-E token | Stub exists. Unblocks P-05 |
+| D-21 | `MQTTConnector` — industrial sensor feeds | 🔵 | LOW | 2026-03 | Staff Data Engineer | MQTT broker | B2B use case |
+| D-22 | `P1Connector` — real-time ESB smart meter via P1 port | 🔵 | LOW | 2026-03 | Staff Data Engineer | D-16 + ESB P1 activation | Same DSMR P1 standard as NL/BE/LU/ES |
 
 ---
 
-## Known Issues & Debt Registry
+## TRACK C — Commercial & Regulatory
+
+### C-01 through C-06: Regulatory & Compliance
+
+| ID | Item | Status | Priority | Added | Resolved | Owner | Notes |
+|----|------|--------|----------|-------|----------|-------|-------|
+| C-01 | EU AI Act Limited Risk (Art. 52) classification | ✅ | — | 2026-03 | 2026-03-28 | Staff Governance Lead | Transparency: confidence always shown, always an override, every action logged |
+| C-02 | GDPR compliance — Art. 6(1)(a) consent for own meter data | ✅ | — | 2026-03 | 2026-03-28 | Staff Governance Lead | AWS eu-west-1 (Ireland). No raw time-series to LLM API |
+| C-03 | CRU PCW accreditation — definitively NOT needed | ✅ | — | 2026-04 | 2026-04-15 | Staff Energy Expert | We are ESCO/Eligible Party under CRU202517, not a PCW |
+| C-04 | ESCO registration — Appendix A with ESB Networks | 🔴 | CRITICAL | 2026-04-15 | — | Staff Energy Expert | SMDS live mid-2026 (at risk of delay). Draft in `docs/regulatory/` |
+| C-05 | SMDS status tracking — ESB Networks near-real-time data access | 🟡 | MEDIUM | 2026-03 | — | Staff Energy Expert | P1 hardware already on all Irish meters; software activation pending. Track ESB comms |
+| C-06 | GDPR privacy policy — 30-min data reveals occupancy | 🟡 | MEDIUM | 2026-04-15 | — | Staff Governance Lead | Disclose before Phase 7 live. On-device inference preferred long-term |
+
+### C-07 through C-14: Funding & Go-to-Market
+
+| ID | Item | Status | Priority | Added | Owner | Notes |
+|----|------|--------|----------|-------|-------|-------|
+| C-07 | **AWS Activate** — free compute credits | 🔴 | HIGH | 2026-04-15 | Dan | Apply immediately. No company formation required |
+| C-08 | SEAI RD&D funding call | 🟡 | HIGH | 2026-04-15 | Dan | May–July 2026 window. NCI partner route |
+| C-09 | Enterprise Ireland HPSU Feasibility Grant — €35k pre-revenue | 🟡 | MEDIUM | 2026-04-15 | Dan | Requires company formation |
+| C-10 | New Frontiers — via NCI (Orla Byrne) | 🟡 | MEDIUM | 2026-04-15 | Dan | Pre-incorporation pathway |
+| C-11 | EI iHPSU — up to €1.2M | 🔵 | LOW | 2026-04-15 | Dan | Needs 6 months of traction first |
+| C-12 | Dogpatch 2050 Accelerator — ESB partner, equity-free | 🔵 | LOW | 2026-04-15 | Dan | January 2027 cohort |
+| C-13 | Heat pump angle — SEAI HPSS as acquisition channel | 🟡 | MEDIUM | 2026-04-15 | Staff Product Marketing | Depends P-07 | Ireland 400k HP target by 2030. Device makes HP economics viable |
+| C-14 | RENEW collaboration (Pallonetto/MU) — research-only | 🟡 | LOW | 2026-04-15 | Dan | Post Decarb-AI outcome. 20-50 household pilot network; joint paper opportunity |
+
+---
+
+## Bug Registry
 
 ### Active Bugs
 
-| ID | Item | Severity | Added | Owner | Status |
-|----|------|----------|-------|-------|--------|
-| BUG-E1 | Stacking Ensemble OOF drops rows when `LightGBM_Quantile` is included — NaN generation from missing sklearn `clone()` compatibility | MEDIUM | 2026-03 | Staff ML Engineer | Open — fix: add `LightGBM_Quantile` to exclusion list in `run_pipeline.py` before `StackingEnsemble` |
-| BUG-D1 | `run_horizon_sweep.py` hardcodes `"Europe/Oslo"` timezone | LOW | 2026-04-15 | Staff Data Engineer | Open — one-line fix |
-| BUG-D2 | TFT `num_workers=0` — GPU underutilised on macOS | LOW | 2026-03 | Staff ML Engineer | Known — `num_workers=4` fix deferred (macOS spawn overhead) |
+| ID | Description | Severity | Added | Owner | Fix Plan |
+|----|-------------|----------|-------|-------|---------|
+| BUG-01 | Stacking OOF drops rows when `LightGBM_Quantile` included — NaN from sklearn `clone()` incompatibility | MEDIUM | 2026-03 | Staff ML Engineer | Add `LightGBM_Quantile` to exclusion list in `run_pipeline.py` before `StackingEnsemble` |
+| BUG-02 | TFT `num_workers=0` — GPU underutilised on macOS (PyTorch DataLoader bottleneck) | LOW | 2026-03 | Staff ML Engineer | Known trade-off. `num_workers=4` fix deferred — macOS spawn overhead may offset gain |
 
-### Resolved Bugs (selected — full history in git log)
+### Resolved (selected — full history in git log)
 
-| ID | Item | Resolved | Session |
-|----|------|----------|---------|
+| Old ID | Description | Resolved | Session |
+|--------|-------------|----------|---------|
 | BUG-C5 | DL H+24 predictions flattened incorrectly — `reshape_dl_predictions()` | 2026-04-15 | 40 |
-| BUG-C3 | TFT BUG — `timestamp` in `time_varying_known_reals` → OOD saturation | 2026-03 | — |
-| BUG-C6 | Stacking OOF early stopping leakage — val data leaked into fold fitting | 2026-03 | — |
-| BUG-DL-H24 | DL H+24 evaluation length mismatch — `_build_y_true_matrix()` | 2026-03 | — |
-| BUG-C4 | Rolling window target leakage — `shift(1)` before rolling | 2026-03 | — |
+| BUG-C6 | Stacking OOF early stopping leakage | 2026-03 | — |
+| BUG-DL-H24 | DL H+24 evaluation length mismatch | 2026-03 | — |
+| BUG-C3 | TFT `timestamp` in `time_varying_known_reals` → OOD saturation | 2026-03 | — |
+| BUG-C4 | Rolling window target leakage — missing `shift(1)` | 2026-03 | — |
 | BUG-LOC | `data/processed/` shared across cities — oslo clobbers drammen | 2026-03-15 | 30 |
-| BUG-PEAK | Peak rate logic applied all days — Mon–Fri only | 2026-03 | 31 |
-| BUG-DL-OOM | DL predict OOM — `batch_size=512` required | 2026-03 | 31 |
-
-### Strategic Debt (documented, time-bounded, no reckless items)
-
-| ID | Item | Severity | Plan |
-|----|------|----------|------|
-| DEBT-1 | `run_pipeline.py` SRP violation — 634-line monolith | MEDIUM | Refactor into stage modules before Phase 7 productionisation |
-| DEBT-2 | `live_inference.py` file-glob model loading | HIGH | Replace with `registry.get_active()` — CRITICAL before App Runner deploy |
-| DEBT-3 | No CI gate on model regression | MEDIUM | Add `ModelRegressionError` assertion to CI test suite |
-| DEBT-4 | Per-city timezone map not yet in config.yaml | LOW | Needed before adding second non-Norwegian city |
+| BUG-PEAK | Peak rate logic applied all days (should be Mon–Fri only) | 2026-03 | 31 |
+| BUG-OOM | DL predict out-of-memory — `batch_size=512` required | 2026-03 | 31 |
 
 ---
 
-## Deferred / Long-Term Research (🎓 PhD-Track)
+## Deferred / Long-Term Research
 
-| Item | Source | Concept | When to Revive |
-|------|--------|---------|---------------|
-| Automated Market Maker integration | Shaun Sweeney 2025 | Modeling load agents in AMM pricing framework | PhD research |
-| Price-responsive load agents (RL) | Sweeney / Crowley | RL-based agents reacting to dynamic grid pricing | PhD research |
-| Asymmetric settlement risk loss | Sweeney | Penalise under-procurement differently from over-procurement | PhD research |
-| Hierarchical BART cross-building | Q6, Chipman 2010 | Partial pooling across 45 buildings | PhD — very high effort |
-| NILMTK load disaggregation | Phase 6B | Per-appliance load from whole-house signal | After BTM detection (PA-1) |
-| ERA5 reanalysis weather | 2026-01 | Meteorological fallback / synthetic weather source | Journal paper extension |
-| ONNX export | 2026-01 | Framework-agnostic LightGBM/XGBoost inference | Commercial scaling |
-| Irish CER residential dataset (2009-2010) | Sprint 3B | 6,435 households, 30-min, pre-smart-meter | Revive if CER access confirmed and research question requires it |
-| Walk-forward rolling window back-test | 2026-01 | Concept drift simulation across production months | PhD / journal extension |
+| ID | Item | Why Deferred | Revive When |
+|----|------|-------------|-------------|
+| — | Automated Market Maker integration (Sweeney 2025) | PhD-level research | PhD programme |
+| — | Price-responsive load agents (RL-based) | PhD-level research | PhD programme |
+| — | Asymmetric settlement risk loss function | PhD-level research | PhD programme |
+| — | NILMTK load disaggregation | Complex; superseded by P-01 BTM inference | After P-01 ships |
+| — | ERA5 reanalysis weather source | Low priority while OpenMeteo works | R-10 uncertainty penalty |
+| — | ONNX model export | Commercial scaling need | >1k active users |
+| — | Irish CER residential dataset (2009-2010) | Pre-smart-meter; may not reflect 2026 patterns | CER access confirmed + research need |
+| — | Walk-forward rolling back-test | Research extension | Journal paper extension |
+
+---
+
+## Key External Deadlines
+
+| Date | Event | Track | ID | Status |
+|------|-------|-------|-----|--------|
+| **21 Apr 2026** | Decarb-AI PhD interview — Andrew Parnell (UCD) | Research | R-12 | 🔄 ACTIVE |
+| **15 Jun 2026** | BGE contract renewal deadline | Deployment | D-17 | 🚨 URGENT |
+| **1 Jun 2026** | CRU dynamic pricing mandate — 5 Irish suppliers | Product | P-05/P-06 | KEY TRIGGER |
+| **Mid-2026** | ESB Networks SMDS live — ESCO Appendix A filing | Commercial | C-04 | AT RISK |
+| **May–Jul 2026** | SEAI RD&D funding call (NCI partner route) | Commercial | C-08 | TRACK |
+| TBD | Applied Energy journal submission | Research | R-09 | Draft ready |
+| TBD | AWS Activate (apply immediately — no company needed) | Infrastructure | C-07 | APPLY NOW |
+| TBD | EI HPSU Feasibility Grant (€35k, pre-revenue) | Commercial | C-09 | Post-formation |
+| Jan 2027 | Dogpatch 2050 Accelerator — ESB partner, equity-free | Commercial | C-12 | TRACK |
 
 ---
 
 ## Appendix A — Experiment Results Archive
 
-### V2 Pipeline — H+1 (240,481 test samples)
-
-| Model | MAE (kWh) | R² | Thesis MAE | Δ |
-|-------|-----------|----|-----------|----|
-| Random Forest | 1.711 | 0.9947 | 3.300 | −48% |
-| Stacking (Ridge meta) | 1.774 | 0.9953 | 3.698 | −52% |
-| LightGBM | 2.108 | 0.9938 | 3.578 | −41% |
-| XGBoost | 2.228 | 0.9931 | 3.419 | −35% |
-| LSTM | 3.582 | 0.9816 | 10.132 | −65% |
-| GRU | 3.947 | 0.9812 | — | — |
-| CNN-LSTM | 4.572 | 0.9767 | 12.435 | −63% |
-| Mean Baseline | 22.691 | 0.4415 | — | — |
-
-### H+24 Paradigm Parity — Drammen (2026-03-15)
+### H+24 Paradigm Parity — Drammen (2026-03-15, 240,481 test samples)
 
 | Model | MAE (kWh) | R² | Setup |
 |-------|-----------|----|----|
-| LightGBM | 4.029 | 0.9752 | A |
-| XGBoost | 4.197 | 0.9740 | A |
-| Random Forest | 4.402 | 0.9690 | A |
+| LightGBM | 4.029 | 0.9752 | A — Trees + Engineered Features |
 | Stacking (Ridge meta) | 4.034 | 0.9751 | A |
-| Ridge | 7.460 | 0.9260 | A |
-| PatchTST | 6.955 | 0.9102 | C |
-| TFT | 8.770 | 0.8646 | B |
-| CNN-LSTM | 9.375 | — | B |
+| PatchTST | 6.955 | 0.9102 | C — DL + Raw Sequences |
+| TFT | 8.770 | 0.8646 | B — DL + Engineered Features |
 | Mean Baseline | 22.673 | 0.442 | — |
 
-### Horizon Sweep — Drammen LightGBM (MAE kWh, 2026-03-15)
+### Oslo Cross-City (48 schools, 2026-03-15)
+
+| Model | MAE (kWh) | R² | Note |
+|-------|-----------|----|----|
+| LightGBM | 7.415 | 0.9630 | Scale effect — Oslo buildings 2× larger than Drammen |
+| Stacking | 7.280 | 0.9635 | |
+| PatchTST | 13.616 | 0.8741 | +84% gap vs LightGBM — widens cross-city |
+
+### Horizon Sweep — Drammen LightGBM (MAE kWh)
 
 | H+1 | H+6 | H+12 | H+24 | H+48 | Degradation |
 |-----|-----|------|------|------|-------------|
 | 3.188 | 3.584 | 3.799 | 4.057 | 4.724 | +48% |
 
-Ridge H+1→H+48 degradation: +96%. **Tree advantage widens with horizon.**
+Ridge degradation H+1→H+48: +96%. **Tree advantage widens with horizon.**
 
-### DM Significance Tests (HLN-corrected, H+24, 2026-03-15)
+### DM Significance Tests (HLN-corrected, H+24)
 
 | Comparison | Statistic | p |
 |-----------|-----------|---|
@@ -380,56 +369,19 @@ Ridge H+1→H+48 degradation: +96%. **Tree advantage widens with horizon.**
 | LightGBM vs XGBoost | −5.25 | *** |
 | LightGBM vs Ridge | −33.52 | *** |
 
-### Oslo Cross-City (48 schools, 2026-03-15)
-
-| Model | MAE (kWh) | R² | vs Drammen gap |
-|-------|-----------|----|----|
-| LightGBM | 7.415 | 0.9630 | Scale effect (Oslo buildings 2× larger) |
-| Stacking | 7.280 | 0.9635 | |
-| PatchTST | 13.616 | 0.8741 | +84% (widens cross-city vs +72% Drammen) |
-
-**R² values consistent (0.963 vs 0.975) — scale effect, not quality degradation.**
-
-### Original Thesis Results (NCI 2025)
-
-| Model | MAE (kWh) | RMSE | R² | Train (s) |
-|-------|-----------|------|-----|-----------|
-| Random Forest | 3.300 | 6.403 | 0.982 | 116 |
-| XGBoost | 3.419 | 6.443 | 0.982 | 3 |
-| LightGBM | 3.578 | 6.679 | 0.980 | 3 |
-| Stacking (Ridge meta) | 3.698 | 7.051 | 0.978 | <1 |
-| TFT (Comprehensive) | 5.114 | 10.424 | 0.952 | 21,831 |
-| LSTM | 10.132 | 17.686 | 0.862 | 13,497 |
-| CNN-LSTM | 12.435 | 20.930 | 0.807 | 2,238 |
-
 ---
 
-## Appendix B — Key External Feedback
+## Appendix B — IBM Agent Engineering Skills: Project Mapping
 
-| Source | Finding | Priority | Status |
-|--------|---------|----------|--------|
-| AI Studio | H+1 = "easy mode" (lag_1h r=0.977); H+24 is the honest evaluation | 🔴 HIGH | ✅ Applied |
-| AI Studio | Feature parity ≠ paradigm parity — DL needs raw sequences, trees need engineered features | 🔴 HIGH | ✅ Applied (Setup C) |
-| AI Studio | "Menu of Solutions" framing: H+1=Stability, H+24=Day-Ahead, Quantiles=Risk-MPC | 🔴 HIGH | ✅ Applied |
-| AI Studio | Add Daily Peak Error + Time of Peak Error — the metrics that matter for DR operators | 🟡 MEDIUM | Pending |
-| AI Studio | Forecast Uncertainty Penalty (oracle vs NWP weather) — highly publishable | 🟡 MEDIUM | Pending |
-| AI Studio | Cross-domain transfer to Data Centre IT/Cooling load | 🎓 PhD | Pending |
-| AICS R1 | DL given engineered features = feature parity trap; DL needs raw sequences | 🔴 HIGH | ✅ Applied |
-| AICS R2 | Single dataset limits generalisability | 🟡 MEDIUM | ✅ Applied (Oslo) |
-| SINTEF Expert | Tree models validated; solar radiation is a valid Phase 2 feature | 🟡 MEDIUM | Partial |
+*Source: IBM YouTube — "The 7 Skills You Need to Build AI Agents"*
+*Applied to Sparc Energy by: Staff ML Engineer + Staff Reliability Engineer + Rory*
 
----
-
-## Key External Deadlines
-
-| Date | Event | Track | Status |
-|------|-------|-------|--------|
-| **21 Apr 2026** | Decarb-AI PhD interview — Andrew Parnell (UCD) | Research | ACTIVE |
-| **15 Jun 2026** | BGE contract renewal deadline | Product | URGENT |
-| **1 Jun 2026** | CRU dynamic pricing mandate — 5 Irish suppliers | Product | KEY TRIGGER |
-| **May–Jul 2026** | SEAI RD&D funding call (NCI partner route) | Commercial | TRACK |
-| **Mid-2026** | ESB Networks SMDS live — ESCO Appendix A | Regulatory | AT RISK |
-| TBD | Applied Energy journal submission | Research | Draft ready |
-| TBD | AWS Activate (free credits — apply now, no company needed) | Infrastructure | APPLY IMMEDIATELY |
-| TBD | EI HPSU Feasibility Grant (€35k, pre-revenue) | Commercial | PENDING LAUNCH |
-| Jan 2027 | Dogpatch 2050 Accelerator — ESB partner, equity-free | Commercial | TRACK |
+| Skill | Status in Project | Action Items |
+|-------|------------------|-------------|
+| **1. System Design** — structure not spaghetti | ✅ Strong — layered architecture (DataConnector → FastAPI → ControlEngine → DeviceConnector) | E-17 (SRP refactor) — last structural debt |
+| **2. Tool & Contract Design** — airtight schemas | ⚠️ Gap — `PredictionRequest` accepts `dict[str, float]` (any keys) | E-19: strict Pydantic schema derived from model's `feature_name_` at startup |
+| **3. Retrieval Engineering** — context quality = answer ceiling | 🟡 Pre-MVP — no RAG yet | E-25: `context_builder.py` for LLM Advisor. Key principle: pre-computed stats, not raw time-series |
+| **4. Reliability Engineering** — one failure doesn't bring down the house | 🔴 Gap — no retry/timeout on any live connector | E-23: `tenacity` retry + `timeout=10` + fallback to cached weather on all HTTP connectors |
+| **5. Security & Safety** — your agent is an attack surface | ✅ Good foundations — `dry_run=True` default, `DataValidator`, EU AI Act Art. 52 | E-26: LLM output filter for when P-13 ships |
+| **6. Evaluation & Observability** — vibes don't scale | ✅ DriftDetector + ModelRegistry. Gap: no ControlEngine decision trail | E-20: JSONL audit log per decision |
+| **7. Product Thinking** — design for humans | ⚠️ Gap — `ControlAction.reasoning` is engineer-readable, not consumer-readable | E-24: `user_message` field. P-15: Rory principle codified in product spec |
