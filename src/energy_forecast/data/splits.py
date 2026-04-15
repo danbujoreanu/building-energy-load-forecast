@@ -29,11 +29,32 @@ from sklearn.preprocessing import StandardScaler
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Timezone helper (mirrors loader._get_timezone — kept local to avoid
+# circular imports between loader and splits)
+# ---------------------------------------------------------------------------
+
+def _get_timezone(cfg: dict, city: str | None = None) -> str:
+    """Return the timezone string for a given city, with fallback chain.
+
+    Priority:
+        1. ``cfg["data"]["timezones"][city]``  — per-city override
+        2. ``cfg["data"]["timezones"]["default"]``  — explicit default
+        3. ``cfg["data"]["timezone"]``  — legacy single-timezone field
+        4. ``"Europe/Oslo"``  — hardcoded fallback (should never be needed)
+    """
+    tz_map = cfg["data"].get("timezones", {})
+    if city and city.lower() in tz_map:
+        return tz_map[city.lower()]
+    return tz_map.get("default", cfg["data"].get("timezone", "Europe/Oslo"))
+
+
 def make_splits(
     df: pd.DataFrame,
     cfg: dict[str, Any],
     target: str | None = None,
     processed_dir: str | Path | None = None,
+    city: str | None = None,
 ) -> dict[str, pd.DataFrame | np.ndarray | StandardScaler]:
     """Create train / val / test splits and fit a StandardScaler on train.
 
@@ -47,6 +68,10 @@ def make_splits(
         Target column name.  Defaults to ``cfg["data"]["target_column"]``.
     processed_dir:
         If provided, persists all split artefacts (CSV + scaler.pkl) here.
+    city:
+        Dataset city name (e.g. "drammen", "oslo").  Used to resolve the
+        correct timezone from ``cfg["data"]["timezones"]``.  Falls back to
+        the legacy ``cfg["data"]["timezone"]`` field when not provided.
 
     Returns
     -------
@@ -54,7 +79,7 @@ def make_splits(
         X_train, y_train, X_val, y_val, X_test, y_test, scaler
     """
     target = target or cfg["data"]["target_column"]
-    tz = cfg["data"].get("timezone", "Europe/Oslo")
+    tz = _get_timezone(cfg, city)
     train_end = pd.Timestamp(cfg["splits"]["train_end"], tz=tz)
     val_end   = pd.Timestamp(cfg["splits"]["val_end"],   tz=tz)
 

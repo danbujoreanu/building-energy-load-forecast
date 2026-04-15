@@ -9,6 +9,8 @@ These tests exercise the critical path end-to-end on synthetic data to catch:
 
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -293,3 +295,68 @@ class TestEndToEndLightGBM:
 
         assert col_means.abs().max() < 1e-6, "Scaled X_train mean is not ≈ 0 — scaler may be fitted on wrong data"
         assert (col_stds - 1.0).abs().max() < 0.1, "Scaled X_train std is not ≈ 1 — check StandardScaler fit"
+
+
+# ---------------------------------------------------------------------------
+# Test 5: DriftDetector integration — no-drift baseline
+# ---------------------------------------------------------------------------
+
+class TestDriftDetectorIntegration:
+    """Smoke test for DriftDetector.full_report() on identical reference/check data."""
+
+    def _make_synthetic_features(self, n: int = 50, seed: int = 42) -> tuple:
+        """Build small synthetic X and y DataFrames for drift testing."""
+        rng = np.random.default_rng(seed)
+        idx = pd.date_range("2022-01-01", periods=n, freq="h", tz="UTC")
+        X = pd.DataFrame(
+            {
+                "lag_24h": rng.normal(20, 5, n),
+                "lag_48h": rng.normal(20, 5, n),
+                "hour_of_day_sin": np.sin(2 * np.pi * np.arange(n) / 24),
+                "temp_c": rng.normal(10, 3, n),
+            },
+            index=idx,
+        )
+        y = pd.Series(rng.normal(20, 5, n), index=idx, name="Electricity_Imported_Total_kWh")
+        return X, y
+
+    def test_drift_check_after_pipeline(self):
+        """DriftDetector.full_report() on identical data must not report CRITICAL severity."""
+        from energy_forecast.monitoring.drift_detector import DriftDetector, DriftSeverity
+
+        minimal_cfg = {
+            "monitoring": {
+                "rolling_window_days": 7,
+                "mae_threshold_multiplier": 1.5,
+                "ks_alpha": 0.05,
+                "psi_warning": 0.10,
+                "psi_critical": 0.20,
+            }
+        }
+        detector = DriftDetector(minimal_cfg)
+
+        X_ref, y_ref = self._make_synthetic_features(n=50, seed=0)
+        # check data == reference data → no drift expected
+        X_chk, y_chk = self._make_synthetic_features(n=50, seed=0)
+
+        report = detector.full_report(
+            city="test",
+            model_name="LightGBM",
+            X_reference=X_ref,
+            X_check=X_chk,
+            y_reference=y_ref,
+            y_check=y_chk,
+            training_mae=4.0,
+        )
+
+        # Identical data → overall severity must not be CRITICAL
+        assert report.overall_severity != DriftSeverity.CRITICAL, (
+            f"Unexpected CRITICAL severity on identical data: {report.summary}"
+        )
+
+        # to_json() must produce valid JSON
+        json_str = report.to_json()
+        parsed = json.loads(json_str)
+        assert isinstance(parsed, dict), "to_json() must produce a JSON object"
+        assert "overall_severity" in parsed, "JSON must contain 'overall_severity'"
+        assert "recommended_action" in parsed, "JSON must contain 'recommended_action'"

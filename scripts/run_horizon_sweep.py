@@ -139,7 +139,7 @@ def _build_features_for_horizon(cfg: dict, horizon: int) -> tuple:
     df = pd.read_parquet(model_ready_path)
 
     featured = build_temporal_features(df, cfg_h, target)
-    splits   = make_splits(featured, cfg_h, target)
+    splits   = make_splits(featured, cfg_h, target, city=city)
 
     X_tr = splits["X_train"]
     y_tr = splits["y_train"]

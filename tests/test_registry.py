@@ -425,3 +425,65 @@ def test_regression_threshold_boundary(tmp_path: Path) -> None:
     # Should succeed — boundary is exclusive (new > threshold, not >=)
     active = registry.promote_to_active(v2.version_id)
     assert active.status == ModelStatus.ACTIVE
+
+
+def test_registry_ci_rollback_scenario(tmp_path: Path) -> None:
+    """Full Meta-style CI scenario: bad deploy detected → quality gate → force promote → rollback.
+
+    Flow:
+        1. Register model_v1 with MAE=4.0 and promote to ACTIVE.
+        2. Register model_v2 with MAE=4.3 (> 1.05 × 4.0 = 4.2 threshold).
+        3. Assert promoting v2 without force raises ModelRegressionError.
+        4. Promote v2 with force=True — override the gate (simulates emergency deploy).
+        5. Rollback(steps=1) — should restore v1 as the ACTIVE model.
+        6. Verify the active version_id matches v1.
+    """
+    registry = ModelRegistry(tmp_path)
+
+    # Step 1: register and promote v1 (good model, MAE=4.0)
+    v1 = registry.register(
+        _make_version(
+            version_id="ci-v1",
+            test_metrics=ModelMetrics(MAE=4.0, RMSE=6.5, R2=0.975),
+            trained_at="2026-04-15T10:00:00+00:00",
+        )
+    )
+    registry.promote_to_active(v1.version_id, force=True)
+
+    active = registry.get_active("drammen", "LightGBM")
+    assert active is not None and active.version_id == "ci-v1"
+
+    # Step 2: register v2 with MAE=4.3 — worse than 1.05 × 4.0 = 4.2
+    v2 = registry.register(
+        _make_version(
+            version_id="ci-v2",
+            test_metrics=ModelMetrics(MAE=4.3, RMSE=7.0, R2=0.970),
+            trained_at="2026-04-15T12:00:00+00:00",
+        )
+    )
+
+    # Step 3: promoting v2 without force must raise ModelRegressionError
+    with pytest.raises(ModelRegressionError):
+        registry.promote_to_active(v2.version_id)
+
+    # v1 must still be the active version after the failed promotion
+    active = registry.get_active("drammen", "LightGBM")
+    assert active is not None and active.version_id == "ci-v1"
+
+    # Step 4: force-promote v2 (simulates emergency / override deploy)
+    registry.promote_to_active(v2.version_id, force=True)
+    active = registry.get_active("drammen", "LightGBM")
+    assert active is not None and active.version_id == "ci-v2"
+
+    # Step 5: rollback 1 step — should restore v1
+    restored = registry.rollback("drammen", "LightGBM", steps=1)
+
+    # Step 6: verify rollback result
+    assert restored.version_id == "ci-v1", (
+        f"Expected rollback to restore ci-v1, got {restored.version_id}"
+    )
+    assert restored.status == ModelStatus.ACTIVE
+
+    current_active = registry.get_active("drammen", "LightGBM")
+    assert current_active is not None
+    assert current_active.version_id == "ci-v1"
