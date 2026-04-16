@@ -92,7 +92,14 @@ AWS App Runner (existing Dockerfile) + AWS RDS PostgreSQL + Upstash Redis + Verc
 
 ### IDE
 
-Cursor (AI-powered VS Code fork). Best-in-class for Python + TypeScript polyglot development. Not an app builder — it writes the code.
+| Option | Decision | Rationale |
+|--------|----------|-----------|
+| **Claude Code** | ✅ Chosen (deep codebase) | Deep multi-file context, subagent dispatch, PreToolUse safety hook. Primary tool for architecture work, multi-file refactors, test generation, and governance docs. |
+| **Google Antigravity** | ✅ Chosen (parallel agents) | Agent-first VS Code fork (Google Labs, Nov 2025). Gemini 3.1 Pro. "Manager View" runs 5 parallel agents simultaneously. Use for: running horizon sweeps, parallel model experiments, scaffolding multiple files at once. Free tier + Pro $20/month. User has Gemini Pro subscription. |
+| **Cursor** | ✅ Chosen (iterative coding) | AI-powered VS Code fork, best-in-class autocomplete for Python + TypeScript polyglot. Use for: day-to-day feature coding, frontend iteration, CSS/Tailwind work. |
+| GitHub Copilot | ❌ Rejected | Weaker multi-file reasoning than Cursor. No agent dispatch. Offers no advantage when Claude Code + Cursor are already in the stack. |
+
+Three tools serve different roles — they are complementary, not competing. See `docs/TECH_STACK.md` Section 1 for workflow guidance on when to use each.
 
 ---
 
@@ -114,7 +121,7 @@ Design:         Google Stitch → Figma (free tier) → Next.js hand-coded
 LLM Advisor:    Gemini Flash (Gemini API, user has Pro subscription)
 Local hosting:  Docker Compose + Caddy + Cloudflare Tunnel (Mac Mini M5)
 Production:     AWS App Runner + RDS + Vercel (Phase 3)
-IDE:            Cursor
+IDE:            Claude Code (deep codebase) + Google Antigravity (parallel agents) + Cursor (iterative coding)
 ```
 
 ---

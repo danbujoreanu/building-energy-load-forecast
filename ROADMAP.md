@@ -135,22 +135,26 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | E-15 | DriftDetector integration test | ✅ | 2026-04-15 | 2026-04-15 | Staff ML Engineer | `TestDriftDetectorIntegration` — asserts severity != CRITICAL on identical data; JSON round-trip |
 | E-16 | CI rollback test — full bad-deploy→rollback scenario | ✅ | 2026-04-15 | 2026-04-15 | Staff ML Engineer | v1 ACTIVE → v2 raises `ModelRegressionError` → force → rollback restores v1 |
 
-### E-17 through E-28: Outstanding Engineering Items
+### E-17 through E-32: Engineering Items
 
-| ID | Item | Status | Priority | Added | Owner | Depends On | Source |
-|----|------|--------|----------|-------|-------|-----------|--------|
-| E-17 | `run_pipeline.py` SRP refactor — 634-line monolith → stage modules | 🔴 | HIGH | 2026-04-15 | Staff Backend Engineer | — | Audit |
-| E-18 | `run_grand_ensemble.py` registry-aware | 🟡 | MEDIUM | 2026-04-15 | Staff ML Engineer | — | Audit |
-| E-19 | Strict Pydantic schemas for FastAPI — model-derived 35-feature `PredictionRequest` | 🔴 | HIGH | 2026-04-15 | Staff Backend Engineer | — | IBM Skill 2 |
-| E-20 | ControlEngine JSONL audit log — structured per-decision trail | 🔴 | HIGH | 2026-04-15 | Staff Data Scientist | — | IBM Skill 6 |
-| E-21 | ModelRegistry human review gate — CANDIDATE→ACTIVE requires explicit approval flag | 🟡 | MEDIUM | 2026-04-15 | Staff ML Engineer | — | Screenshot audit |
-| E-22 | Drift check post-training hook — auto-run `run_drift_check.py` after Stage 3 | 🔴 | HIGH | 2026-04-15 | Staff ML Engineer | — | Screenshot audit |
-| E-23 | Connector retry / timeout / circuit breaker — all live HTTP connectors | 🔴 | HIGH | 2026-04-15 | Staff Reliability Engineer | — | IBM Skill 4 |
-| E-24 | `ControlAction.user_message` — plain-English translation of every action | 🔴 | HIGH | 2026-04-15 | Rory + Staff Backend Engineer | — | IBM Skill 7 |
-| E-25 | `src/energy_forecast/llm/context_builder.py` — deterministic system-prompt formatter | 🟡 | MEDIUM | 2026-04-15 | Staff ML Engineer | P-13 LLM Advisor | IBM Skill 3 |
-| E-26 | LLM output filter / safety guard — block out-of-scope LLM advisor responses | 🟡 | MEDIUM | 2026-04-15 | Staff Governance Lead | P-13 LLM Advisor | IBM Skill 5 |
-| E-27 | Prediction history store — append each H+24 prediction to `predictions` PostgreSQL table | 🔴 | HIGH | 2026-04-16 | Staff Data Engineer | D-25 schema | Enables P-16 outcome tracking. Fields: household_id, predicted_at, p10/p50/p90 json, model_version_id |
-| E-28 | ADR-011 — tech stack decision (PostgreSQL + Supabase + Redis vs alternatives) | 🟡 | MEDIUM | 2026-04-16 | Staff Backend Engineer | D-23 | Document why Supabase over Firebase, PlanetScale, DynamoDB for this use case |
+| ID | Item | Status | Priority | Added | Resolved | Owner | Depends On | Source |
+|----|------|--------|----------|-------|----------|-------|-----------|--------|
+| E-17 | `run_pipeline.py` SRP refactor — 634-line monolith → stage modules | 🔴 | HIGH | 2026-04-15 | — | Staff Backend Engineer | — | Audit |
+| E-18 | `run_grand_ensemble.py` registry-aware | 🟡 | MEDIUM | 2026-04-15 | — | Staff ML Engineer | — | Audit |
+| E-19 | Strict Pydantic schemas for FastAPI — model-derived 35-feature `PredictionRequest` | 🔴 | HIGH | 2026-04-15 | — | Staff Backend Engineer | — | IBM Skill 2 |
+| E-20 | ControlEngine JSONL audit log — structured per-decision trail | ✅ | — | 2026-04-15 | 2026-04-16 | Staff Data Scientist | — | IBM Skill 6 |
+| E-21 | ModelRegistry human review gate — CANDIDATE→ACTIVE requires explicit approval flag | 🟡 | MEDIUM | 2026-04-15 | — | Staff ML Engineer | — | Screenshot audit |
+| E-22 | Drift check post-training hook — auto-run after Stage 3 | ✅ | — | 2026-04-15 | 2026-04-16 | Staff ML Engineer | — | Screenshot audit |
+| E-23 | Connector retry / timeout / circuit breaker — all live HTTP connectors | ✅ | — | 2026-04-15 | 2026-04-16 | Staff Reliability Engineer | — | IBM Skill 4 |
+| E-24 | `ControlAction.user_message` — plain-English translation of every action | ✅ | — | 2026-04-15 | 2026-04-16 | Rory + Staff Backend Engineer | — | IBM Skill 7 |
+| E-25 | `src/energy_forecast/llm/context_builder.py` — deterministic system-prompt formatter | 🟡 | MEDIUM | 2026-04-15 | — | Staff ML Engineer | P-13 LLM Advisor | IBM Skill 3 |
+| E-26 | LLM output filter / safety guard — block out-of-scope LLM advisor responses | 🟡 | MEDIUM | 2026-04-15 | — | Staff Governance Lead | P-13 LLM Advisor | IBM Skill 5 |
+| E-27 | Prediction history store — append each H+24 prediction to `predictions` PostgreSQL table | 🔴 | HIGH | 2026-04-16 | — | Staff Data Engineer | D-25 schema | Enables P-16 outcome tracking |
+| E-28 | ADR-011 — full tech stack decision record | ✅ | — | 2026-04-16 | 2026-04-16 | Staff Backend Engineer | D-23 | `docs/adr/ADR-011-consumer-app-tech-stack.md` |
+| E-29 | `deployment/scheduler.py` — APScheduler integrated into FastAPI (daily 16:00 batch per household) | 🟡 | MEDIUM | 2026-04-16 | — | Staff Backend Engineer | D-25 | Cron: `hour=16, minute=0, timezone="Europe/Dublin"` |
+| E-30 | FastAPI auth middleware — Supabase JWT → `get_current_user` dependency injection | 🔴 | HIGH | 2026-04-16 | — | Staff Backend Engineer | D-29 | Required before any multi-household API endpoint goes live |
+| E-31 | Redis cache in FastAPI `/predict` — check cache before running model (TTL 23h) | 🟡 | MEDIUM | 2026-04-16 | — | Staff Backend Engineer | D-24 | Key: `predict:{household_id}:{forecast_date}` |
+| E-32 | Resend email notification — morning brief delivery, free tier (3k/month) | 🟡 | MEDIUM | 2026-04-16 | — | Staff Backend Engineer | E-29 | First notification channel before WhatsApp (P-02). resend.com, EU region |
 
 **Notes on outstanding items:**
 
@@ -218,7 +222,8 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | P-17 | **Customer intelligence dashboard** — potential savings gap, tariff switching rate, engagement score | 🟡 | HIGH | 2026-04-16 | Staff Data Scientist | P-16 | Three metrics per household: (a) potential_saving_eur - actual_saving_eur = "left on table"; (b) tariff_switched boolean; (c) engagement_rate = acted_on / shown. Display to user: "You saved €28 this month. You could have saved €47." |
 | P-18 | **Customer tier segmentation engine** — 4-tier behavioural classification | 🟡 | MEDIUM | 2026-04-16 | Staff Product Manager | P-16 | Tier 1 Optimisers (≥70% acceptance, active ≤14d); Tier 2 Trackers (regular, <70% acceptance); Tier 3 Switchers (changed tariff — high commercial value); Tier 4 Dormant (no activity 30+d). Tiers inform notification frequency, re-engagement, and model feedback loop |
 | P-19 | **Tiered prediction frequency** — Tier 4 weekly batch, Tier 1-3 daily | 🔵 | LOW | 2026-04-16 | Staff ML Engineer | P-18 | Primary value is not compute (2ms × 1000 users = 2s) — it is signal quality. Tier 4 non-actions are noise in the feedback loop. Only Tier 1 behaviour feeds model improvement. At 100k+ users this also reduces daily batch cost materially |
-| P-20 | **Geographic demand heatmap** — household consumption density map for ESCO reporting | 🔵 | LOW | 2026-04-16 | Staff Data Scientist | D-25 + P-12 | GeoJSON + Leaflet.js (or Grafana Geomap panel). Shows aggregate anonymised consumption by postcode. Use case: ESCO reporting to ESB Networks, investor demo, heat pump adoption hotspot identification for SEAI partnership |
+| P-20 | **Geographic demand heatmap** — household consumption density map for ESCO reporting | 🔵 | LOW | 2026-04-16 | — | Staff Data Scientist | D-25 + P-12 | GeoJSON + Leaflet.js (or Grafana Geomap panel). Shows aggregate anonymised consumption by postcode. Use case: ESCO reporting to ESB Networks, investor demo, heat pump adoption hotspot identification for SEAI partnership |
+| P-21 | **Google Stitch UI prototyping sprint** — generate key screens before building Next.js | 🟡 | MEDIUM | 2026-04-16 | — | Rory + Dan | D-23 | Screens: morning brief, 24h forecast chart, device control, home plan score, settings. Use Stitch (Gemini Pro, 550 free generations/month) → export to Figma → hand-code in Next.js + Tailwind + shadcn/ui + Tremor. Do this BEFORE writing frontend code. |
 
 ### P-15: Rory Design Principle (Cross-Cutting)
 
@@ -267,6 +272,7 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | D-26 | **APScheduler batch prediction pipeline** — daily 16:00 per registered household | 🟡 | MEDIUM | 2026-04-16 | — | Staff ML Engineer | D-23 + D-25 | Single shared LightGBM model per city; per-household: tariff config + consumption history only. Redis cache (TTL 23h) |
 | D-27 | **Vega-Lite custom panels in Grafana** — energy-native operator chart specs | 🔵 | LOW | 2026-04-16 | — | Staff Backend Engineer | D-24 | Use Grafana's Vega-Lite panel plugin for: P10/P50/P90 forecast bands, drift severity heatmap, household consumption fingerprint. More expressive than default Grafana charts. |
 | D-28 | **n8n workflow orchestrator** — replace APScheduler + notification code (Phase 2) | 🔵 | LOW | 2026-04-16 | — | Staff Backend Engineer | D-23 | Self-hosted, open-source (runs in Docker). Handles: CSV upload → process → notify; WhatsApp/email dispatch; P1 port webhook triggers. Add to docker-compose.yml alongside API. Eliminates custom notification code. |
+| D-29 | **Supabase project setup** — create project, run `infra/db/init.sql`, store connection strings in `env` | 🔴 | HIGH | 2026-04-16 | — | Dan | D-25 | Free tier: 500MB/50k rows. EU region (Frankfurt). Once done: update `DATABASE_URL` in `.env`, run `psql $DATABASE_URL < infra/db/init.sql` |
 
 ---
 
@@ -401,7 +407,7 @@ Ridge degradation H+1→H+48: +96%. **Tree advantage widens with horizon.**
 | **1. System Design** — structure not spaghetti | ✅ Strong — layered architecture (DataConnector → FastAPI → ControlEngine → DeviceConnector) | E-17 (SRP refactor) — last structural debt |
 | **2. Tool & Contract Design** — airtight schemas | ⚠️ Gap — `PredictionRequest` accepts `dict[str, float]` (any keys) | E-19: strict Pydantic schema derived from model's `feature_name_` at startup |
 | **3. Retrieval Engineering** — context quality = answer ceiling | 🟡 Pre-MVP — no RAG yet | E-25: `context_builder.py` for LLM Advisor. Key principle: pre-computed stats, not raw time-series |
-| **4. Reliability Engineering** — one failure doesn't bring down the house | 🔴 Gap — no retry/timeout on any live connector | E-23: `tenacity` retry + `timeout=10` + fallback to cached weather on all HTTP connectors |
+| **4. Reliability Engineering** — one failure doesn't bring down the house | ✅ Done — `_retry_http()` helper (3 attempts, exp. backoff), `_weather_cache` stale fallback, MyEnergiConnector returns `None` on failure | E-29: APScheduler health monitoring |
 | **5. Security & Safety** — your agent is an attack surface | ✅ Good foundations — `dry_run=True` default, `DataValidator`, EU AI Act Art. 52 | E-26: LLM output filter for when P-13 ships |
-| **6. Evaluation & Observability** — vibes don't scale | ✅ DriftDetector + ModelRegistry. Gap: no ControlEngine decision trail | E-20: JSONL audit log per decision |
-| **7. Product Thinking** — design for humans | ⚠️ Gap — `ControlAction.reasoning` is engineer-readable, not consumer-readable | E-24: `user_message` field. P-15: Rory principle codified in product spec |
+| **6. Evaluation & Observability** — vibes don't scale | ✅ DriftDetector + ModelRegistry + JSONL audit log per ControlAction decision | E-27: wire audit log to PostgreSQL for Grafana visibility |
+| **7. Product Thinking** — design for humans | ✅ Done — `ControlAction.user_message` + `_format_user_message()` in Rory voice | P-15 codified; P-02 WhatsApp delivery next |

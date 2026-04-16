@@ -11,16 +11,35 @@
 
 ## 1. Development Environment
 
-### IDE — Cursor
-**Chosen tool.** Cursor is the AI-powered fork of VS Code.
+### Development Tool Stack
 
-| Why Cursor | Alternative considered | Verdict |
-|------------|----------------------|---------|
-| AI tab-complete + multi-file edit | VS Code + GitHub Copilot | Cursor is strictly better — same editor, built-in Claude/GPT context |
-| Inline chat understands entire repo | JetBrains AI | Cursor wins for Python + TypeScript polyglot stack |
-| Free tier sufficient for solo founder | Windsurf (Codeium) | Cursor has wider model selection |
+Three complementary tools — each with a distinct role:
 
-**Setup:** Point Cursor at `~/building-energy-load-forecast/` as the workspace root. The project ships with a `pyproject.toml` that configures `black`, `ruff`, and `mypy` — Cursor will pick these up automatically.
+| Tool | Role | When to use |
+|------|------|-------------|
+| **Claude Code** | Deep codebase assistant — this session right now | Multi-file edits, architecture decisions, long-context reasoning, test writing, commit review |
+| **Google Antigravity** | Agent-first IDE (VS Code fork, Gemini 3.1) | Parallel agent dispatch — run 5 agents simultaneously on different bugs/features. Best for: boilerplate generation, parallel refactors, UI scaffolding |
+| **Cursor** | AI-powered VS Code (Claude + GPT models) | Day-to-day coding when Antigravity agents aren't needed. Inline multi-file edits, Python + TypeScript polyglot work |
+| **Gemini Pro** | LLM subscription | Google Stitch (UI prototyping), Gemini Flash API (P-13 LLM Advisor in production), Gemini in Antigravity |
+
+**Google Antigravity specifics (announced Nov 2025):**
+- VS Code fork with "Manager View" — dispatch up to 5 parallel coding agents
+- Each agent gets: Editor View (traditional IDE) + terminal + browser
+- Generates "Artifacts" per task (plan, implementation, screenshots) for transparency
+- Models: Gemini 3.1 Pro / Flash by default; also supports Claude Sonnet
+- Pricing: Free tier, Pro ($20/mo), Ultra ($249.99/mo)
+- Status (April 2026): Public preview, v1.22.2. Some stability issues on long tasks.
+
+**Claude Code specifics:**
+- Best for: tasks requiring full codebase context, architectural decisions, this project's CLAUDE.md protocol
+- Run from repo root: `claude` (reads CLAUDE.md automatically)
+
+**Workflow for this project:**
+1. `claude` in terminal → architecture decisions, multi-file implementations, ROADMAP updates
+2. Antigravity → parallel boilerplate tasks (e.g., "write 5 new tests" + "update 3 ADRs" simultaneously)
+3. Cursor → iterative development, quick fixes, TypeScript frontend work
+
+**Setup:** Open `~/building-energy-load-forecast/` as the workspace root in all three tools. The project ships with a `pyproject.toml` that configures `black`, `ruff`, and `mypy`.
 
 ---
 
