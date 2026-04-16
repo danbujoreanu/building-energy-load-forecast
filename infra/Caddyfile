@@ -1,0 +1,56 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Sparc Energy — Caddyfile (reverse proxy)
+#
+# Local HTTPS with automatic certificate via Caddy's built-in CA.
+# First run: trust the CA once on your Mac:
+#   docker exec sparc-caddy caddy trust
+#   (or: brew install caddy && caddy trust)
+#
+# Then add to /etc/hosts (or use dnsmasq — see infra/README.md):
+#   127.0.0.1   sparc.localhost api.sparc.localhost grafana.sparc.localhost
+# ─────────────────────────────────────────────────────────────────────────────
+
+{
+    # Use Caddy's local CA (no ACME challenge needed for *.localhost)
+    local_certs
+    # Disable access logs to stdout — Grafana handles its own log
+    log {
+        level WARN
+    }
+}
+
+# ── FastAPI API ───────────────────────────────────────────────────────────────
+api.sparc.localhost {
+    tls internal
+
+    reverse_proxy api:8000 {
+        # Pass real client IP through (for audit log accuracy)
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # CORS headers for Next.js PWA running on sparc.localhost
+    header {
+        Access-Control-Allow-Origin "https://sparc.localhost"
+        Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        Access-Control-Allow-Headers "Authorization, Content-Type"
+    }
+}
+
+# ── Next.js PWA frontend (D-23 — add when frontend is built) ─────────────────
+# sparc.localhost {
+#     tls internal
+#     reverse_proxy frontend:3000
+# }
+
+# ── Grafana operator dashboard ───────────────────────────────────────────────
+grafana.sparc.localhost {
+    tls internal
+    reverse_proxy grafana:3000
+}
+
+# ── HTTP → HTTPS redirect (catch-all) ────────────────────────────────────────
+http://sparc.localhost, http://api.sparc.localhost, http://grafana.sparc.localhost {
+    redir https://{host}{uri} permanent
+}

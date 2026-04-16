@@ -1,0 +1,45 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Sparc Energy — Docker Compose Dev Overrides
+#
+# Usage (with hot reload — no need to rebuild image on code change):
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Or add to shell alias:
+#   alias dcd="docker compose -f docker-compose.yml -f docker-compose.dev.yml"
+#   dcd up -d
+#   dcd logs -f api
+#
+# In dev mode:
+#   • FastAPI runs with --reload (code changes take effect immediately)
+#   • Source code is mounted as a volume (no docker build needed per change)
+#   • Caddy is disabled (access services directly on their ports: 8000, 3001)
+#   • All ports are still forwarded to localhost for direct curl / browser access
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  api:
+    build:
+      context: .
+      dockerfile: deployment/Dockerfile
+      target: base                          # use multi-stage base (deps only)
+    command: >
+      uvicorn deployment.app:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --reload-dir /app/src
+      --reload-dir /app/deployment
+    volumes:
+      # Mount source — changes take effect without rebuild
+      - ./src:/app/src:ro
+      - ./deployment:/app/deployment:ro
+      - ./config:/app/config:ro
+      - ./outputs:/app/outputs
+    environment:
+      LOG_LEVEL: DEBUG
+
+  # Disable Caddy in dev — access services directly on their ports
+  caddy:
+    profiles:
+      - prod                                # only starts with --profile prod

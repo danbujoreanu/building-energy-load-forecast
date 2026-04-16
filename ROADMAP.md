@@ -1,7 +1,7 @@
 # Sparc Energy — Product Engineering Roadmap
 
 **Project:** Building Energy Load Forecast → Sparc Energy Ltd (pre-incorporated)
-**Last updated:** 2026-04-15 (Session 41)
+**Last updated:** 2026-04-16 (Session 42)
 **Mission:** Day-ahead electricity load forecasting for Irish residential homes, enabling
 demand-response optimisation against dynamic pricing. MSc AI thesis → cleantech startup.
 
@@ -205,7 +205,7 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | P-10 | P1 hardware MVP — Pi Zero 2W (€15) + DSMR P1 USB adapter (€8-12) | 🔵 | MEDIUM | 2026-04-15 | Staff Backend Engineer | ESB Networks P1 activation | Customer self-install <5 min; custom PCB only at >1k units/month |
 | P-11 | Battery storage scheduling — charge/discharge optimisation | 🔵 | MEDIUM | 2026-04-15 | Staff ML Engineer | P-06 | New `CHARGE_BATTERY` action in `actions.py` |
 | P-12 | Commercial beta launch — 10-household pilot | 🔵 | HIGH | 2026-04-15 | Staff Product Manager | D-12 + P-06 + P-08 | saveon.ie referral + SEAI HPSS channel |
-| P-13 | LLM Energy Advisor — `claude-haiku-4-5`, ~€0.04/user/month | 🎓 | LOW | 2026-03 | Staff ML Engineer | E-25 + E-26 | Context injection: 30d stats + tariff + forecast; no raw time-series to API. Rory's principle: conversation, not query |
+| P-13 | LLM Energy Advisor — **Gemini Flash** (user has Gemini Pro subscription), ~€0.04/user/month | 🎓 | LOW | 2026-03 | Staff ML Engineer | E-25 + E-26 | Context injection: 30d stats + tariff + forecast; no raw time-series to API. Rory's principle: conversation, not query. Use Gemini Flash (not Claude API) — user has Gemini Pro; see ADR-011 |
 | P-14 | Smart Meter Analyst Agent — Claude Code + CER trust hierarchy | 🎓 | LOW | 2026-03 | Staff ML Engineer | CER dataset | Natural language → Pandas → shareable report; EI Innovation Voucher artefact |
 
 ### P-16 through P-19: Customer Intelligence (New — 2026-04-16)
@@ -218,6 +218,7 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | P-17 | **Customer intelligence dashboard** — potential savings gap, tariff switching rate, engagement score | 🟡 | HIGH | 2026-04-16 | Staff Data Scientist | P-16 | Three metrics per household: (a) potential_saving_eur - actual_saving_eur = "left on table"; (b) tariff_switched boolean; (c) engagement_rate = acted_on / shown. Display to user: "You saved €28 this month. You could have saved €47." |
 | P-18 | **Customer tier segmentation engine** — 4-tier behavioural classification | 🟡 | MEDIUM | 2026-04-16 | Staff Product Manager | P-16 | Tier 1 Optimisers (≥70% acceptance, active ≤14d); Tier 2 Trackers (regular, <70% acceptance); Tier 3 Switchers (changed tariff — high commercial value); Tier 4 Dormant (no activity 30+d). Tiers inform notification frequency, re-engagement, and model feedback loop |
 | P-19 | **Tiered prediction frequency** — Tier 4 weekly batch, Tier 1-3 daily | 🔵 | LOW | 2026-04-16 | Staff ML Engineer | P-18 | Primary value is not compute (2ms × 1000 users = 2s) — it is signal quality. Tier 4 non-actions are noise in the feedback loop. Only Tier 1 behaviour feeds model improvement. At 100k+ users this also reduces daily batch cost materially |
+| P-20 | **Geographic demand heatmap** — household consumption density map for ESCO reporting | 🔵 | LOW | 2026-04-16 | Staff Data Scientist | D-25 + P-12 | GeoJSON + Leaflet.js (or Grafana Geomap panel). Shows aggregate anonymised consumption by postcode. Use case: ESCO reporting to ESB Networks, investor demo, heat pump adoption hotspot identification for SEAI partnership |
 
 ### P-15: Rory Design Principle (Cross-Cutting)
 
@@ -261,9 +262,11 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | D-21 | `MQTTConnector` — industrial sensor feeds | 🔵 | LOW | 2026-03 | Staff Data Engineer | MQTT broker | B2B use case |
 | D-22 | `P1Connector` — real-time ESB smart meter via P1 port | 🔵 | LOW | 2026-03 | Staff Data Engineer | D-16 + ESB P1 activation | Same DSMR P1 standard as NL/BE/LU/ES |
 | D-23 | **Full consumer app tech stack** — Next.js PWA + FastAPI + PostgreSQL/Supabase + Redis | 🔴 | HIGH | 2026-04-16 | Staff Backend Engineer | — | See `docs/TECH_STACK.md`. Handles auth, multi-tenancy, notification delivery, account management |
-| D-24 | **Docker Compose local stack + Cloudflare Tunnel** — Mac Mini M5 beta hosting | 🔴 | HIGH | 2026-04-16 | Staff Backend Engineer | D-23 | Full stack on Mac: FastAPI + PostgreSQL + Redis + Nginx. Cloudflare Tunnel = public HTTPS, zero router config. Real users can beta test from their phone |
-| D-25 | **Multi-household database schema** — households, predictions, recommendations, outcomes, tariff_changes | 🔴 | HIGH | 2026-04-16 | Staff Data Engineer | D-23 | Row-level security via Supabase. See `docs/TECH_STACK.md` for full schema |
-| D-26 | **APScheduler batch prediction pipeline** — daily 16:00 per registered household | 🟡 | MEDIUM | 2026-04-16 | Staff ML Engineer | D-23 + D-25 | Single shared LightGBM model per city; per-household: tariff config + consumption history only. Redis cache (TTL 23h) |
+| D-24 | **Docker Compose local stack + Cloudflare Tunnel** — Mac Mini M5 beta hosting | 🔄 | HIGH | 2026-04-16 | 2026-04-16 | Staff Backend Engineer | D-23 | `docker-compose.yml` + Caddy + Grafana provisioning + `infra/db/init.sql` + `.env.example`. Run: `docker compose up -d`. ADR-011 |
+| D-25 | **Multi-household database schema** — households, predictions, recommendations, outcomes, tariff_changes | ✅ | HIGH | 2026-04-16 | 2026-04-16 | Staff Data Engineer | D-23 | Schema in `infra/db/init.sql`. Views: `customer_tiers`, `savings_gap`. TimescaleDB hypertables on `meter_readings` + `predictions`. |
+| D-26 | **APScheduler batch prediction pipeline** — daily 16:00 per registered household | 🟡 | MEDIUM | 2026-04-16 | — | Staff ML Engineer | D-23 + D-25 | Single shared LightGBM model per city; per-household: tariff config + consumption history only. Redis cache (TTL 23h) |
+| D-27 | **Vega-Lite custom panels in Grafana** — energy-native operator chart specs | 🔵 | LOW | 2026-04-16 | — | Staff Backend Engineer | D-24 | Use Grafana's Vega-Lite panel plugin for: P10/P50/P90 forecast bands, drift severity heatmap, household consumption fingerprint. More expressive than default Grafana charts. |
+| D-28 | **n8n workflow orchestrator** — replace APScheduler + notification code (Phase 2) | 🔵 | LOW | 2026-04-16 | — | Staff Backend Engineer | D-23 | Self-hosted, open-source (runs in Docker). Handles: CSV upload → process → notify; WhatsApp/email dispatch; P1 port webhook triggers. Add to docker-compose.yml alongside API. Eliminates custom notification code. |
 
 ---
 

@@ -1,0 +1,13 @@
+# Grafana dashboard provider — loads JSON dashboards from the dashboards/ folder.
+# Drop a dashboard JSON file here and it appears in Grafana on next restart.
+apiVersion: 1
+
+providers:
+  - name: SparC Dashboards
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: true

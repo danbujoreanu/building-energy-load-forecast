@@ -1,0 +1,164 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Sparc Energy — Docker Compose (Local / Mac Mini M5)
+#
+# Usage:
+#   cp env.example .env            # fill in passwords / keys
+#   docker compose up -d          # start all services
+#   docker compose logs -f api    # tail API logs
+#   docker compose down           # stop (data volumes preserved)
+#   docker compose down -v        # stop + wipe volumes (destructive)
+#
+# Services exposed:
+#   https://sparc.localhost       → Next.js PWA (when built — D-23)
+#   https://api.sparc.localhost   → FastAPI /health /predict /control
+#   https://grafana.sparc.localhost → Grafana operator dashboard
+#
+# For public HTTPS on Mac Mini:
+#   brew install cloudflare/cloudflare/cloudflared
+#   See infra/cloudflare-tunnel.yml.example
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── FastAPI ML Backend ──────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: deployment/Dockerfile
+    container_name: sparc-api
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://sparc:${DB_PASSWORD}@db:5432/sparc_energy
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: INFO
+      PYTHONPATH: /app/src
+    volumes:
+      # Persist model artefacts, logs, and drift reports beyond container restarts
+      - ./outputs:/app/outputs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 25s
+    networks:
+      - sparc
+
+  # ── PostgreSQL 16 + TimescaleDB ─────────────────────────────────────────────
+  db:
+    image: timescale/timescaledb:latest-pg16
+    container_name: sparc-db
+    ports:
+      - "5432:5432"                         # accessible from host for psql / TablePlus
+    environment:
+      POSTGRES_DB: sparc_energy
+      POSTGRES_USER: sparc
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: Europe/Dublin
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/db/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sparc -d sparc_energy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - sparc
+
+  # ── Redis 7 (prediction cache — TTL 23h per household) ─────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: sparc-redis
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - sparc
+
+  # ── Grafana OSS (Operator Dashboard) ───────────────────────────────────────
+  grafana:
+    image: grafana/grafana-oss:11.0.0
+    container_name: sparc-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_DEFAULT_THEME: dark
+      GF_SERVER_ROOT_URL: https://grafana.sparc.localhost
+      GF_INSTALL_PLUGINS: ""
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - sparc
+
+  # ── Caddy (Reverse Proxy + Automatic TLS) ──────────────────────────────────
+  # Handles HTTPS for all services behind a single port.
+  # On Mac: caddy auto-generates a local CA and issues *.sparc.localhost certs.
+  # Run `caddy trust` once to add the CA to your macOS keychain.
+  caddy:
+    image: caddy:2-alpine
+    container_name: sparc-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"                       # HTTP/3 (QUIC)
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - api
+      - grafana
+    restart: unless-stopped
+    networks:
+      - sparc
+
+# ── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  pgdata:
+    driver: local
+  redisdata:
+    driver: local
+  grafanadata:
+    driver: local
+  caddydata:
+    driver: local
+  caddyconfig:
+    driver: local
+
+# ── Network ──────────────────────────────────────────────────────────────────
+networks:
+  sparc:
+    driver: bridge
