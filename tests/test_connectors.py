@@ -240,12 +240,16 @@ class TestGetScheduleParsing:
             timers = c.get_schedule()
         assert timers == []
 
-    def test_api_error_returns_empty_list(self):
-        """Network / HTTP errors are caught and return []."""
+    def test_api_error_returns_none(self):
+        """Network / HTTP errors are caught and return None (graceful degradation after E-23 retry).
+
+        None signals "the call failed" as distinct from [] which means
+        "the call succeeded but no timers are scheduled".
+        """
         c = make_connector()
         with patch.object(c, "_get", side_effect=Exception("connection timeout")):
             timers = c.get_schedule()
-        assert timers == []
+        assert timers is None
 
     def test_wrong_response_key_returns_empty(self):
         """Response using 'boost' key instead of 'boost_times' returns []."""
