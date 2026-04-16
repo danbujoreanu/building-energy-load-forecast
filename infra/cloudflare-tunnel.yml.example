@@ -1,0 +1,36 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Cloudflare Tunnel — config template
+#
+# Exposes your Mac Mini M5 services to the internet with HTTPS,
+# no port forwarding, no dynamic DNS, no router config needed.
+#
+# Setup (one time):
+#   brew install cloudflare/cloudflare/cloudflared
+#   cloudflared tunnel login              # opens browser → authenticate
+#   cloudflared tunnel create sparc-energy
+#   cloudflared tunnel route dns sparc-energy api.yourdomain.com
+#   cloudflared tunnel route dns sparc-energy grafana.yourdomain.com
+#
+# Then copy this file to ~/.cloudflared/config.yml and fill in tunnel ID.
+# Run: cloudflared tunnel run sparc-energy
+# Or as a service: sudo cloudflared service install
+# ─────────────────────────────────────────────────────────────────────────────
+
+tunnel: <YOUR_TUNNEL_ID_HERE>
+credentials-file: /Users/<your_username>/.cloudflared/<YOUR_TUNNEL_ID_HERE>.json
+
+ingress:
+  # FastAPI backend
+  - hostname: api.yourdomain.com
+    service: http://localhost:8000
+
+  # Grafana operator dashboard (restrict to your IP in Cloudflare Access if needed)
+  - hostname: grafana.yourdomain.com
+    service: http://localhost:3001
+
+  # Next.js PWA frontend (uncomment when D-23 frontend is built)
+  # - hostname: app.yourdomain.com
+  #   service: http://localhost:3000
+
+  # Catch-all (required by cloudflared)
+  - service: http_status:404
