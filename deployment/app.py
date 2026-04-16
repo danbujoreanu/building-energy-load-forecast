@@ -17,6 +17,7 @@ from pydantic import BaseModel, field_validator
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
+from energy_forecast.api import schemas as _feature_schemas
 from energy_forecast.control.actions import EnvironmentState, ForecastBundle
 from energy_forecast.control.controller import ControlEngine
 from deployment.connectors import MockDeviceConnector, MockPriceConnector
@@ -38,16 +39,25 @@ _control_engine = ControlEngine()
 class PredictionRequest(BaseModel):
     building_id: str
     timestamp: str
-    features: dict  # 35 pre-engineered features (see temporal.py)
+    features: dict[str, float]
+    """35 pre-engineered features (see temporal.py).
+
+    When a real LightGBM model is loaded, the exact key set is validated
+    against ``model.feature_name_`` at request time — wrong or missing feature
+    names return a 422 with the full expected list.
+
+    In mock / no-model mode, any non-empty dict is accepted.
+    """
 
     @field_validator("features")
     @classmethod
-    def features_must_be_non_empty(cls, v: dict) -> dict:
+    def features_must_be_valid(cls, v: dict[str, float]) -> dict[str, float]:
         if not v:
             raise ValueError("features dict cannot be empty")
         if len(v) > 500:
             raise ValueError(f"features dict too large ({len(v)} keys); expected ~35")
-        return v
+        # E-19: strict model-derived validation (no-op when running in mock mode)
+        return _feature_schemas.validate_features(v)
 
 
 class PredictionResponse(BaseModel):
@@ -111,6 +121,10 @@ async def lifespan(app: FastAPI):
         if lgbm_path and lgbm_path.exists():
             models["LightGBM"] = joblib.load(lgbm_path)
             logger.info("Loaded LightGBM from %s", lgbm_path)
+            # E-19: register exact feature names so /predict rejects wrong keys
+            feature_names = getattr(models["LightGBM"], "feature_name_", None)
+            if feature_names is not None:
+                _feature_schemas.register_features(feature_names)
         else:
             logger.warning("LightGBM model not found in outputs/models/. Inference will be mocked.")
             models["LightGBM"] = "MOCK_LGBM"
