@@ -18,6 +18,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from energy_forecast.api import schemas as _feature_schemas
+from energy_forecast.api.prediction_store import store_prediction
 from energy_forecast.control.actions import EnvironmentState, ForecastBundle
 from energy_forecast.control.controller import ControlEngine
 from deployment.connectors import MockDeviceConnector, MockPriceConnector
@@ -262,6 +263,16 @@ def predict(request: PredictionRequest, model_name: str = "LightGBM"):
     except Exception as exc:
         logger.error("Inference failed: %s", exc)
         raise HTTPException(status_code=500, detail="Model inference failed.")
+
+    # E-27: persist prediction to history store (JSONL + optional PostgreSQL)
+    store_prediction(
+        building_id=request.building_id,
+        issued_at=datetime.now(timezone.utc),
+        p10=[v * 0.85 for v in preds],
+        p50=preds,
+        p90=[v * 1.15 for v in preds],
+        model_version=model_name,
+    )
 
     return PredictionResponse(
         building_id=request.building_id,
