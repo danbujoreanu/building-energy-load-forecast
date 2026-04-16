@@ -139,7 +139,7 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 
 | ID | Item | Status | Priority | Added | Resolved | Owner | Depends On | Source |
 |----|------|--------|----------|-------|----------|-------|-----------|--------|
-| E-17 | `run_pipeline.py` SRP refactor — 634-line monolith → stage modules | 🔴 | HIGH | 2026-04-15 | — | Staff Backend Engineer | — | Audit |
+| E-17 | `run_pipeline.py` SRP refactor — 634-line monolith → stage modules | ✅ | — | 2026-04-15 | 2026-04-16 | Staff Backend Engineer | — | Audit |
 | E-18 | `run_grand_ensemble.py` registry-aware | 🟡 | MEDIUM | 2026-04-15 | — | Staff ML Engineer | — | Audit |
 | E-19 | Strict Pydantic schemas for FastAPI — model-derived 35-feature `PredictionRequest` | ✅ | — | 2026-04-15 | 2026-04-16 | Staff Backend Engineer | — | IBM Skill 2 |
 | E-20 | ControlEngine JSONL audit log — structured per-decision trail | ✅ | — | 2026-04-15 | 2026-04-16 | Staff Data Scientist | — | IBM Skill 6 |
@@ -149,7 +149,7 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | E-24 | `ControlAction.user_message` — plain-English translation of every action | ✅ | — | 2026-04-15 | 2026-04-16 | Rory + Staff Backend Engineer | — | IBM Skill 7 |
 | E-25 | `src/energy_forecast/llm/context_builder.py` — deterministic system-prompt formatter | 🟡 | MEDIUM | 2026-04-15 | — | Staff ML Engineer | P-13 LLM Advisor | IBM Skill 3 |
 | E-26 | LLM output filter / safety guard — block out-of-scope LLM advisor responses | 🟡 | MEDIUM | 2026-04-15 | — | Staff Governance Lead | P-13 LLM Advisor | IBM Skill 5 |
-| E-27 | Prediction history store — append each H+24 prediction to `predictions` PostgreSQL table | 🔴 | HIGH | 2026-04-16 | — | Staff Data Engineer | D-25 schema | Enables P-16 outcome tracking |
+| E-27 | Prediction history store — append each H+24 prediction to `predictions` PostgreSQL table | ✅ | — | 2026-04-16 | 2026-04-16 | Staff Data Engineer | D-25 schema | JSONL fallback + PostgreSQL upsert. 178 tests. |
 | E-28 | ADR-011 — full tech stack decision record | ✅ | — | 2026-04-16 | 2026-04-16 | Staff Backend Engineer | D-23 | `docs/adr/ADR-011-consumer-app-tech-stack.md` |
 | E-29 | `deployment/scheduler.py` — APScheduler integrated into FastAPI (daily 16:00 batch per household) | 🟡 | MEDIUM | 2026-04-16 | — | Staff Backend Engineer | D-25 | Cron: `hour=16, minute=0, timezone="Europe/Dublin"` |
 | E-30 | FastAPI auth middleware — Supabase JWT → `get_current_user` dependency injection | 🔴 | HIGH | 2026-04-16 | — | Staff Backend Engineer | D-29 | Required before any multi-household API endpoint goes live |
