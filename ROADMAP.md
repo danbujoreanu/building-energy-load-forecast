@@ -1,7 +1,7 @@
 # Sparc Energy — Product Engineering Roadmap
 
 **Project:** Building Energy Load Forecast → Sparc Energy Ltd (pre-incorporated)
-**Last updated:** 2026-04-16 (Session 42)
+**Last updated:** 2026-04-16 (Session 43)
 **Mission:** Day-ahead electricity load forecasting for Irish residential homes, enabling
 demand-response optimisation against dynamic pricing. MSc AI thesis → cleantech startup.
 
@@ -141,7 +141,7 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 |----|------|--------|----------|-------|----------|-------|-----------|--------|
 | E-17 | `run_pipeline.py` SRP refactor — 634-line monolith → stage modules | 🔴 | HIGH | 2026-04-15 | — | Staff Backend Engineer | — | Audit |
 | E-18 | `run_grand_ensemble.py` registry-aware | 🟡 | MEDIUM | 2026-04-15 | — | Staff ML Engineer | — | Audit |
-| E-19 | Strict Pydantic schemas for FastAPI — model-derived 35-feature `PredictionRequest` | 🔴 | HIGH | 2026-04-15 | — | Staff Backend Engineer | — | IBM Skill 2 |
+| E-19 | Strict Pydantic schemas for FastAPI — model-derived 35-feature `PredictionRequest` | ✅ | — | 2026-04-15 | 2026-04-16 | Staff Backend Engineer | — | IBM Skill 2 |
 | E-20 | ControlEngine JSONL audit log — structured per-decision trail | ✅ | — | 2026-04-15 | 2026-04-16 | Staff Data Scientist | — | IBM Skill 6 |
 | E-21 | ModelRegistry human review gate — CANDIDATE→ACTIVE requires explicit approval flag | 🟡 | MEDIUM | 2026-04-15 | — | Staff ML Engineer | — | Screenshot audit |
 | E-22 | Drift check post-training hook — auto-run after Stage 3 | ✅ | — | 2026-04-15 | 2026-04-16 | Staff ML Engineer | — | Screenshot audit |
@@ -405,7 +405,7 @@ Ridge degradation H+1→H+48: +96%. **Tree advantage widens with horizon.**
 | Skill | Status in Project | Action Items |
 |-------|------------------|-------------|
 | **1. System Design** — structure not spaghetti | ✅ Strong — layered architecture (DataConnector → FastAPI → ControlEngine → DeviceConnector) | E-17 (SRP refactor) — last structural debt |
-| **2. Tool & Contract Design** — airtight schemas | ⚠️ Gap — `PredictionRequest` accepts `dict[str, float]` (any keys) | E-19: strict Pydantic schema derived from model's `feature_name_` at startup |
+| **2. Tool & Contract Design** — airtight schemas | ✅ Done — `schemas.register_features(model.feature_name_)` at startup; `/predict` rejects wrong keys with a 422 + full expected/missing/extra diff | E-25: context builder schema for LLM Advisor |
 | **3. Retrieval Engineering** — context quality = answer ceiling | 🟡 Pre-MVP — no RAG yet | E-25: `context_builder.py` for LLM Advisor. Key principle: pre-computed stats, not raw time-series |
 | **4. Reliability Engineering** — one failure doesn't bring down the house | ✅ Done — `_retry_http()` helper (3 attempts, exp. backoff), `_weather_cache` stale fallback, MyEnergiConnector returns `None` on failure | E-29: APScheduler health monitoring |
 | **5. Security & Safety** — your agent is an attack surface | ✅ Good foundations — `dry_run=True` default, `DataValidator`, EU AI Act Art. 52 | E-26: LLM output filter for when P-13 ships |
