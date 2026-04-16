@@ -39,8 +39,12 @@ Usage
 
 from __future__ import annotations
 
+import fcntl
+import json
 import logging
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 from energy_forecast.control.actions import (
     ActionType,
@@ -50,6 +54,66 @@ from energy_forecast.control.actions import (
 )
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Audit log — append-only JSONL, one line per ControlAction decision
+# ---------------------------------------------------------------------------
+
+# Resolve repo root: src/energy_forecast/control/controller.py → parents[3] = repo root
+_REPO_ROOT: Path = Path(__file__).resolve().parents[3]
+_AUDIT_LOG_PATH: Path = _REPO_ROOT / "outputs" / "logs" / "control_decisions.jsonl"
+
+
+def _append_audit_log(
+    action: ControlAction,
+    city: str,
+    building_id: str,
+    dry_run: bool,
+) -> None:
+    """Append one JSON line to the control audit log.
+
+    Creates the parent directory if needed.  Uses fcntl.flock for concurrent-safe
+    writes so multiple processes cannot interleave log entries.  Any exception is
+    silently logged at DEBUG level — audit log failure must NEVER break the
+    control loop.
+
+    Args:
+        action:      The ControlAction to record.
+        city:        Dataset / deployment city identifier.
+        building_id: Building identifier (from EnvironmentState or caller).
+        dry_run:     True if no real device command was sent.
+    """
+    try:
+        _AUDIT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        entry = {
+            "timestamp":     datetime.now(timezone.utc).isoformat(),
+            "city":          city,
+            "building_id":   building_id,
+            "target_hour":   action.target_hour,
+            "action":        action.action.value,
+            "confidence":    round(action.confidence, 4),
+            "reasoning":     action.reasoning,
+            "p50_kwh":       round(action.p50_kwh, 4),
+            "solar_wh_m2":   round(action.solar_wh_m2, 2),
+            "price_eur_kwh": round(action.price_eur_kwh, 4),
+            "dry_run":       dry_run,
+        }
+        line = json.dumps(entry, ensure_ascii=False) + "\n"
+        with open(_AUDIT_LOG_PATH, "a", encoding="utf-8") as fh:
+            try:
+                fcntl.flock(fh, fcntl.LOCK_EX)
+                fh.write(line)
+            finally:
+                fcntl.flock(fh, fcntl.LOCK_UN)
+    except AttributeError:
+        # fcntl not available on Windows — fall back to unguarded write
+        try:
+            with open(_AUDIT_LOG_PATH, "a", encoding="utf-8") as fh:
+                fh.write(line)  # type: ignore[name-defined]
+        except Exception as exc:
+            logger.debug("_append_audit_log: fallback write failed: %s", exc)
+    except Exception as exc:
+        logger.debug("_append_audit_log: failed (non-critical): %s", exc)
 
 
 class ControlEngine:
@@ -103,6 +167,8 @@ class ControlEngine:
         forecast: ForecastBundle,
         env: EnvironmentState,
         target_hours: list[int] | None = None,
+        city: str = "unknown",
+        dry_run: bool = False,
     ) -> list[ControlAction]:
         """Produce a control action for each requested forecast hour.
 
@@ -115,6 +181,11 @@ class ControlEngine:
         target_hours:
             List of hour offsets (0-indexed from forecast origin) for which
             decisions are needed.  Defaults to all 24 hours.
+        city:
+            Dataset / deployment city identifier, used in the audit log.
+        dry_run:
+            If True, records actions as simulated (no real device command sent).
+            Propagated to each ControlAction and the audit log.
 
         Returns
         -------
@@ -125,13 +196,26 @@ class ControlEngine:
         if target_hours is None:
             target_hours = list(range(n_hours))
 
+        building_id = env.building_id
+
         actions: list[ControlAction] = []
         for h in target_hours:
             if h >= n_hours:
                 logger.warning("target_hour=%d exceeds forecast length %d — skipped.", h, n_hours)
                 continue
             action = self._decide_one_hour(h, forecast, env)
+            # Stamp dry_run flag and plain-English user message
+            action.dry_run = dry_run
+            action.user_message = self._format_user_message(
+                action_type=action.action,
+                target_hour=action.target_hour,
+                p50_kwh=action.p50_kwh,
+                solar_wh_m2=action.solar_wh_m2,
+                price_eur_kwh=action.price_eur_kwh,
+                confidence=action.confidence,
+            )
             actions.append(action)
+            _append_audit_log(action, city=city, building_id=building_id, dry_run=dry_run)
 
         return actions
 
@@ -159,6 +243,81 @@ class ControlEngine:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def _format_user_message(
+        self,
+        action_type: ActionType,
+        target_hour: int,
+        p50_kwh: float,
+        solar_wh_m2: float,
+        price_eur_kwh: float,
+        confidence: float,
+    ) -> str:
+        """Generate a plain-English consumer-facing explanation for a control action.
+
+        Written in the voice of a knowledgeable friend, not a technical system.
+        Short, actionable, and honest about uncertainty.
+
+        Args:
+            action_type:    The ActionType enum value for this decision.
+            target_hour:    Hour offset from forecast origin (0-indexed).
+            p50_kwh:        Median load forecast for this hour (kWh).
+            solar_wh_m2:    Solar irradiance forecast (W/m²).
+            price_eur_kwh:  Grid electricity price (EUR/kWh).
+            confidence:     Heuristic confidence score [0, 1].
+
+        Returns:
+            A single plain-English sentence or two suitable for display in a
+            consumer app or morning brief.
+        """
+        savings = price_eur_kwh * p50_kwh
+
+        if action_type == ActionType.DEFER_HEATING:
+            if solar_wh_m2 > self.solar_threshold:
+                return (
+                    f"Good news — your panels should produce enough for hot water around "
+                    f"hour {target_hour}. Waiting could save you around "
+                    f"\u20ac{savings:.2f}."
+                )
+            else:
+                return (
+                    f"Electricity prices are elevated at {price_eur_kwh:.2f} \u20ac/kWh "
+                    f"this hour. Deferring your hot water heating should save you around "
+                    f"\u20ac{savings:.2f}."
+                )
+
+        if action_type == ActionType.HEAT_NOW:
+            if price_eur_kwh < self.price_offpeak:
+                return (
+                    f"Cheap rate running now at {price_eur_kwh:.2f} \u20ac/kWh \u2014 "
+                    f"good time to heat the tank. Running your Eddi now costs roughly "
+                    f"\u20ac{savings:.2f}."
+                )
+            # Default HEAT_NOW
+            return (
+                f"Conditions look normal for hour {target_hour}. Running the Eddi now "
+                f"at {price_eur_kwh:.2f} \u20ac/kWh."
+            )
+
+        if action_type == ActionType.PARTIAL_HEAT:
+            return (
+                f"Mixed signals this hour \u2014 moderate solar and mid-range price "
+                f"({price_eur_kwh:.2f} \u20ac/kWh). A partial boost balances cost and "
+                f"comfort."
+            )
+
+        if action_type == ActionType.ALERT_HIGH_DEMAND:
+            return (
+                f"Heads up: we\u2019re expecting high electricity use around hour "
+                f"{target_hour} (forecast: {p50_kwh:.1f} kWh). Consider running large "
+                f"appliances earlier or later today."
+            )
+
+        # Fallback (should not be reached with known ActionTypes)
+        return (
+            f"Conditions look normal for hour {target_hour}. Running the Eddi now "
+            f"at {price_eur_kwh:.2f} \u20ac/kWh."
+        )
 
     def _decide_one_hour(
         self,

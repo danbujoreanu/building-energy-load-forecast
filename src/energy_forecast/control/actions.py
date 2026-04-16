@@ -112,3 +112,17 @@ class ControlAction:
 
     price_eur_kwh: float = 0.0
     """Grid electricity price for this hour (EUR/kWh), for display purposes."""
+
+    dry_run: bool = False
+    """Whether this action was produced in dry-run mode (no real device command sent).
+
+    Recorded at decision time so the audit log accurately reflects whether the
+    action was live or simulated.
+    """
+
+    user_message: str = ""
+    """Plain-English explanation of the action, intended for the end consumer.
+
+    Written in the voice of a knowledgeable friend, not a technical system.
+    See ControlEngine._format_user_message().
+    """

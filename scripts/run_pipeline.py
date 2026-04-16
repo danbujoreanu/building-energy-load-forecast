@@ -535,6 +535,61 @@ def _run_training(cfg: dict, skip_slow: bool = False, save_preds: bool = False) 
 
     logger.info("Registry summary:\n%s", registry.summary())
 
+    # ── Post-training drift check ──────────────────────────────────────────────
+    logger.info("Stage 3b: Running post-training drift check …")
+    try:
+        from energy_forecast.monitoring.drift_detector import DriftDetector
+        import json as _json
+
+        # Load reference (training) and current (val) features for drift check
+        # X_train / y_train / X_val / y_val are all in scope from the splits loaded above
+        _drift_dir = res_dir.parent / "drift_reports"
+        _drift_dir.mkdir(parents=True, exist_ok=True)
+
+        # Try to get LightGBM MAE from results already computed this run
+        _training_mae: float | None = None
+        _metrics_path = res_dir / "final_metrics.csv"
+        if _metrics_path.exists():
+            import pandas as _pd_drift
+            _mdf = _pd_drift.read_csv(_metrics_path)
+            if "model" in _mdf.columns and "MAE" in _mdf.columns:
+                _lgb_row = _mdf[_mdf["model"].str.lower().str.contains("lightgbm", na=False)]
+                if not _lgb_row.empty:
+                    _training_mae = float(_lgb_row["MAE"].iloc[0])
+
+        _detector = DriftDetector(cfg)
+        _report = _detector.full_report(
+            city=city,
+            model_name="LightGBM",
+            X_reference=X_train,
+            X_check=X_val,
+            y_reference=y_train,
+            y_check=y_val,
+            training_mae=_training_mae if _training_mae is not None else 0.0,
+        )
+        _today = datetime.date.today().isoformat()
+        _report_path = _drift_dir / f"drift_{city}_{_today}.json"
+        _report_path.write_text(_report.to_json(), encoding="utf-8")
+        _sev = _report.overall_severity.value if hasattr(_report.overall_severity, "value") else str(_report.overall_severity)
+        if _sev == "critical":
+            logger.error(
+                "Post-training drift check: CRITICAL — %s. Investigate before deploying.",
+                _report.recommended_action,
+            )
+        elif _sev == "warning":
+            logger.warning(
+                "Post-training drift check: WARNING — %s.", _report.recommended_action
+            )
+        else:
+            logger.info(
+                "Post-training drift check: %s — %s", _sev, _report.recommended_action
+            )
+        logger.info("Drift report written to %s", _report_path)
+    except Exception as _drift_exc:
+        logger.error(
+            "Post-training drift check failed (non-blocking): %s", _drift_exc, exc_info=True
+        )
+
     logger.info("Stage 3 complete. Results → %s", res_dir / "final_metrics.csv")
 
 

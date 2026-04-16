@@ -102,8 +102,8 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 
 | ID | Item | Status | Priority | Added | Owner | Notes |
 |----|------|--------|----------|-------|-------|-------|
-| R-12 | **Decarb-AI (UCD-led) PhD — interview 21 Apr 2026** | 🔄 | HIGH | 2026-03 | Dan | €31k/yr tax-free + fees; 4 years; 10 positions; Andrew Parnell (UCD Statistics) |
-| R-13 | RENEW / Pallonetto research collaboration (Maynooth) | 🟡 | MEDIUM | 2026-04 | Dan | Call Apr 8 — awaiting response. Pursue as research-only post Decarb-AI outcome. See `docs/PALLONETTO_EMAIL.md` |
+| R-12 | **Decarb-AI (UCD-led) PhD — interview 21 Apr 2026** | 🔄 | HIGH | 2026-03 | Dan | €31k/yr tax-free + fees; 4 years; 10 positions; UCD Statistics supervisor |
+| R-13 | RENEW research collaboration (Maynooth University) | 🟡 | MEDIUM | 2026-04 | Dan | Call Apr 8 — awaiting response. Pursue as research-only post Decarb-AI outcome. |
 | R-14 | Decision-Focused Learning ControlEngine (Favaro arXiv:2501.14708) | 🎓 | — | 2026-02 | Staff ML Engineer | Train with dispatch cost loss not MSE; requires SEMO prices (D-20) |
 | R-15 | Hierarchical BART — cross-building pooling | 🎓 | — | 2026-01 | Staff ML Engineer | Very high effort; PhD-level; Chipman et al. 2010 |
 | R-16 | OOD generalisation for extreme weather | 🎓 | — | 2026-01 | Staff ML Engineer | Liu et al. 2023 — applied ML safety research |
@@ -135,7 +135,7 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | E-15 | DriftDetector integration test | ✅ | 2026-04-15 | 2026-04-15 | Staff ML Engineer | `TestDriftDetectorIntegration` — asserts severity != CRITICAL on identical data; JSON round-trip |
 | E-16 | CI rollback test — full bad-deploy→rollback scenario | ✅ | 2026-04-15 | 2026-04-15 | Staff ML Engineer | v1 ACTIVE → v2 raises `ModelRegressionError` → force → rollback restores v1 |
 
-### E-17 through E-26: Outstanding Engineering Items
+### E-17 through E-28: Outstanding Engineering Items
 
 | ID | Item | Status | Priority | Added | Owner | Depends On | Source |
 |----|------|--------|----------|-------|-------|-----------|--------|
@@ -149,6 +149,8 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | E-24 | `ControlAction.user_message` — plain-English translation of every action | 🔴 | HIGH | 2026-04-15 | Rory + Staff Backend Engineer | — | IBM Skill 7 |
 | E-25 | `src/energy_forecast/llm/context_builder.py` — deterministic system-prompt formatter | 🟡 | MEDIUM | 2026-04-15 | Staff ML Engineer | P-13 LLM Advisor | IBM Skill 3 |
 | E-26 | LLM output filter / safety guard — block out-of-scope LLM advisor responses | 🟡 | MEDIUM | 2026-04-15 | Staff Governance Lead | P-13 LLM Advisor | IBM Skill 5 |
+| E-27 | Prediction history store — append each H+24 prediction to `predictions` PostgreSQL table | 🔴 | HIGH | 2026-04-16 | Staff Data Engineer | D-25 schema | Enables P-16 outcome tracking. Fields: household_id, predicted_at, p10/p50/p90 json, model_version_id |
+| E-28 | ADR-011 — tech stack decision (PostgreSQL + Supabase + Redis vs alternatives) | 🟡 | MEDIUM | 2026-04-16 | Staff Backend Engineer | D-23 | Document why Supabase over Firebase, PlanetScale, DynamoDB for this use case |
 
 **Notes on outstanding items:**
 
@@ -206,6 +208,17 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | P-13 | LLM Energy Advisor — `claude-haiku-4-5`, ~€0.04/user/month | 🎓 | LOW | 2026-03 | Staff ML Engineer | E-25 + E-26 | Context injection: 30d stats + tariff + forecast; no raw time-series to API. Rory's principle: conversation, not query |
 | P-14 | Smart Meter Analyst Agent — Claude Code + CER trust hierarchy | 🎓 | LOW | 2026-03 | Staff ML Engineer | CER dataset | Natural language → Pandas → shareable report; EI Innovation Voucher artefact |
 
+### P-16 through P-19: Customer Intelligence (New — 2026-04-16)
+
+**Context:** Tracking whether recommendations were acted on, and segmenting users by engagement behaviour. Primary value: (1) only feed Tier 1 user behaviour back as model signal — dormant users' non-actions are noise. (2) tariff switching rate is the North Star investor metric. (3) the potential-vs-actual savings gap is the strongest retention message.
+
+| ID | Item | Status | Priority | Added | Owner | Depends On | Notes |
+|----|------|--------|----------|-------|-------|-----------|-------|
+| P-16 | **Prediction outcome tracking** — link each recommendation to its real outcome | 🔴 | HIGH | 2026-04-16 | Staff Data Scientist | D-25 + E-27 | `recommendation_outcomes` table: was_shown, was_acted_on, actual_kwh, potential_saving_eur, actual_saving_eur. Source: ESB CSV re-ingestion next day matches actuals to predictions |
+| P-17 | **Customer intelligence dashboard** — potential savings gap, tariff switching rate, engagement score | 🟡 | HIGH | 2026-04-16 | Staff Data Scientist | P-16 | Three metrics per household: (a) potential_saving_eur - actual_saving_eur = "left on table"; (b) tariff_switched boolean; (c) engagement_rate = acted_on / shown. Display to user: "You saved €28 this month. You could have saved €47." |
+| P-18 | **Customer tier segmentation engine** — 4-tier behavioural classification | 🟡 | MEDIUM | 2026-04-16 | Staff Product Manager | P-16 | Tier 1 Optimisers (≥70% acceptance, active ≤14d); Tier 2 Trackers (regular, <70% acceptance); Tier 3 Switchers (changed tariff — high commercial value); Tier 4 Dormant (no activity 30+d). Tiers inform notification frequency, re-engagement, and model feedback loop |
+| P-19 | **Tiered prediction frequency** — Tier 4 weekly batch, Tier 1-3 daily | 🔵 | LOW | 2026-04-16 | Staff ML Engineer | P-18 | Primary value is not compute (2ms × 1000 users = 2s) — it is signal quality. Tier 4 non-actions are noise in the feedback loop. Only Tier 1 behaviour feeds model improvement. At 100k+ users this also reduces daily batch cost materially |
+
 ### P-15: Rory Design Principle (Cross-Cutting)
 
 | ID | Item | Status | Priority | Added | Owner | Notes |
@@ -232,7 +245,7 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | D-10 | `scripts/log_eddi.py` — `--once`, `--history N`, `--interval` modes | ✅ | 2026-03 | 2026-03 | Staff Data Engineer | |
 | D-11 | Home Plan Score — 62/100, €178.65/yr saving identified | ✅ | 2026-03 | 2026-03 | Staff Product Manager | Oct 2023–Oct 2025, 730 days |
 
-### D-12 through D-22: Outstanding Deployment Items
+### D-12 through D-26: Outstanding Deployment Items
 
 | ID | Item | Status | Priority | Added | Owner | Depends On | Notes |
 |----|------|--------|----------|-------|-------|-----------|-------|
@@ -247,6 +260,10 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | D-20 | `SEMOConnector` real implementation — ENTSO-E API | 🔴 | HIGH | 2026-03 | Staff Energy Expert | ENTSO-E token | Stub exists. Unblocks P-05 |
 | D-21 | `MQTTConnector` — industrial sensor feeds | 🔵 | LOW | 2026-03 | Staff Data Engineer | MQTT broker | B2B use case |
 | D-22 | `P1Connector` — real-time ESB smart meter via P1 port | 🔵 | LOW | 2026-03 | Staff Data Engineer | D-16 + ESB P1 activation | Same DSMR P1 standard as NL/BE/LU/ES |
+| D-23 | **Full consumer app tech stack** — Next.js PWA + FastAPI + PostgreSQL/Supabase + Redis | 🔴 | HIGH | 2026-04-16 | Staff Backend Engineer | — | See `docs/TECH_STACK.md`. Handles auth, multi-tenancy, notification delivery, account management |
+| D-24 | **Docker Compose local stack + Cloudflare Tunnel** — Mac Mini M5 beta hosting | 🔴 | HIGH | 2026-04-16 | Staff Backend Engineer | D-23 | Full stack on Mac: FastAPI + PostgreSQL + Redis + Nginx. Cloudflare Tunnel = public HTTPS, zero router config. Real users can beta test from their phone |
+| D-25 | **Multi-household database schema** — households, predictions, recommendations, outcomes, tariff_changes | 🔴 | HIGH | 2026-04-16 | Staff Data Engineer | D-23 | Row-level security via Supabase. See `docs/TECH_STACK.md` for full schema |
+| D-26 | **APScheduler batch prediction pipeline** — daily 16:00 per registered household | 🟡 | MEDIUM | 2026-04-16 | Staff ML Engineer | D-23 + D-25 | Single shared LightGBM model per city; per-household: tariff config + consumption history only. Redis cache (TTL 23h) |
 
 ---
 
@@ -270,11 +287,11 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | C-07 | **AWS Activate** — free compute credits | 🔴 | HIGH | 2026-04-15 | Dan | Apply immediately. No company formation required |
 | C-08 | SEAI RD&D funding call | 🟡 | HIGH | 2026-04-15 | Dan | May–July 2026 window. NCI partner route |
 | C-09 | Enterprise Ireland HPSU Feasibility Grant — €35k pre-revenue | 🟡 | MEDIUM | 2026-04-15 | Dan | Requires company formation |
-| C-10 | New Frontiers — via NCI (Orla Byrne) | 🟡 | MEDIUM | 2026-04-15 | Dan | Pre-incorporation pathway |
+| C-10 | New Frontiers — via NCI programme | 🟡 | MEDIUM | 2026-04-15 | Dan | Pre-incorporation pathway |
 | C-11 | EI iHPSU — up to €1.2M | 🔵 | LOW | 2026-04-15 | Dan | Needs 6 months of traction first |
 | C-12 | Dogpatch 2050 Accelerator — ESB partner, equity-free | 🔵 | LOW | 2026-04-15 | Dan | January 2027 cohort |
 | C-13 | Heat pump angle — SEAI HPSS as acquisition channel | 🟡 | MEDIUM | 2026-04-15 | Staff Product Marketing | Depends P-07 | Ireland 400k HP target by 2030. Device makes HP economics viable |
-| C-14 | RENEW collaboration (Pallonetto/MU) — research-only | 🟡 | LOW | 2026-04-15 | Dan | Post Decarb-AI outcome. 20-50 household pilot network; joint paper opportunity |
+| C-14 | RENEW collaboration (Maynooth University) — research-only | 🟡 | LOW | 2026-04-15 | Dan | Post Decarb-AI outcome. 20-50 household pilot network; joint paper opportunity |
 
 ---
 
@@ -321,7 +338,7 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 
 | Date | Event | Track | ID | Status |
 |------|-------|-------|-----|--------|
-| **21 Apr 2026** | Decarb-AI PhD interview — Andrew Parnell (UCD) | Research | R-12 | 🔄 ACTIVE |
+| **21 Apr 2026** | Decarb-AI PhD interview — UCD Statistics | Research | R-12 | 🔄 ACTIVE |
 | **15 Jun 2026** | BGE contract renewal deadline | Deployment | D-17 | 🚨 URGENT |
 | **1 Jun 2026** | CRU dynamic pricing mandate — 5 Irish suppliers | Product | P-05/P-06 | KEY TRIGGER |
 | **Mid-2026** | ESB Networks SMDS live — ESCO Appendix A filing | Commercial | C-04 | AT RISK |

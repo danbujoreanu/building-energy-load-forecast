@@ -33,14 +33,69 @@ from __future__ import annotations
 import logging
 import math
 import os
+import time
 from abc import ABC, abstractmethod
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, TypeVar
 
 import pandas as pd
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Module-level weather cache — keyed by f"{building_id}:{n_hours}"
+# Populated on successful OpenMeteo fetches; used as fallback on failure.
+# ---------------------------------------------------------------------------
+_weather_cache: dict[str, pd.DataFrame] = {}
+
+# ---------------------------------------------------------------------------
+# Retry helper
+# ---------------------------------------------------------------------------
+
+_T = TypeVar("_T")
+
+
+def _retry_http(
+    func: Callable[[], _T],
+    max_attempts: int = 3,
+    backoff_base: float = 2.0,
+) -> _T:
+    """Call *func* up to *max_attempts* times with exponential backoff.
+
+    Backoff schedule: 2s, 4s, 8s (with backoff_base=2.0).
+
+    Args:
+        func: A zero-argument callable that performs the HTTP request and
+              returns a result on success, or raises on failure.
+        max_attempts: Total number of attempts before re-raising last exception.
+        backoff_base: Base for exponential backoff (seconds before attempt 2).
+
+    Returns:
+        The value returned by *func* on its first successful call.
+
+    Raises:
+        The last exception raised by *func* if all attempts fail.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return func()
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            if attempt < max_attempts:
+                wait = backoff_base ** (attempt - 1)
+                logger.warning(
+                    "_retry_http: attempt %d/%d failed (%s) — retrying in %.1fs",
+                    attempt, max_attempts, exc, wait,
+                )
+                time.sleep(wait)
+            else:
+                logger.error(
+                    "_retry_http: all %d attempts failed. Last error: %s",
+                    max_attempts, exc,
+                )
+    raise last_exc  # type: ignore[misc]
 
 # ---------------------------------------------------------------------------
 # DATA CONNECTORS
@@ -262,6 +317,10 @@ class OpenMeteoConnector(DataConnector):
     ) -> pd.DataFrame:
         """Fetch the next ``n_hours`` weather forecast from Open-Meteo.
 
+        Retries up to 3 times with exponential backoff (2s, 4s, 8s).
+        On total failure, falls back to the last successfully cached response.
+        If no cache exists, re-raises the original exception.
+
         Note: this connector returns *future* forecast data (not historical).
         Combine with CSVConnector for the historical load tail.
         """
@@ -278,44 +337,72 @@ class OpenMeteoConnector(DataConnector):
             f"&forecast_days={math.ceil(hours / 24)}"
             f"&timezone=UTC"
         )
+        cache_key = f"{building_id}:{n_hours}"
+        max_attempts = 3
+
+        def _do_fetch() -> pd.DataFrame:
+            for attempt in range(1, max_attempts + 1):
+                print(f"[OpenMeteoConnector] attempt {attempt}/{max_attempts} for {url}")
+                try:
+                    response = requests.get(url, timeout=10)
+                    response.raise_for_status()
+                    data: dict[str, Any] = response.json()
+
+                    hourly = data.get("hourly", {})
+                    _required = {"time", "temperature_2m", "direct_radiation"}
+                    _missing = _required - hourly.keys()
+                    if _missing:
+                        raise ValueError(
+                            f"Open-Meteo response missing expected fields: {sorted(_missing)}"
+                        )
+
+                    times = pd.to_datetime(hourly["time"], utc=True)
+                    temps = hourly["temperature_2m"]
+                    solar = hourly["direct_radiation"]
+
+                    df = pd.DataFrame(
+                        {
+                            "Temperature_Outdoor_C": temps[:hours],
+                            "Global_Solar_Horizontal_Radiation_W_m2": solar[:hours],
+                            "Electricity_Imported_Total_kWh": float("nan"),  # unknown future load
+                        },
+                        index=times[:hours],
+                    )
+                    logger.info(
+                        "OpenMeteoConnector: fetched %d rows (lat=%.4f, lon=%.4f)",
+                        len(df), self.latitude, self.longitude,
+                    )
+                    return df
+                except Exception as exc:
+                    if attempt < max_attempts:
+                        wait = 2.0 ** (attempt - 1)  # 1s, 2s, 4s → 2s, 4s, 8s on attempts 1,2,3
+                        # Corrected: attempt=1 → wait 2s, attempt=2 → wait 4s
+                        wait = 2.0 * (2.0 ** (attempt - 1))
+                        logger.warning(
+                            "OpenMeteoConnector: attempt %d/%d failed (%s) — retrying in %.1fs",
+                            attempt, max_attempts, exc, wait,
+                        )
+                        time.sleep(wait)
+                    else:
+                        raise
 
         logger.info("OpenMeteoConnector: fetching %d hours from %s", hours, url)
-        response = requests.get(url, timeout=10)
         try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as exc:
-            logger.error(
-                "OpenMeteoConnector HTTP %s: %s", response.status_code, response.reason
-            )
-            raise ValueError(
-                f"Open-Meteo returned {response.status_code}: {response.reason}"
-            ) from exc
-        data: dict[str, Any] = response.json()
-
-        hourly = data.get("hourly", {})
-        _required = {"time", "temperature_2m", "direct_radiation"}
-        _missing = _required - hourly.keys()
-        if _missing:
-            raise ValueError(
-                f"Open-Meteo response missing expected fields: {sorted(_missing)}"
-            )
-        times = pd.to_datetime(hourly["time"], utc=True)
-        temps = hourly["temperature_2m"]
-        solar = hourly["direct_radiation"]
-
-        df = pd.DataFrame(
-            {
-                "Temperature_Outdoor_C": temps[:hours],
-                "Global_Solar_Horizontal_Radiation_W_m2": solar[:hours],
-                "Electricity_Imported_Total_kWh": float("nan"),  # unknown future load
-            },
-            index=times[:hours],
-        )
-        logger.info(
-            "OpenMeteoConnector: fetched %d rows (lat=%.4f, lon=%.4f)",
-            len(df), self.latitude, self.longitude,
-        )
-        return df
+            df = _do_fetch()
+            # Cache successful result
+            _weather_cache[cache_key] = df
+            return df
+        except Exception as exc:
+            # All retries exhausted — try cache fallback
+            cached = _weather_cache.get(cache_key)
+            if cached is not None:
+                cache_ts = cached.index[0].isoformat() if len(cached) > 0 else "unknown"
+                logger.warning(
+                    "OpenMeteo unavailable — using cached weather from %s", cache_ts
+                )
+                return cached
+            # No cache — re-raise original exception
+            raise
 
     def get_solar_forecast(self, n_hours: int = 24) -> list[float]:
         """Return just the solar irradiance list (W/m²) for quick ControlEngine use."""
@@ -627,8 +714,12 @@ class MyEnergiConnector(DeviceConnector):
 
     # ── public API ──────────────────────────────────────────────────────────
 
-    def get_status(self) -> dict:
+    def get_status(self) -> dict | None:
         """Return current eddi status as a plain dict.
+
+        Retries up to 3 times with exponential backoff (2s, 4s, 8s).
+        Returns None if all attempts fail — callers must handle None gracefully
+        so the morning brief degrades without crashing.
 
         Returns
         -------
@@ -640,8 +731,20 @@ class MyEnergiConnector(DeviceConnector):
             today_kwh     — energy diverted to hot water today (kWh)
             tank_temp_c   — tank temperature °C (None if no sensor)
             solar_w       — current solar generation (W; None if no Harvi CT)
+        None if hub is unreachable (all retries exhausted).
         """
-        data = self._get("/cgi-jstatus-*")
+        def _fetch() -> dict:
+            return self._get("/cgi-jstatus-*")
+
+        try:
+            data = _retry_http(_fetch, max_attempts=3, backoff_base=2.0)
+        except Exception as exc:
+            logger.warning(
+                "MyEnergiConnector.get_status: hub unreachable after 3 attempts (%s) "
+                "— returning None for graceful degradation.",
+                exc,
+            )
+            return None
         # Response: list of device-type dicts, e.g. [{"eddi":[...]}, {"harvi":[...]}, ...]
         eddi_list, harvi_list = [], []
         if isinstance(data, list):
@@ -859,7 +962,7 @@ class MyEnergiConnector(DeviceConnector):
         day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         return [day_names[i] for i in range(7) if bdd[i + 1] == "1"]
 
-    def get_schedule(self) -> list[dict]:
+    def get_schedule(self) -> list[dict] | None:
         """Return the Eddi boost timer schedule configured in the myenergi app.
 
         Endpoint confirmed working (live API, 2026-03-15):
@@ -900,12 +1003,24 @@ class MyEnergiConnector(DeviceConnector):
         09:15 +180min Sat                        # slot 13 — Saturday free window
         14:00 +180min Sat                        # slot 14 — Saturday free window
         19:45 +30min Mon+Tue+Wed+Thu+Fri+Sun    # slot 12 — evening grid boost
+
+        Returns None if the hub is unreachable after 3 retry attempts — callers
+        must handle None so the morning brief degrades gracefully.
         """
+        serial = self.serial  # capture for closure
+
+        def _fetch() -> dict:
+            return self._get(f"/cgi-boost-time-E{serial}")
+
         try:
-            data = self._get(f"/cgi-boost-time-E{self.serial}")
+            data = _retry_http(_fetch, max_attempts=3, backoff_base=2.0)
         except Exception as exc:
-            logger.warning("get_schedule: API error (%s) — returning empty schedule", exc)
-            return []
+            logger.warning(
+                "MyEnergiConnector.get_schedule: hub unreachable after 3 attempts (%s) "
+                "— returning None for graceful degradation.",
+                exc,
+            )
+            return None
 
         # Confirmed response key: "boost_times"
         slots_raw = data.get("boost_times") if isinstance(data, dict) else []
@@ -1087,6 +1202,9 @@ class MyEnergiConnector(DeviceConnector):
         mode = self._ACTION_TO_MODE.get(action_type, 0)
         # eddi serial is the first eddi on the hub — fetch it from status
         status = self.get_status()
+        if status is None:
+            logger.error("[MyEnergi] send_command: hub unreachable — cannot send %s", action_type)
+            return False
         eddi_sno = status["eddi_serial"]
         path = f"/cgi-jeddi{eddi_sno}-mode-Z{mode}"
         try:
