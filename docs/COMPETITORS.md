@@ -5,6 +5,25 @@
 
 ---
 
+## Institutional / Research Projects (Ireland)
+
+These are not direct commercial competitors but occupy overlapping space. Institutionally backed, slow-moving, validated the market exists.
+
+### RENEW
+**Status:** Irish research project, supported by researchers, recognised by SEAI/SFI/similar bodies.
+**Model:** Research-led. Not a consumer product. Likely focused on grid-level or academic energy data analysis.
+**Assessment:** Validates that the Irish energy AI space is taken seriously at institutional level. Their slow pace is Dan's window — consumer UX and speed to market are the differentiator. Potential future partner (academic credibility + commercial product = complementary).
+**Action:** Monitor. If RENEW researchers publish or present, engage — potential co-author or advisory relationship.
+
+### elec-tariffs.ie
+**Status:** Live Irish site. Tariff comparison / information resource.
+**Model:** Informational — tariff data and comparison. No AI forecasting, no load prediction, no household optimisation.
+**Assessment:** Validates consumer interest in Irish electricity tariffs. Closest to the "energy plan recommendation" feature (Section 4 of APP_PRODUCT_SPEC). Not a threat to the AI forecasting core — they provide information, we provide intelligence and action.
+**Differentiator:** elec-tariffs.ie tells you what tariffs exist. Our product tells you which tariff fits your actual consumption pattern and schedules your appliances accordingly.
+**Potential:** Could be a distribution partner (recommend our device to users who want to go beyond comparison to optimisation).
+
+---
+
 ## Direct Competitors
 
 ### Loop (loop.homes)
@@ -165,3 +184,86 @@ Track these for Ireland entry signals:
 - Hive+: Hive Ireland presence and Hive+ plan rollout outside UK
 - ESB Networks API: CRU data access consultation papers (watch CRU website)
 - SEAI Home Energy Kits 2026 call for applications
+
+---
+
+## Updated Analysis — April 2026
+
+### Ento.ai (ento.ai)
+**Founded:** 2019, Aarhus, Denmark | **Funding:** $3.6M seed (byFounders, Voyager, AURA Ventures)
+**Platform:** 55,000+ buildings on platform
+
+| Dimension | Ento.ai | Sparc Energy |
+|-----------|---------|-------------|
+| Target market | B2B: large commercial portfolios (50+ buildings) | B2C residential + Irish SME |
+| Forecasting | No load prediction — anomaly detection only | H+24 load forecast, MAE 4.03 kWh |
+| Device control | No actuation — insights and reporting only | Direct Eddi/device control |
+| M&V | Automated IPMVP-standard (ESG/green bond reporting) | Not implemented |
+| Data input | Utility meter feeds (no hardware) | P1/HDF CSV, Eddi API |
+| Revenue | Annual SaaS, quote-only (by portfolio size) | €99 device + €3.99/month |
+| Geography | Denmark, Italy, UK, Nordics | Ireland (first mover) |
+| Threat level | **Low** — different segment | N/A |
+
+**Assessment:** Ento is the right benchmark for Phase 3 if/when Sparc targets Irish commercial portfolios (local authorities, SEAI-funded buildings). Their strength is IPMVP-compliant M&V and portfolio analytics — neither of which Sparc needs for Phase 1. They solve reporting; we solve control.
+
+**Competitive moat vs Ento if we enter commercial:**
+- Sparc has active device dispatch (Ento is advisory only)
+- Sparc's LightGBM forecast is more accurate than anomaly detection for demand-response scheduling
+- Ento requires dedicated energy managers — Sparc is self-serve
+
+---
+
+### mySigen / Sigenergy (sigenergy.com)
+**Status:** Global hardware manufacturer. Developer API public at developer.sigencloud.com.
+**Hardware:** Residential/commercial solar + battery storage systems (€4,000–12,000 installed)
+
+| Dimension | mySigen | Sparc Energy |
+|-----------|---------|-------------|
+| Hardware requirement | Sigenergy battery only | Any Irish household (no battery required) |
+| Forecasting | Basic TOU scheduling (time-programmed) | H+24 ML forecast |
+| AI features | "Sigen AI Insight" (plain language dispatch explanation) | Full ControlEngine + LLM advisor |
+| API access | Public REST API, VPP/third-party integration supported | Own API |
+| EV integration | Yes (OCPP for third-party chargers) | Phase 2 |
+| Irish presence | No specific Irish push | First mover |
+| Threat level | **Low** — hardware-locked, no Irish focus | N/A |
+
+**Key insight from user:** A customer with 10 solar panels + 10kWh battery is largely self-sufficient in summer and can weather most tariff bands — the optimization value for Sparc is lower for this segment. **Customer segmentation implication:**
+
+| Segment | Sparc Value | Priority |
+|---------|------------|---------|
+| Heat pump (no solar/battery) | HIGHEST — large electricity bill, can't self-generate | Tier 1 |
+| EV + heat pump | HIGH — two large loads to schedule, dynamic tariff arbitrage | Tier 1 |
+| Solar + no battery | HIGH — export timing optimization + consumption shift | Tier 2 |
+| Solar + large battery (>10kWh) | MEDIUM — battery absorbs most arbitrage; value in cloudy season | Tier 3 |
+| Standard household (no assets) | MEDIUM — demand shift value, smaller bills | Tier 2 |
+| Commercial building (SME) | HIGH B2B — large bills, predictable patterns, budget for solutions | Tier 1 (Phase 2) |
+
+**Sigenergy integration opportunity:** Their public API supports VPP-style control — Sparc could read Sigenergy battery SoC and solar generation via the developer API, making mySigen hardware owners a distinct user segment rather than an excluded one. See DAN-38 (battery scheduler).
+
+---
+
+### Tibber — Enhanced Analysis
+
+**Updated threat model (April 2026)**
+- Tibber's fastest Irish entry lever — Pulse P1 hardware — is blocked until ESB Networks activates P1 software (late 2026 at earliest)
+- Irish retail supply licence: multi-year CRU process; no application reported
+- Their product strength: spot-price pass-through (€5/month subscription, no kWh markup) + Home Assistant integration + EV smart charging ecosystem
+- **Critical structural difference vs Sparc:** Tibber IS the electricity supplier. Sparc is supplier-agnostic. If Tibber enters Ireland, customers must switch supplier (a decision with inertia). Sparc works alongside existing BGE/EI/Energia contracts.
+- **If Tibber enters Ireland post-2027:** They become a Medium-High threat for tech-forward EV owners. Our moat: (1) Irish regulatory relationships (CRU/SEAI), (2) heat pump optimisation (Tibber's control is EV-focused), (3) load forecasting (Tibber optimises on *price*, not on *predicted demand*), (4) SMDS ESCO registration gives us automatic data access they'd also need to apply for.
+
+---
+
+## Commercial Building Segment — Competitive Landscape
+
+For Phase 2+ commercial expansion (Irish offices, schools, SME), the competitive field is different:
+
+| Company | Focus | Notes |
+|---------|-------|-------|
+| **Ento.ai** | Portfolio anomaly detection, IPMVP M&V | No control, B2B only |
+| **Schneider Electric EcoStruxure** | Enterprise BMS, large commercial | €50k+ contracts, not SME |
+| **Siemens Desigo CC** | Enterprise BMS | Same tier as Schneider |
+| **EpiSensor (episensor.com)** | Irish B2B IoT, P1 + demand response | 970 customers, 25k devices — potential partner |
+| **Viotas** | Demand flexibility aggregation (LEAP) | Pays businesses, not residential |
+| **Enertiv / Willow** | US-focused commercial building analytics | No Irish presence |
+
+**Sparc's commercial entry wedge:** SME segment (50–5,000 sqm: GP surgeries, small offices, schools) — too small for Schneider/Siemens, too tech-light for Ento's portfolio focus. EpiSensor is the closest Irish B2B IoT player — evaluate as a channel partner, not a competitor.

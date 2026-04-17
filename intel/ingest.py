@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 EMBED_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 CHUNK_SIZE = 512
 CHUNK_OVERLAP = 50
-VALID_TIERS = {"operational", "strategic", "research", "market"}
+VALID_TIERS = {"operational", "strategic", "research", "market", "career"}
 
 # Resolve ChromaDB path relative to this file's project root (two levels up from intel/)
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
