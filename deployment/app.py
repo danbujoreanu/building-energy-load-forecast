@@ -160,6 +160,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ── Intel module routes (/intel/query, /intel/status, /intel/tiers) ──────────
+try:
+    from intel.routes import router as _intel_router  # noqa: E402
+    app.include_router(_intel_router)
+    logger.info("Intel routes registered at /intel/*")
+except ImportError as _intel_err:
+    logger.warning("Intel module not available — /intel/* routes disabled: %s", _intel_err)
+
 
 # ---------------------------------------------------------------------------
 # Drift report helper

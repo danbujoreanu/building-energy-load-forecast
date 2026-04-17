@@ -501,3 +501,93 @@ Secrets:    AWS Secrets Manager
 ---
 
 *See `ROADMAP.md` items D-23 through D-26 for delivery tickets. See `docs/adr/` for architectural decision records (ADR-011 forthcoming for this tech stack decision).*
+
+---
+
+## 15. Microsoft / Azure Equivalence Map
+
+> **Context:** This section maps every Sparc Energy stack component to its Microsoft/Azure equivalent.
+> Irish enterprise companies (banks, government, insurance, retail) are heavily Azure-first.
+> This table is your answer when an interviewer asks "can you work in our Azure stack?"
+>
+> The knowledge transfers directly — the patterns are identical, only the vendor APIs differ.
+
+### 15.1 Compute & Hosting
+
+| Sparc Energy (AWS) | Azure Equivalent | Interview talking point |
+|--------------------|-----------------|-------------------------------|
+| AWS App Runner | **Azure Container Apps** | "Serverless container hosting — I've used App Runner; Azure Container Apps is the direct equivalent, same scale-to-zero model." |
+| AWS EC2 | Azure Virtual Machines | Standard IaaS; identical concepts |
+| AWS Lambda | **Azure Functions** | "Event-driven serverless; I've built APScheduler pipelines — same trigger/function pattern in Azure Functions." |
+| AWS Fargate / ECS | Azure Container Instances (ACI) | Container orchestration without Kubernetes |
+| GitHub Actions (CI/CD) | **Azure DevOps Pipelines** | "I use GitHub Actions YAML for CI. Azure DevOps uses the same YAML schema. Zero relearning." |
+
+### 15.2 Storage & Databases
+
+| Sparc Energy (AWS/OSS) | Azure Equivalent | Interview talking point |
+|------------------------|-----------------|------------------------|
+| AWS S3 (model artefacts) | **Azure Blob Storage** | "Same concept: object storage buckets. Boto3 → Azure SDK for Python. Nearly identical API." |
+| PostgreSQL / Supabase | **Azure Database for PostgreSQL** (Flexible Server) | "I've designed TimescaleDB hypertable schemas on Supabase. Azure PostgreSQL is managed PG — same SQL, same tooling." |
+| Redis (Upstash) | **Azure Cache for Redis** | "Identical Redis commands — I use it for prediction caching (TTL 23h). Azure-managed Redis is a drop-in." |
+| TimescaleDB (time-series) | **Azure Data Explorer** (Kusto) | "For IoT/time-series at scale, Azure Data Explorer is the native choice. I'd migrate the TimescaleDB pattern there." |
+
+### 15.3 ML & AI Services
+
+| Sparc Energy stack | Azure Equivalent | Interview talking point |
+|--------------------|-----------------|------------------------|
+| LightGBM (local training) | **Azure Machine Learning (AzureML)** | "LightGBM runs natively on AzureML compute clusters. My training pipeline → AzureML job, same Python code." |
+| LlamaIndex + ChromaDB (RAG) | **Azure AI Search** (vector search) | "I built a RAG system with LlamaIndex + ChromaDB. Azure AI Search provides the same vector index — the retrieval pattern is identical." |
+| sentence-transformers / MiniLM (local) | **Azure OpenAI Embeddings** (text-embedding-3-small) | "Local MiniLM is the zero-cost path; Azure OpenAI embeddings is the enterprise path. I know both trade-offs." |
+| Gemini Flash (LLM synthesis) | **Azure OpenAI GPT-4o-mini** | "Same role — LLM synthesis for the energy advisor. Azure OpenAI adds VNET integration and private endpoints for enterprise compliance." |
+| Grafana (monitoring dashboards) | **Azure Monitor + Application Insights** | "I use Grafana over PostgreSQL for drift monitoring. Azure Monitor is the native equivalent — dashboards, alerts, log analytics." |
+| Custom ModelRegistry (local) | **Azure ML Model Registry** | "I built a lifecycle registry (CANDIDATE→ACTIVE→RETIRED). Azure ML has this built-in with the same promotion-gate concept." |
+
+### 15.4 Networking & Security
+
+| Sparc Energy stack | Azure Equivalent | Interview talking point |
+|--------------------|-----------------|------------------------|
+| AWS Secrets Manager | **Azure Key Vault** | "I store API keys in Secrets Manager. Azure Key Vault is the direct equivalent — inject at runtime, never bake into image." |
+| Cloudflare Tunnel | **Azure Private Link** / App Proxy | "Cloudflare Tunnel for the beta. At enterprise scale: Azure Private Link or App Proxy." |
+| Cloudflare Access (Google OAuth) | **Azure Active Directory (Entra ID)** | "I gated the intel dashboard with Cloudflare Access. In enterprise: Azure AD/Entra ID with SAML/OIDC — same concept, standard SSO." |
+| AWS CloudFront (CDN) | **Azure Front Door** | "Vercel handles CDN for Next.js. Azure Front Door is the equivalent — global anycast + WAF + CDN." |
+| AWS WAF | **Azure Web Application Firewall** | Rule-based HTTP filtering — same concept |
+
+### 15.5 Developer Tools & Workflow
+
+| Sparc Energy stack | Azure Equivalent | Interview talking point |
+|--------------------|-----------------|------------------------|
+| GitHub | **Azure DevOps Repos** | "I use GitHub. Azure DevOps Repos is the enterprise Git host — same PR/branch model. GitHub IS Microsoft." |
+| Docker | Same everywhere | "Docker is Docker. Azure Container Registry (ACR) ↔ AWS ECR — same push/pull flow." |
+| AWS ECR | **Azure Container Registry (ACR)** | `az acr build` ↔ `aws ecr push` |
+| Terraform | **Bicep** (native ARM) or Terraform | "Terraform is provider-agnostic — my IaC knowledge transfers directly. Bicep is the Azure-native alternative." |
+| Streamlit (internal analytics) | **Power BI Embedded** or Azure Data Studio | "Streamlit for ad-hoc ML analytics. Power BI is the enterprise equivalent — same self-serve analytics, different audience." |
+
+### 15.6 LangChain vs LlamaIndex — Interview Framing
+
+This project uses **LlamaIndex** for the RAG pipeline. Here is how to frame both in an interview:
+
+| | LlamaIndex (this project) | LangChain |
+|---|---|---|
+| **Primary design target** | Document RAG — load → chunk → embed → retrieve | Agentic chains and multi-step orchestration |
+| **For this use case** | ✅ Cleaner: `SimpleDirectoryReader` → `VectorStoreIndex` → retriever in 3 lines | Works, but more boilerplate via LCEL |
+| **Job market visibility** | Growing | **Higher** — most job listings say "LangChain" |
+| **Azure equivalent** | Azure AI Search (same pattern) | Azure AI Foundry / Copilot Studio (orchestration) |
+
+**What to say in interviews:** *"I chose LlamaIndex for the RAG use case because it is purpose-built for document ingestion and retrieval — lower abstraction overhead. LangChain is the stronger choice for multi-step agentic pipelines. Both sit on the same underlying stack (vector store + embeddings + LLM), so the knowledge is directly transferable. I'd be comfortable working in either."*
+
+### 15.7 What to Build for the Azure Portfolio
+
+To demonstrate Azure hands-on to Irish employers, build one end-to-end Azure project using a free Developer subscription:
+
+| Step | What to build | Azure service demonstrated |
+|------|--------------|---------------------------|
+| 1 | Deploy the Sparc Energy FastAPI to **Azure Container Apps** | Container Apps, ACR, managed identity |
+| 2 | Move model artefacts to **Azure Blob Storage** | Object storage, SDK for Python |
+| 3 | Create a **Supabase → Azure Database for PostgreSQL** migration | Managed PG, schema migration, psql |
+| 4 | Build one **Azure Function** — daily 16:00 prediction batch (timer trigger) | Serverless, timer trigger, CRON |
+| 5 | Wire **Azure Key Vault** for API secrets | Security best practice, secret rotation |
+| 6 | Deploy the intel Gradio app to **Azure Container Apps** + gate with **Entra ID** | Identity, OAuth, private app access |
+
+This six-step project answers *"show me your Azure experience"* in any AI Solutions Lead interview at an Irish bank, insurance company, or enterprise technology firm.
+
+> **On Microsoft Copilot Studio / Azure AI Foundry:** These are no-code/low-code AI orchestration platforms increasingly used by Irish enterprise (banks, insurance, FMCG). The underlying pattern — RAG pipeline, vector store, LLM synthesis, prompt management — is exactly what is built in Python in this project. Translating it to Copilot Studio is a UI exercise, not a concepts exercise. Mention this framing explicitly in interviews.
