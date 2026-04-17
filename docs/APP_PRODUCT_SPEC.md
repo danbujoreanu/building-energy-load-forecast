@@ -1,16 +1,32 @@
 # App / Device Product Specification
 
 **Product name (working title):** GridSense (or similar)
-**Last updated:** 2026-03-15
+**Last updated:** 2026-04-11
 **Status:** Pre-product — research pipeline complete; deployment architecture designed
+
+---
+
+## P1 Hardware — Open Strategic Decision (Apr 2026)
+
+Whether to build a physical P1 port device is an open question. Two viable paths:
+
+**Path A — Software-first (recommended for Phase 1)**
+Launch as a pure app using ESB Networks API (CRU mandate will drive data access) or manual CSV upload from ESB customer portal. No hardware. Validates consumer willingness to pay before any manufacturing investment. Tibber's original playbook — they added the Tibber Pulse P1 device only after software traction.
+
+**Path B — Hardware from day one**
+Physical P1 adapter reads real-time DSMR data locally and sends to cloud. Creates switching costs and enables minute-level data. Higher barrier to launch.
+
+**If hardware is built:** ESP32 (~€3-8) is the right device — purpose-built IoT, WiFi built-in, low power, 5-10yr lifespan, no SD card reliability issues, DSMR libraries exist (Dutch P1 market). Raspberry Pi Zero 2W is NOT recommended for consumer hardware — Linux overhead, SD card failures, poor consumer setup UX. All Pi references in this spec are legacy and should be treated as ESP32 or TBD.
+
+**Decision trigger:** Validate 100 paying software users first, then evaluate hardware addition.
 
 ---
 
 ## What it is
 
-A smart meter AI device + mobile app for Irish households. The device plugs into the P1 port
-of an ESB Networks smart meter. It runs inference locally (Raspberry Pi-class hardware) and
-connects to a cloud backend for forecasting, price signals, and recommendations.
+A smart meter AI app for Irish households — and optionally, a physical P1 port adapter.
+The app connects to a cloud backend for forecasting, price signals, and recommendations.
+The P1 device (Phase 2, if built) reads real-time consumption data from the ESB smart meter.
 
 **Core promise:** Your home learns when energy is cheap and when solar generation will cover
 your demand — and acts on it, or tells you to.
@@ -88,10 +104,19 @@ only 10% actively shift consumption — this is the gap the app closes.
   - "Should I switch to Energia's EV tariff?" → LLM evaluates against usage profile
   - "Is it worth getting solar panels?" → LLM runs payback calculation + explains
   - "What's causing this spike on Tuesday evening?" → LLM identifies likely appliance pattern
-- **Implementation:** Claude API (claude-haiku-4-5 for speed/cost) with pre-computed user context
-  (last 30d consumption stats, current tariff, forecast for today) injected as system prompt
-- **Cost model:** ~€0.002 per query (Haiku). Budget: 20 queries/user/month = €0.04/user/month.
-  Viable within €3.99 subscription margin.
+- **Implementation:** Claude API using the **Advisor Strategy pattern** — Haiku as executor
+  (handles every query at low cost), Opus as advisor (escalates only on complex or ambiguous
+  requests, e.g. multi-tariff comparison, anomaly explanation). Single API call, no round-trips.
+  Pre-computed user context (last 30d consumption stats, current tariff, forecast for today)
+  injected as system prompt. `max_uses: 2` cap on Opus advisor per query.
+  - See: `Orchestrator/Claude Best Practices Internet Sources/Anthropic news/The Advisor Strategy - Anthropic.md`
+  - API: `type: "advisor_20260301"` tool in `/v1/messages` call
+- **Cost model (revised with Advisor Strategy):**
+  - Haiku-only baseline: ~€0.002/query
+  - Haiku + Opus advisor (est. 20% of queries escalate): ~€0.003/query blended
+  - Budget: 20 queries/user/month = €0.04-0.06/user/month. Viable within €3.99 margin.
+  - Benchmark: Haiku + Opus advisor = 41.2% BrowseComp vs 19.7% Haiku solo — quality uplift
+    with minimal cost increase vs running Sonnet (~85% cheaper than Sonnet-only)
 - **Privacy:** No raw usage data sent to API — only computed statistics and aggregates
 
 ### 8. Learning / Adaptive Model (Phase 2 feature)
@@ -121,8 +146,14 @@ only 10% actively shift consumption — this is the gap the app closes.
 ## Technical architecture (production)
 
 ```
-[P1 Port Adapter] → [Raspberry Pi 4 / Pi Zero 2W]
-                         ↓ (MQTT or HTTPS)
+Phase 1 (software-first):
+[ESB Networks API or manual CSV upload]
+                         ↓
+                   [AWS / GCP Backend]
+
+Phase 2 (if hardware added):
+[P1 Port Adapter — ESP32, ~€3-8] → [MQTT or HTTPS]
+                         ↓
                    [AWS / GCP Backend]
                     ├── FastAPI inference endpoint (already exists: deployment/app.py)
                     ├── LightGBM model (already trained, deployment/live_inference.py)
@@ -130,6 +161,8 @@ only 10% actively shift consumption — this is the gap the app closes.
                     ├── SEMO price connector (stub, needs ENTSO-E API token)
                     ├── MyEnergi eddi connector (stub, needs hardware + API key)
                     └── Claude API (LLM advisor — Phase 2)
+                         ├── Haiku executor (all queries — low cost)
+                         └── Opus advisor (escalation only — `max_uses: 2`)
                          ↓
                    [Mobile App — React Native or PWA]
 ```

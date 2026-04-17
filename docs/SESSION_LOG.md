@@ -2179,3 +2179,295 @@ Key finding: LightGBM degrades 48% H+1→H+48; Ridge degrades 96%. LightGBM is m
 2. Oslo PatchTST result → add to oslo_final_metrics.csv + journal paper
 3. Phase 7: Docker build + AWS App Runner deploy
 4. Consider MVP web prototype for early user validation (CSV upload → insights)
+
+---
+
+## Session 40 — 2026-04-15 (Technical Debt Audit & Remediation)
+
+### Session overview
+Two-part session. Part A: administrative/logging carry-over from previous session (Pallonetto status, Decarb-AI PhD, hardware decision, GitHub privacy). Part B: full technical debt audit of the codebase using the "What is AI Technical Debt" transcript as a framework, followed by a complete implementation of all identified issues to Staff Engineer quality standard.
+
+**Tests before: 90 | Tests after: 151 | Regressions: 0**
+
+---
+
+### Part A — Administrative updates (carry-over from Session 39)
+
+**Files updated:**
+- `docs/PALLONETTO_EMAIL.md` — Status changed from "POST-CALL FOLLOW-UP" to "WAITING — no response since April 8 call". User decided to wait. Decarb-AI (UCD, €31k/year tax-free, 10 positions, Autumn 2026) documented as active PhD track. RENEW repositioned as research-only contingency.
+- `memory/project_market_strategy_2026.md` — Added Hardware Decision entry (Mac Mini M5 ~€699 + P1 adapter ~€10 = ~€709; replaces Raspberry Pi; production form factor TBD at >500 units/month). Updated RENEW section (no response; waiting; Decarb-AI primary).
+- `docs/MARKET_POSITIONING.md` — Section 3 (RENEW Collaboration) updated: call done April 8, no response, user waiting, Decarb-AI is now active PhD track, RENEW = contingency. Phase A item 4 updated from "email Pallonetto" to "await response post-call". Stale CONSUMER_BEHAVIOUR.md path fixed.
+- `docs/ROADMAP.md` — Phase 8 (Hardware Prototype): Raspberry Pi 4 (~€60) replaced with Mac Mini M5 (~€699). BOM updated to ~€709. Rationale added. Production scale note added. Pilot location updated to "Dan's house, Maynooth, Co. Kildare". Milestone table updated.
+
+**GitHub repo made private:**
+- `danbujoreanu/building-energy-load-forecast` changed from public to private via `gh repo edit --visibility private`
+- `CLAUDE.md` updated: "GitHub public" → "GitHub private (made private Apr 15 2026)"
+- New GitHub Publishing Rules section added to `CLAUDE.md`:
+  - NEVER commit: people's names, strategy docs, competitor analysis, email drafts/contact logs, memory files, any docs/research/ or docs/regulatory/ files with business strategy
+  - SAFE to commit: src/, scripts/, deployment/, tests/, config/, Dockerfile, ADRs, governance docs (MODEL_CARD, AIIA, DATA_PROVENANCE, DATA_LINEAGE), README.md
+
+---
+
+### Part B — Technical Debt Transcripts
+
+Two transcripts ingested from `knowledge/domain/Other resources about AI/`:
+
+**1. "What is AI Technical Debt" transcript**
+Framework: 4 categories of AI technical debt
+- **Data debt**: garbage in/out, bias, drift, poisoning, anonymisation gaps
+- **Model debt**: no version control, no rollback, no eval metrics, no pen testing
+- **Prompt/Code debt**: undocumented logic, no validation, silent failures, no guardrails
+- **Organisational debt**: no governance, no ownership, scaling, latency
+
+Key distinction: *strategic* debt (conscious, time-bound, documented, planned remediation) vs *reckless* debt (undocumented, no plan). The pipeline had mostly strategic debt — the bugs were documented (BUG-C1 through BUG-C6) but several systemic issues were unaddressed.
+
+**2. "Rory Sutherland AI Predictions" transcript**
+Warning about the "doorman fallacy" — using AI purely for cost reduction destroys hidden value. Applied to this project:
+- Every automated action (Eddi scheduling, device control) must explain itself in plain language — never just act silently
+- Always preserve manual override — `dry_run=True` default is the right instinct
+- The LLM energy advisor (claude-haiku) is the trust layer — must feel like a knowledgeable friend, not a cost-reduction FAQ bot
+- Don't fully automate household context discovery — one human question creates more trust than the most accurate BTM classifier
+- The 71% Cost-Driven segment needs automation, but the other 29% need the human/trust element
+
+---
+
+### Part C — Technical Debt Audit Findings
+
+Full audit conducted by two parallel Explore agents across all source code and documentation. Findings below, categorised by the transcript framework.
+
+#### Data Debt
+
+| ID | Severity | Finding | File:Line |
+|----|----------|---------|-----------|
+| D1 | 🔴 HIGH | Model files silently overwritten on same-day runs (`_today` = date only, not timestamp) | `scripts/run_pipeline.py:390` |
+| D2 | 🔴 HIGH | Processed data (splits/scaler.pkl) silently overwriteable by same-city repeated runs | `scripts/run_pipeline.py:131-133` |
+| D3 | 🟡 MED | No NaN/empty validation before `model.fit()` — cryptic sklearn failure if upstream preprocessing drops all rows | `src/energy_forecast/models/sklearn_models.py:152` |
+| D4 | 🟡 MED | No drift detection code implemented (ADR-008 documents intent; code missing) | N/A |
+| D5 | 🟡 MED | Negative energy values not range-checked (solar export can be negative) | `src/energy_forecast/data/preprocessing.py:82` |
+| D6 | 🟢 LOW | Hardcoded timezone "Europe/Oslo" in two files instead of reading from config | `loader.py:199`, `splits.py:57-58` |
+
+#### Model Debt
+
+| ID | Severity | Finding | File:Line |
+|----|----------|---------|-----------|
+| M1 | 🔴 HIGH | No model metadata saved alongside artifacts (no git commit, feature list, metrics, config snapshot) | `scripts/run_pipeline.py:402-423` |
+| M2 | 🔴 HIGH | No rollback mechanism — production serves whatever is newest without regression check | `deployment/live_inference.py` |
+| M3 | 🟡 MED | Metrics CSV has no file locking — concurrent pipeline runs corrupt `final_metrics.csv` | `scripts/run_pipeline.py:343-368` |
+| M4 | 🟡 MED | No model versioning — two runs on same day overwrite previous | `scripts/run_pipeline.py:398` |
+
+#### Code Debt
+
+| ID | Severity | Finding | File:Line |
+|----|----------|---------|-----------|
+| C1 | 🔴 HIGH | 10+ bare `except Exception: logger.warning()` handlers — TFT failure (most expensive model) logged at WARNING, silently skipped | Multiple: `run_pipeline.py`, `ensemble.py`, `metrics.py`, `loader.py` |
+| C2 | 🟡 MED | `run_pipeline.py` is 634 lines doing 5+ things (Single Responsibility violation) | `scripts/run_pipeline.py` |
+| C3 | 🟡 MED | `eda_charts.py` has bare `except: pass` — silent failure, zero logging | `src/energy_forecast/visualization/eda_charts.py:473-474` |
+| C4 | 🟡 MED | BUG-C5 docblock duplicated in 3 files (`deep_learning.py` LSTM, `deep_learning.py` GRU/CNN-LSTM, `tft.py`) — copy-paste | `deep_learning.py:179`, `tft.py:346` |
+| C5 | 🟡 MED | Conditional imports inside functions (disguised circular dependency workaround) | `run_pipeline.py:386-388,500-501` |
+
+#### Organisational Debt
+
+| ID | Severity | Finding | File |
+|----|----------|---------|------|
+| O1 | 🔴 HIGH | 8+ pairs of duplicate `.md` files in `docs/` root — canonical subdirectory versions exist | `docs/` root level |
+| O2 | 🔴 HIGH | `CLAUDE.md` stated "GitHub public" — repo was just made private | `CLAUDE.md:15` |
+| O3 | 🟡 MED | Missing ADR-009: Session 30 city-path fix (most significant structural change; undocumented) | `docs/adr/` |
+| O4 | 🟡 MED | Missing ADR-010: LightGBM-only production decision (undocumented) | `docs/adr/` |
+| O5 | 🟡 MED | `MODEL_CARD.md` governance doc references "Raspberry Pi-class hardware" — outdated, should be Mac Mini M5 | `docs/governance/MODEL_CARD.md:167` |
+| O6 | 🟢 LOW | Config not semantically versioned | `config/config.yaml` |
+
+**Accepted strategic debt (NOT fixed — conscious, time-bound):**
+- `run_pipeline.py` 634-line monolith: acceptable for research pipeline; refactor before it becomes production backend (target: Phase 7 completion)
+- No CI/CD GitHub Actions for automated test runs on push: acceptable for solo researcher; needed before collaborators join
+
+---
+
+### Part D — Technical Debt Implementation
+
+All items implemented to Staff Engineer quality. Five parallel agents used; all 151 tests passing with zero regressions.
+
+#### New modules created
+
+**`src/energy_forecast/registry/` — Model Registry (addresses M1, M2, M4)**
+- `model_registry.py` (360 lines): `ModelRegistry`, `ModelVersion`, `ModelMetrics`, `ModelStatus` enum (CANDIDATE/ACTIVE/RETIRED/FAILED), `ModelRegressionError`, `RegistryError`
+- `__init__.py`: clean public API export
+- Design: file-backed JSON manifest at `outputs/models/registry/registry.json`; fcntl advisory file locking; atomic writes (temp-file + os.replace); auto-generates version IDs as `{city}_{model}_{YYYYMMDDTHHmmss}_{uuid4[:8]}`
+- `register()`: creates CANDIDATE with full lineage (git commit SHA, feature names, metrics, config snapshot)
+- `promote_to_active()`: regression gate — new MAE > 1.05× current active MAE → raises `ModelRegressionError`; previous active → RETIRED atomically; MAX_RETIRED_VERSIONS=5 per (city, model) pair
+- `rollback(steps=N)`: atomically promotes most recent RETIRED → ACTIVE; like Meta's model rollback
+- `get_active()`, `list_versions()`, `get_version()`, `summary()` (human-readable table)
+- `tests/test_registry.py`: 19 tests (register, promote, regression gate, force override, rollback, pruning, atomic write safety, multi-city isolation, multi-step rollback)
+
+**`src/energy_forecast/monitoring/` — Drift Detector (addresses D4)**
+- `drift_detector.py` (~470 lines): `DriftDetector`, `DriftReport`, `FeatureDriftResult`, `TargetDriftResult`, `RollingMAEResult`, `DriftSeverity` enum (ok/warning/critical)
+- KS two-sample test per feature (scipy.stats.ks_2samp; p < 0.05 → drift)
+- PSI (Population Stability Index) per feature: PSI < 0.1 = OK, 0.1–0.2 = WARNING, > 0.2 = CRITICAL; clips bins to [1e-4, 1.0] to prevent log(0)
+- Target distribution drift: KS test + mean/std shift percentages
+- Rolling MAE monitoring: 7-day calendar window (or sample-count fallback); triggers at 1.5× training MAE per ADR-008
+- `DriftReport.to_json()` and `to_markdown()` for CI gating and Slack/alerting
+- `overall_severity` = max across all individual checks
+- `recommended_action`: no_action / monitor / retrain_scheduled / retrain_now
+- `scripts/run_drift_check.py`: CLI with `--city`, `--training-mae`, `--check-days`, `--output-json`, `--output-md`; **exit code 1 on CRITICAL** (enables CI gating)
+- `config/config.yaml` monitoring section added: `rolling_window_days: 7`, `mae_threshold_multiplier: 1.5`, `ks_alpha: 0.05`, `psi_warning: 0.10`, `psi_critical: 0.20`, `report_output_dir: outputs/results/drift_reports`
+- `tests/test_drift.py`: 23 tests (no-drift baseline, 5-sigma injection, PSI hand-verification, target shift, rolling MAE trigger/no-trigger, JSON round-trip, Markdown rendering, log(0) guard, constant column skip)
+
+**`src/energy_forecast/validation.py` — Data Validator (addresses D3)**
+- `DataValidator` (static class), `DataValidationError(ValueError)`
+- `validate_features()`: empty check, NaN check (reports specific offending columns), Inf check
+- `validate_target()`: empty/NaN/Inf checks; >1% negative → WARNING (not raise — solar export is valid)
+- `validate_shapes()`: X.shape[0] == len(y) check
+- `validate_training_data()`: convenience wrapper for all splits
+- Wired into `SklearnForecaster.fit()` and `LightGBMQuantileForecaster.fit()` before any estimator.fit() call
+- `tests/test_validation.py`: 19 tests
+
+#### Existing files improved
+
+**`scripts/run_pipeline.py` (addresses M1, M2, M3, M4, C1)**
+- Datetime timestamp on model filenames: `_today = date` → `_now = datetime.strftime("%Y%m%dT%H%M%S")`. Same-day reruns produce distinct filenames.
+- ModelRegistry integration block after model-save loop: every trained model registered as CANDIDATE → auto-promoted to ACTIVE; `ModelRegressionError` caught at ERROR level with MAE value; final `registry.summary()` logged
+- All 5 exception handlers upgraded: `logger.warning()` → `logger.error(..., exc_info=True)`. TFT failure annotated as "most expensive model, investigate root cause". DL OOM split as `MemoryError` with actionable hint.
+- `_write_metrics_atomic(path, df)` function: `fcntl.flock` exclusive lock + temp-file atomic rename for concurrent-safe CSV writes. Windows fallback included.
+
+**`src/energy_forecast/models/sklearn_models.py` (addresses D3)**
+- `DataValidator.validate_training_data()` called first in both `SklearnForecaster.fit()` and `LightGBMQuantileForecaster.fit()`
+
+**`src/energy_forecast/data/splits.py` (addresses D6 + D3)**
+- Timezone read from `cfg["data"].get("timezone", "Europe/Oslo")` — not hardcoded
+- Post-imputation NaN guard: warns with specific column names if any fully-NaN columns remain after fillna()
+
+**`src/energy_forecast/data/loader.py` (addresses D6)**
+- `dt.tz_convert("Europe/Oslo")` → `dt.tz_convert(cfg["data"].get("timezone", "Europe/Oslo"))`
+
+**`src/energy_forecast/visualization/eda_charts.py` (addresses C3)**
+- Bare `except Exception: pass` → `except (np.linalg.LinAlgError, TypeError, ValueError) as _poly_err: logger.debug("Quadratic fit failed...")`
+- Specific exception types; explains why safe to continue; DEBUG level (expected failure for small categories)
+
+**`src/energy_forecast/models/deep_learning.py` (addresses C4)**
+- Added `reshape_dl_predictions(raw, horizon)` module-level utility:
+  - H+1: `raw.flatten()` (backward compat with evaluate())
+  - H+N: validates 2-D shape, raises `ValueError` with BUG-C5 diagnosis on failure
+  - Full docstring with BUG-C5 explanation
+- All three `predict()` methods (LSTM, CNN-LSTM, GRU) use the shared utility
+- Duplicate BUG-C5 comment blocks removed from individual methods
+
+**`src/energy_forecast/models/tft.py` (addresses C4)**
+- `predict()` imports and calls `reshape_dl_predictions` from `deep_learning`
+- Duplicate BUG-C5 comment removed
+
+#### Documentation changes
+
+**9 stale root-level duplicates deleted** (canonical versions kept in subdirectories):
+- `docs/ACTIVATION_FUNCTIONS.md` → `docs/research/`
+- `docs/AI_STUDIO_FEEDBACK.md` → `docs/product/`
+- `docs/ARCHITECTURE_AND_COMPARISON.md` → `docs/research/`
+- `docs/EXPERIMENT_STATUS_REPORT.md` → `docs/research/`
+- `docs/METHODOLOGY_ARCHITECTURE.md` → `docs/research/`
+- `docs/MODEL_CARD.md` → `docs/governance/`
+- `docs/PAPER_JOURNEY.md` → `docs/research/`
+- `docs/SMART_METER_ACCESS.md` → `docs/regulatory/`
+- `docs/JOURNAL_PAPER_DRAFT.md` → `docs/research/` (root had stale sample count 240,481 vs canonical 241,523)
+- `docs/research/REVIEWER_RESPONSE_MATRIX.md` deleted (root version is newer and canonical)
+
+**ADR-009** created: `docs/adr/ADR-009-city-specific-processed-paths.md`
+- Documents the Session 30 silent-overwrite bug (shared `data/processed/` clobbered across cities)
+- Options considered: shared path, city-specific path, timestamped path
+- Decision: `data/processed/{city}/`; 3 scripts fixed; backward compat note
+
+**ADR-010** created: `docs/adr/ADR-010-lightgbm-only-production.md`
+- Full model comparison table (MAE/R² for all 8 model variants)
+- Decision: LightGBM ONLY in production; Quantile variant for P10/P50/P90 risk-MPC
+- 4 reasons; consequences including monthly retrain applies to LightGBM only
+
+**`docs/governance/MODEL_CARD.md`** — line 167: "Raspberry Pi-class hardware" → accurate Mac Mini M5 / DSMR-agnostic statement
+
+**`docs/adr/README.md`** — ADR-009 and ADR-010 added to index table
+
+---
+
+### Test summary
+
+| Test file | Tests | Status |
+|-----------|-------|--------|
+| `test_connectors.py` | 52 | ✅ |
+| `test_data.py` | 6 | ✅ |
+| `test_drift.py` | 23 | ✅ NEW |
+| `test_explainability.py` | 5 | ✅ |
+| `test_features.py` | 5 | ✅ |
+| `test_integration.py` | 12 | ✅ |
+| `test_models.py` | 8 | ✅ |
+| `test_registry.py` | 19 | ✅ NEW |
+| `test_validation.py` | 19 | ✅ NEW |
+| **Total** | **151** | **✅ 0 regressions** |
+
+---
+
+### Remaining improvements identified (NOT yet implemented — review first)
+
+**Engineering / Code:**
+1. `run_pipeline.py` refactoring — still 634 lines, single-responsibility violation. Extract `DataPipeline`, `TrainingPipeline`, `MetricsRecorder` classes into `src/energy_forecast/pipeline/`. STRATEGIC debt — do before Phase 7 productionisation. Estimated: 1 session.
+2. `deployment/live_inference.py` + `deployment/app.py` do NOT use the new `ModelRegistry` — they still file-glob for the latest `.joblib`. Should call `registry.get_active()` instead. Medium effort.
+3. `ModelRegistry.REGRESSION_THRESHOLD = 1.05` is hardcoded in the class — should be configurable via `config.yaml`. 15-min fix.
+4. `scripts/run_drift_check.py` auto-discovers MAE from `outputs/results/{city}_final_metrics.csv` (with city prefix) but the actual file is `outputs/results/final_metrics.csv` (no city prefix) — potential path bug on first run. Check and fix.
+5. GitHub Actions CI — no automated test runs on push. Any push can break the test suite silently. Add `.github/workflows/ci.yml` running `pytest tests/` on every PR.
+6. Random seed not passed per-model constructor (only globally). Models with internal state (RF, XGBoost) may not be perfectly reproducible in parallel execution.
+7. `pickle.load()` in `load_splits()` (splits.py:147) has a `# noqa: S301` comment but no safe-load enforcement. If the scaler.pkl file is tampered with, it's a code execution vector. Use `joblib.load()` instead (safer, same format).
+8. `DataValidator.validate_features` checks for Inf but not extreme outliers (e.g., 10,000 kWh/hr) — add a configurable range check for the energy target column.
+9. Integration test: `run_pipeline.py` → `ModelRegistry.get_active()` → `live_inference.py` end-to-end. Currently unit tested only.
+
+**Product / Commercial:**
+10. Dynamic tariff loop (CRITICAL — June 2026 deadline): DAM price ingestion via SEMO API → connect forecast → device scheduling → test on synthetic dynamic prices before go-live.
+11. BTM asset detection (Phase A): Kazempour et al. approach on HDF data — replaces onboarding survey. Highest-impact product feature.
+12. WhatsApp Business API push (Phase A): extend Phase 6 morning brief to WhatsApp delivery channel (71% Cost-Driven consumers won't open an app).
+13. Primary consumer survey (Phase A): 5 questions, ~400 respondents, willingness-to-pay for €3.99/month + €99–149 hardware. ~€200–400 cost.
+14. AWS Activate application — flagged as "apply immediately" since Session 37. Still not done.
+15. Phase 7 AWS deployment — Dockerfile and apprunner.yaml exist; ECR push and App Runner deploy pending.
+
+**Timezone (specific flag):**
+16. Timezone is currently a single config key (`cfg["data"]["timezone"]`). When we add Irish household data, Oslo (CET/CEST = UTC+1/+2, DST-aware) and Ireland (IST = UTC+0/+1, different DST schedule) need different timezone handling. Recommendation: make timezone city-specific:
+```yaml
+data:
+  timezones:
+    drammen: "Europe/Oslo"
+    oslo: "Europe/Oslo"
+    ireland: "Europe/Dublin"
+    default: "UTC"
+```
+Affects: `loader.py`, `splits.py`, and any downstream timestamp comparisons.
+
+---
+
+### Product + Engineering Audit — Leadership perspective
+
+#### Engineering team perspective (Staff Engineer / Principal level)
+
+**Strengths:**
+- Modular architecture. Adding `ModelRegistry` required zero changes to `src/energy_forecast/models/`. Clean dependency boundaries.
+- Bug documentation practice (BUG-C1 through BUG-C6) is excellent — rare in academic codebases. Every known bug is dated and explained.
+- ADR discipline (10 records) means decisions are traceable. Someone joining the project can understand WHY LightGBM was chosen without reading 200 lines of experiment history.
+- Config-as-truth is clean. Zero hardcoded model hyperparameters in code.
+- The `dry_run=True` default in all endpoints is the right defensive pattern — it's harder to cause accidental production actions than in most projects.
+
+**Open architectural risks:**
+- `ModelRegistry` auto-promotes every trained model. In a real production system, there's a human review step between CANDIDATE and ACTIVE (even just a Slack approval). The current setup is fine for monthly solo retraining but needs a gate before multiple people can trigger retraining.
+- Drift detection exists as a CLI script but nothing in the pipeline *calls* it automatically. There's no scheduled cron or post-training hook that runs `run_drift_check.py`. It's a tool that must be manually invoked. Automate this.
+- The `registry.json` manifest grows indefinitely. After 12 months of monthly retraining × 8 models = 96+ entries. The MAX_RETIRED_VERSIONS=5 prune helps, but there's no archival strategy for the JSON file itself.
+- Two ROADMAP files exist (root `ROADMAP.md` and `docs/ROADMAP.md`). They serve different purposes (research-focused vs product-commercial) but someone new to the project will be confused. Consolidate or add a clear header explaining the difference.
+
+#### Product team perspective (Head of Product / CPO level)
+
+**Market timing is the dominant risk:**
+June 1 2026 (CRU dynamic pricing mandate) is 47 days away. The product needs a working DAM price ingestion → forecast → scheduling demo before that date to be credible in any investor/partnership conversation. Everything else (BTM detection, WhatsApp push, consumer survey) is secondary to having *something live* before the mandate drops.
+
+**The Rory Sutherland warning applies specifically to the energy advisor:**
+The LLM advisory feature (Phase 2, claude-haiku) must be designed as a *conversation*, not a query. The consumer behaviour research (CONSUMER_BEHAVIOUR.md) shows the trust problem — 74% of Irish consumers haven't switched to TOU tariffs *despite* saving money on them. That's not an information problem; it's a trust and inertia problem. An AI that says "run your dishwasher at 23:00" will be ignored by 71% of users. An AI that says "Your water heating this week cost you €2.40 more than it needed to — want me to fix next week's schedule?" will not be. The framing matters enormously.
+
+**Phase 7 (AWS deployment) must happen before market validation:**
+There is no point doing a 10-household pilot (Phase 9) without a deployed backend. The sequence must be Phase 7 → Phase 8 (P1 adapter setup) → Phase 9 (pilot). This hasn't changed, but the June 2026 dynamic pricing deadline compresses the timeline significantly.
+
+---
+
+### Notes for next session
+- ROADMAP.md updated (see below): Technical Debt Sprint added, Product Phases A/B/C added, Decarb-AI PhD track added, milestone table updated
+- SESSION_LOG.md header needs update: GitHub URL should note repo is now private
+- Code changes committed and pushed to private GitHub (code/governance only — strategy docs NOT committed)
+- Decarb-AI interview is **Tuesday April 21 at 15:00 with Andrew Parnell (UCD)** — see prep brief at `Career/Applications/Active/PhD - Decarb-AI Energy/prep_brief_2026-04-10.md`
