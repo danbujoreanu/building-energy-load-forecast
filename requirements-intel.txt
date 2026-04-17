@@ -1,0 +1,34 @@
+# Sparc Energy — Intelligence Module Dependencies
+# Pin notes (April 2026):
+#   llama-index companion packages (vector-stores, embeddings) have INDEPENDENT
+#   versioning from llama-index-core. The brief spec of "0.12.x" for all packages
+#   is incorrect for companion packages — actual compatible versions below.
+#   See docs/adr/ADR-012 for full rationale.
+
+# ── Core LlamaIndex (0.12.x as specified) ─────────────────────────────────────
+llama-index-core==0.12.52.post1
+
+# ── LlamaIndex integrations (independently versioned) ─────────────────────────
+llama-index-vector-stores-chroma==0.4.2       # 0.4.x = compatible with core 0.12.x (0.5.x requires core 0.13+)
+llama-index-embeddings-huggingface==0.5.5     # 0.5.x = compatible with core 0.12.x (0.6+ requires core 0.13+)
+
+# ── Vector store ──────────────────────────────────────────────────────────────
+chromadb==0.6.3                               # as specified; 1.x has breaking API changes
+
+# ── Embeddings ────────────────────────────────────────────────────────────────
+sentence-transformers==2.7.0                  # 3.x imports model_card.py which triggers TF;
+                                              # TF Metal plugin is broken in ml_lab1 env.
+                                              # 2.7.0 is the last stable pre-model_card version.
+                                              # Docker Dockerfile.intel will use 3.4.1 (no TF).
+# NOTE: Dockerfile.intel can use sentence-transformers==3.4.1 — TF is not installed in the
+# minimal Python image, so the broken-Metal cascade does not occur there.
+
+# ── PDF conversion ────────────────────────────────────────────────────────────
+pymupdf4llm==0.3.4          # brief spec'd 0.0.x; 0.3.x has same to_markdown() API
+                             # but is actively maintained and handles tables better
+
+# ── Gradio interfaces ─────────────────────────────────────────────────────────
+gradio==4.44.1               # as specified
+
+# ── File watching (Phase 2 auto-ingest) ───────────────────────────────────────
+watchdog==4.0.2              # Phase 2 — not used in Sprint 1/2
