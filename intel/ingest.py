@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 EMBED_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 CHUNK_SIZE = 512
 CHUNK_OVERLAP = 50
-VALID_TIERS = {"operational", "strategic", "research", "market", "career"}
+VALID_TIERS = {"operational", "strategic", "research", "market", "career", "mba", "garden"}
 
 # Resolve ChromaDB path relative to this file's project root (two levels up from intel/)
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -55,6 +55,10 @@ def _get_embed_model() -> HuggingFaceEmbedding:
         logger.debug("Loading embedding model: %s", EMBED_MODEL_NAME)
         _embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL_NAME)
     return _embed_model
+
+
+# Alias for external callers (e.g. intel_feeds.py)
+_get_embedding_model = _get_embed_model
 
 
 def _get_chroma_client() -> chromadb.PersistentClient:

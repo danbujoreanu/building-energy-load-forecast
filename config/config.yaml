@@ -234,3 +234,54 @@ monitoring:
 
   # Path for drift report JSON output (relative to repo root).
   report_output_dir: outputs/results/drift_reports
+
+# ── Intel feed ingestion (RSS / Substack / Atom) ─────────────────────────────
+# Feeds are polled by: python scripts/intel_feeds.py --ingest
+# Deduplication is by URL hash — re-running is safe.
+# Add any RSS/Atom/Substack URL; tier controls which ChromaDB collection it lands in.
+intel_feeds:
+  # Energy market & policy — tier: strategic
+  strategic:
+    - url: "https://www.seai.ie/feed/"
+      name: "SEAI — Sustainable Energy Authority of Ireland"
+    - url: "https://www.cru.ie/feed/"
+      name: "CRU — Commission for Regulation of Utilities"
+    - url: "https://energymonitor.ai/feed"
+      name: "Energy Monitor — European energy transition"
+    - url: "https://rechargenews.com/rss"
+      name: "Recharge News — renewables market"
+    - url: "https://www.eirgrid.ie/feed"
+      name: "EirGrid — Irish grid operator"
+
+  # Research & academic — tier: research
+  research:
+    - url: "https://arxiv.org/rss/cs.LG"
+      name: "arXiv cs.LG — machine learning preprints"
+    - url: "https://arxiv.org/rss/eess.SP"
+      name: "arXiv eess.SP — signal processing / energy systems"
+
+  # AI & product — tier: market
+  market:
+    - url: "https://www.theregister.com/tag/ai/feed.atom"
+      name: "The Register — AI news"
+    - url: "https://interconnects.ai/feed"
+      name: "Interconnects — LLM/AI industry analysis"
+
+  # MBA / strategy knowledge — tier: mba (new tier — not yet ingested)
+  mba: []   # Populated when UCD docs are ingested (see DAN-81)
+
+# ── MBA knowledge base ────────────────────────────────────────────────────────
+# Location: /Users/danalexandrubujoreanu/UCD/
+# Key modules: Competitive Strategy (Grant), Entrepreneurship (BMC), Global Strategy
+# Ingestion: python scripts/intel_ingest.py --tier mba --dir ~/UCD/
+# Note: MiniLM-L6-v2 embeddings are LOCAL (zero API cost).
+#       Only Gemini synthesis calls cost money — ingestion itself is free.
+mba_docs:
+  source_dir: "~/UCD"
+  priority_modules:
+    - "1. Competitive Strategy"       # Grant textbook + case studies
+    - "2. Entrepreneurship"           # BMC, pitching, GEM data
+    - "3. Global and Corporate Strategy"
+    - "2. Digital Transformation"
+    - "3. Strategy Development Systems"
+  tier: "mba"
