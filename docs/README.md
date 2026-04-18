@@ -1,6 +1,6 @@
 # Sparc Energy — Documentation Hub
 
-**Last updated:** 2026-04-18 | **Maintained by:** Dan Bujoreanu | **Linear:** linear.app (team DAN/SPARC)
+**Last updated:** 2026-04-18 | **Maintained by:** Dan Bujoreanu | **Linear:** linear.app (teams: DAN = Sparc Energy, GARDEN = Digital Twin Gardening)
 
 > This README is the single entry point for all project documentation.
 > Rule: if something important is decided, it goes here first, then in Linear.
@@ -20,6 +20,7 @@
 | Find an ADR | [adr/](adr/) |
 | Query the intel corpus | `python scripts/intel_ingest.py --status` |
 | Analyse a job spec | `python scripts/career_ingest.py --match "role name"` |
+| Understand the Personal OS | [PERSONAL_OS_ARCHITECTURE.md](PERSONAL_OS_ARCHITECTURE.md) |
 
 ---
 
