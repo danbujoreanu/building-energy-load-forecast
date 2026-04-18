@@ -12,13 +12,17 @@
 | Need to... | Go to |
 |-----------|-------|
 | Understand the system | [Architecture Overview](#architecture) |
+| Understand the strategy | [STRATEGY.md](STRATEGY.md) |
+| See the product roadmap | [ROADMAP.md](ROADMAP.md) |
+| Sprint cadence + governance | [GOVERNANCE.md](GOVERNANCE.md) |
 | Run the pipeline locally | [HOW_TO_RUN.md](HOW_TO_RUN.md) |
-| Deploy to production | [operations/INFRASTRUCTURE.md](INFRASTRUCTURE.md) |
-| Check model results | [research/RESULTS summary](#results) |
-| Understand the product | [product/APP_PRODUCT_SPEC.md](APP_PRODUCT_SPEC.md) |
-| Check competitors | [commercial/COMPETITORS.md](COMPETITORS.md) |
+| Deploy to production | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) |
+| Check model results | [Results summary](#results) |
+| Understand the product | [APP_PRODUCT_SPEC.md](APP_PRODUCT_SPEC.md) |
+| Check competitors | [COMPETITORS.md](COMPETITORS.md) |
 | Find an ADR | [adr/](adr/) |
 | Query the intel corpus | `python scripts/intel_ingest.py --status` |
+| Ingest RSS/Substack feeds | `python scripts/intel_feeds.py --ingest` |
 | Analyse a job spec | `python scripts/career_ingest.py --match "role name"` |
 | Understand the Personal OS | [PERSONAL_OS_ARCHITECTURE.md](PERSONAL_OS_ARCHITECTURE.md) |
 
