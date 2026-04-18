@@ -99,3 +99,7 @@ knowledge/procedural/EDDI_API.md
 .env
 .env*
 *.env
+
+# Career intelligence — personal profiles and job research (NEVER in git)
+# These are private documents: other people's profiles, interview notes, job specs
+intel/docs/career/
