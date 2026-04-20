@@ -8,5 +8,5 @@ MOCK_SOLAR_24H: list[float] = [
     20, 80, 180, 300, 400,  # 06–10: sunrise ramp
     480, 520, 500, 450,     # 11–14: midday
     380, 280, 150, 60,      # 15–18: afternoon decline
-    10, 0, 0, 0, 0, 0,      # 19–23: dusk/night
+    10, 0, 0, 0, 0,          # 19–23: dusk/night
 ]
