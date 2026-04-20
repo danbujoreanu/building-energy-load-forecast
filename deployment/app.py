@@ -122,10 +122,13 @@ async def lifespan(app: FastAPI):
         if lgbm_path and lgbm_path.exists():
             models["LightGBM"] = joblib.load(lgbm_path)
             logger.info("Loaded LightGBM from %s", lgbm_path)
-            # E-19: register exact feature names so /predict rejects wrong keys
+            # E-19: register feature names for /predict validation.
+            # Uses register_model_features() which detects generic Column_N names
+            # (models trained on numpy arrays) and keeps validation lenient until
+            # the model is retrained via scripts/run_pipeline.py.
             feature_names = getattr(models["LightGBM"], "feature_name_", None)
             if feature_names is not None:
-                _feature_schemas.register_features(feature_names)
+                _feature_schemas.register_model_features(feature_names)
         else:
             logger.warning("LightGBM model not found in outputs/models/. Inference will be mocked.")
             models["LightGBM"] = "MOCK_LGBM"
@@ -270,7 +273,26 @@ def predict(request: PredictionRequest, model_name: str = "LightGBM"):
 
     except Exception as exc:
         logger.error("Inference failed: %s", exc)
-        raise HTTPException(status_code=500, detail="Model inference failed.")
+        exc_str = str(exc)
+        # Detect feature-count / feature-name mismatch — give a helpful 422 rather than 500
+        if "number of features" in exc_str or "feature names" in exc_str.lower():
+            expected_n = len(getattr(model, "feature_name_", []))
+            model_names = getattr(model, "feature_name_", [])
+            has_generic = expected_n > 0 and all(
+                n.startswith("Column_") for n in model_names
+            )
+            detail = (
+                f"Feature mismatch: model expects {expected_n} features, "
+                f"got {len(request.features)}. "
+            )
+            if has_generic:
+                detail += (
+                    "This model was trained without named features (Column_0..N). "
+                    "Re-run scripts/run_pipeline.py to retrain with semantic names, "
+                    "then send features like {'lag_24h': ..., 'hour_of_day': ...}."
+                )
+            raise HTTPException(status_code=422, detail=detail)
+        raise HTTPException(status_code=500, detail=f"Model inference failed: {exc_str}")
 
     # E-27: persist prediction to history store (JSONL + optional PostgreSQL)
     store_prediction(

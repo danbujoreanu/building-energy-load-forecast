@@ -127,13 +127,18 @@ class SklearnForecaster(BaseForecaster):
         logger.info("Training %s ...", self.name)
         fit_params: dict = {}
 
-        # LightGBM supports early stopping via eval_set
+        # LightGBM supports early stopping via eval_set.
+        # Pass DataFrames (not .values) so column names are preserved in
+        # feature_name_ — this allows the /predict API to validate semantic
+        # names (lag_24h, hour_of_day, ...) instead of generic Column_0..N.
+        # NOTE: existing saved models (pre-2026-04-20) still have Column_N
+        # names; re-run scripts/run_pipeline.py to retrain with named features.
         if X_val is not None and hasattr(self.estimator, "fit"):
             try:
                 import lightgbm as lgb
                 if isinstance(self.estimator, lgb.LGBMRegressor):
                     fit_params = {
-                        "eval_set": [(X_val.values, y_val.values)],
+                        "eval_set": [(X_val, y_val.values)],
                         "callbacks": [lgb.early_stopping(50, verbose=False)],
                     }
             except ImportError:
@@ -145,18 +150,20 @@ class SklearnForecaster(BaseForecaster):
                 from xgboost import XGBRegressor
                 if isinstance(self.estimator, XGBRegressor):
                     fit_params = {
-                        "eval_set": [(X_val.values, y_val.values)],
+                        "eval_set": [(X_val, y_val.values)],
                         "verbose": False,
                     }
             except ImportError:
                 pass
 
-        self.estimator.fit(X_train.values, y_train.values, **fit_params)
+        self.estimator.fit(X_train, y_train.values, **fit_params)
         logger.info("%s training complete.", self.name)
         return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
-        return self.estimator.predict(X.values)
+        # Pass DataFrame so sklearn/LightGBM/XGBoost can validate feature names.
+        # Using X.values (numpy) silences the check but causes silent mismatch bugs.
+        return self.estimator.predict(X)
 
     @property
     def feature_importances_(self) -> np.ndarray | None:
@@ -213,10 +220,10 @@ class LightGBMQuantileForecaster(BaseForecaster):
             fit_params: dict = {}
             if X_val is not None:
                 fit_params = {
-                    "eval_set": [(X_val.values, y_val.values)],
+                    "eval_set": [(X_val, y_val.values)],  # DataFrame preserves names
                     "callbacks": [lgb.early_stopping(50, verbose=False)],
                 }
-            model.fit(X_train.values, y_train.values, **fit_params)
+            model.fit(X_train, y_train.values, **fit_params)  # DataFrame preserves names
             self.models[alpha] = model
 
         logger.info("%s training complete.", self.name)

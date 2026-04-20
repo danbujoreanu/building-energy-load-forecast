@@ -29,8 +29,12 @@ Usage (in ``deployment/app.py`` lifespan)::
 from __future__ import annotations
 
 import logging
+import re
 
 logger = logging.getLogger(__name__)
+
+# Matches LightGBM/XGBoost auto-generated names when trained on numpy arrays
+_GENERIC_NAME_RE = re.compile(r"^Column_\d+$")
 
 # Module-level registry — populated during FastAPI lifespan startup
 _expected_features: list[str] = []
@@ -63,6 +67,35 @@ def clear_features() -> None:
     global _expected_features, _validation_active
     _expected_features = []
     _validation_active = False
+
+
+def register_model_features(feature_names: list[str]) -> None:
+    """Register feature names from a loaded model — deployment entry point.
+
+    Unlike ``register_features()``, this function first checks whether the
+    model was saved with auto-generated ``Column_N`` names (happens when the
+    model was trained on a NumPy array instead of a DataFrame).  If generic
+    names are detected, strict validation is intentionally skipped so that
+    callers are not forced to use meaningless ``Column_0`` keys.
+
+    Once the model is retrained via ``scripts/run_pipeline.py`` (which now
+    passes DataFrames to ``fit()``), the feature names will be semantic (e.g.
+    ``lag_24h``, ``hour_of_day``) and this function will activate strict
+    validation automatically.
+
+    Args:
+        feature_names: ``model.feature_name_`` from the loaded LGBMRegressor.
+    """
+    if feature_names and all(_GENERIC_NAME_RE.match(n) for n in feature_names):
+        logger.warning(
+            "[schemas] Model has %d generic feature names (Column_0..%d). "
+            "Strict /predict validation DISABLED — re-run scripts/run_pipeline.py "
+            "to retrain with semantic feature names.",
+            len(feature_names),
+            len(feature_names) - 1,
+        )
+        return  # leave _validation_active = False; lenient pass-through stays active
+    register_features(feature_names)
 
 
 def expected_feature_names() -> list[str]:
