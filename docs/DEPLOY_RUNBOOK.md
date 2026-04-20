@@ -53,8 +53,8 @@ curl http://localhost:8000/health  # Should return {"status":"ok","model":"activ
 curl http://localhost:8000/health | python3 -m json.tool
 
 # Grafana dashboard
-open http://localhost:3000  # Login: admin/admin (change on first login)
-# Datasource: PostgreSQL at sparc-postgres:5432, database: sparc
+open http://localhost:3001  # Login: admin / your GRAFANA_PASSWORD from .env
+# Datasource: PostgreSQL at db:5432, database: sparc_energy (auto-provisioned)
 
 # PostgreSQL
 docker exec sparc-postgres psql -U sparc -d sparc -c "\dt"
