@@ -62,7 +62,7 @@
 | Issue | Feature | Size |
 |-------|---------|------|
 | DAN-81 | RSS/Substack feed ingestion (just built) | ✅ |
-| — | MBA RAG tier (intel_mba) — ingest Grant + Entrepreneurship | M |
+| — | MBA RAG tier (intel_mba) — 97 docs / 4,306 chunks across 4 modules | ✅ Done Apr 18 |
 | DAN-8 | PhD research track — application prep | L |
 
 ---
