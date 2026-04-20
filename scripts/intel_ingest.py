@@ -57,7 +57,7 @@ def parse_args() -> argparse.Namespace:
     )
     group.add_argument(
         "--tier", choices=sorted(VALID_TIERS),
-        help="Ingest all .md/.pdf files in intel/docs/{tier}/.",
+        help="Ingest all .md/.pdf files in intel/docs/{tier}/ (or --dir if provided).",
     )
     group.add_argument(
         "--all", action="store_true",
@@ -66,6 +66,12 @@ def parse_args() -> argparse.Namespace:
     group.add_argument(
         "--status", action="store_true",
         help="Print document/chunk counts per tier and exit.",
+    )
+    parser.add_argument(
+        "--dir", metavar="PATH",
+        help="External directory to ingest from (use with --tier). "
+             "Overrides the default intel/docs/{tier}/ path. "
+             "Useful for ingesting MBA/UCD docs from ~/UCD/.",
     )
     parser.add_argument(
         "--force-tier", choices=sorted(VALID_TIERS),
@@ -133,7 +139,14 @@ def main() -> None:
 
     # ── Single tier ───────────────────────────────────────────────────────────
     if args.tier:
-        tier_dir = INTEL_ROOT / "intel" / "docs" / args.tier
+        # Use --dir if provided, otherwise fall back to intel/docs/{tier}/
+        if args.dir:
+            tier_dir = Path(args.dir).expanduser().resolve()
+            if not tier_dir.exists():
+                print(f"ERROR: --dir path does not exist: {tier_dir}", file=sys.stderr)
+                sys.exit(1)
+        else:
+            tier_dir = INTEL_ROOT / "intel" / "docs" / args.tier
 
         if args.dry_run:
             files = sorted(tier_dir.glob("**/*.md")) + sorted(tier_dir.glob("**/*.pdf"))
@@ -142,8 +155,28 @@ def main() -> None:
                 print(f"  {f.name}")
             return
 
-        result = ingest_tier(args.tier)
-        _print_summary({args.tier: result})
+        if args.dir:
+            # External directory path — iterate and ingest file-by-file
+            files = sorted(tier_dir.glob("**/*.md")) + sorted(tier_dir.glob("**/*.pdf"))
+            if not files:
+                print(f"No .md or .pdf files found in {tier_dir}")
+                return
+            ingested = skipped = 0
+            errors: list = []
+            for fp in files:
+                try:
+                    result = ingest_file(fp, args.tier)
+                    if result:
+                        ingested += 1
+                    else:
+                        skipped += 1
+                except Exception as exc:
+                    logger.error("Error ingesting %s: %s", fp.name, exc)
+                    errors.append(f"{fp.name}: {exc}")
+            _print_summary({args.tier: {"ingested": ingested, "skipped": skipped, "errors": errors}})
+        else:
+            result = ingest_tier(args.tier)
+            _print_summary({args.tier: result})
         return
 
     # ── All tiers ─────────────────────────────────────────────────────────────

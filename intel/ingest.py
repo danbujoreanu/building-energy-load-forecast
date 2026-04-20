@@ -26,8 +26,9 @@ from pathlib import Path
 from typing import Optional
 
 import chromadb
+import pymupdf4llm
 import yaml
-from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
+from llama_index.core import Document, SimpleDirectoryReader, StorageContext, VectorStoreIndex
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
@@ -144,8 +145,18 @@ def ingest_file(file_path: str | Path, tier: str) -> bool:
         raise ValueError(f"Unknown tier '{tier}'. Valid: {sorted(VALID_TIERS)}")
 
     # ── Read content & compute hash ───────────────────────────────────────────
-    content = file_path.read_text(encoding="utf-8")
-    doc_hash = hashlib.sha256(content.encode()).hexdigest()
+    # PDFs are binary — hash from raw bytes; frontmatter only applies to .md files.
+    is_pdf = file_path.suffix.lower() == ".pdf"
+    if is_pdf:
+        raw_bytes = file_path.read_bytes()
+        doc_hash = hashlib.sha256(raw_bytes).hexdigest()
+        frontmatter: dict = {}
+        flat_meta: dict = {}
+    else:
+        content = file_path.read_text(encoding="utf-8")
+        doc_hash = hashlib.sha256(content.encode()).hexdigest()
+        frontmatter, _body = _parse_frontmatter(content)
+        flat_meta = _flatten_metadata(frontmatter)
 
     # ── Open (or create) ChromaDB collection ─────────────────────────────────
     chroma_client = _get_chroma_client()
@@ -159,12 +170,14 @@ def ingest_file(file_path: str | Path, tier: str) -> bool:
         print(f"Skipping — already ingested: {file_path.name}")
         return False
 
-    # ── Parse frontmatter ─────────────────────────────────────────────────────
-    frontmatter, _body = _parse_frontmatter(content)
-    flat_meta = _flatten_metadata(frontmatter)
-
     # ── Build LlamaIndex Document objects ─────────────────────────────────────
-    documents = SimpleDirectoryReader(input_files=[str(file_path)]).load_data()
+    # PDFs: use pymupdf4llm for clean markdown extraction (SimpleDirectoryReader
+    # returns raw PDF object streams without llama-index-readers-file installed).
+    if is_pdf:
+        pdf_text = pymupdf4llm.to_markdown(str(file_path))
+        documents = [Document(text=pdf_text)]
+    else:
+        documents = SimpleDirectoryReader(input_files=[str(file_path)]).load_data()
 
     # Attach all metadata to every document chunk
     for doc in documents:

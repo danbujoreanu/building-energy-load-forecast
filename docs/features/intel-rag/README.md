@@ -245,25 +245,36 @@ Already-seen articles are skipped — safe to run daily.
 
 ## How to Use MBA RAG (intel_mba)
 
+**Status: ✅ Ingested — 97 docs / 4,306 chunks (Apr 18 2026)**
+
+Modules ingested:
+- `1. Competitive Strategy` — Grant textbook, 12 case studies (Honda, Aldi, LEGO, Spotify, Cola Wars, AI21 Labs, etc.), summary docs
+- `2. Entrepreneurship` — running-lean (Lean Canvas), Ireland GEM 2021, HBR Scaling a Startup, 8 lecture PDFs
+- `2. Digital Transformation` — Christensen / Von Hippel papers, 8 lecture PDFs, energy transformation cases (Enel X, ENGIE, Siemens DES, Duck Curve), Kodak / Eli Lilly / Globe Telco cases
+- `3. Global and Corporate Strategy` — Coase, Nucor, CEMEX, Unilever, Danaher cases
+
+**To add more modules:**
 ```bash
-# Ingest Grant's textbook (do this once — ~45 min first run):
-python scripts/intel_ingest.py --tier mba \
-  --file "/Users/danalexandrubujoreanu/UCD/1. Competitive Strategy/Contemporary Strategy Analysis - Robert M. Grant.pdf"
+# Use --dir — handles PDFs automatically via pymupdf4llm
+~/miniconda3/envs/ml_lab1/bin/python scripts/intel_ingest.py \
+  --tier mba --dir ~/UCD/"3. Strategy Development Systems"
 
-# Ingest Entrepreneurship module lectures:
-python scripts/intel_ingest.py --tier mba \
-  --dir "/Users/danalexandrubujoreanu/UCD/2. Entrepreneurship/Lectures pdf/"
-
-# Query the frameworks:
-python scripts/intel_ingest.py --tier mba \
-  --query "VRIN framework for sustainable competitive advantage"
-
-python scripts/intel_ingest.py --tier mba \
-  --query "Business Model Canvas key partnerships energy startup"
-
-python scripts/intel_ingest.py --tier mba \
-  --query "Porter Five Forces Irish energy retail market"
+# Dry run first to check what's there:
+~/miniconda3/envs/ml_lab1/bin/python scripts/intel_ingest.py \
+  --tier mba --dir ~/UCD/"3. Strategy Development Systems" --dry-run
 ```
+
+**To query** (note: `--query` is NOT a flag on intel_ingest.py — use Python directly):
+```bash
+~/miniconda3/envs/ml_lab1/bin/python -c "
+from intel.retrieval import query_tier
+r = query_tier('mba', 'Porter Five Forces Irish energy retail market')
+print(r['answer'][:800])
+print(f\"\nTop score: {r['top_score']:.3f}\")
+"
+```
+
+**From Gardening project:** use `AI/query_mba.py` wrapper script.
 
 Once ingested, every Claude Code session can query your MBA knowledge without re-reading PDFs.
 

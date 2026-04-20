@@ -35,8 +35,10 @@ logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 EMBED_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-LOW_CONFIDENCE_THRESHOLD = 0.60
-VALID_TIERS = {"operational", "strategic", "research", "market"}
+# MiniLM-L6-v2 cosine scores: 0.35–0.55 = real match, <0.30 = noise.
+# Original 0.60 threshold flagged real matches as low-confidence.
+LOW_CONFIDENCE_THRESHOLD = 0.35
+VALID_TIERS = {"operational", "strategic", "research", "market", "career", "mba", "garden"}
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CHROMA_PATH = str(_PROJECT_ROOT / "data" / "chromadb")
