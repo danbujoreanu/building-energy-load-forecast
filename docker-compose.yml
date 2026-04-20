@@ -113,6 +113,8 @@ services:
       GF_USERS_DEFAULT_THEME: dark
       GF_SERVER_ROOT_URL: https://grafana.sparc.localhost
       GF_INSTALL_PLUGINS: ""
+      # Required so postgres.yml datasource can substitute ${DB_PASSWORD}
+      DB_PASSWORD: ${DB_PASSWORD}
     volumes:
       - grafanadata:/var/lib/grafana
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro

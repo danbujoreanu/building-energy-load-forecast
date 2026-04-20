@@ -1,17 +1,177 @@
 {
   "tariff": "BGE Free Time Saturday",
   "location": "Maynooth, Co Kildare",
-  "mae_kwh": 0.1707,
+  "mae_kwh": 0.1635,
   "decisions": [
+    {
+      "hour": "21:00",
+      "day": "Mon",
+      "action": "NORMAL",
+      "rate": "day",
+      "rate_eur_kwh": 0.3227,
+      "p50_kwh": 0.417,
+      "cost_eur": 0.1345,
+      "saving_vs_peak_eur": 0.0
+    },
+    {
+      "hour": "22:00",
+      "day": "Mon",
+      "action": "NORMAL",
+      "rate": "day",
+      "rate_eur_kwh": 0.3227,
+      "p50_kwh": 0.409,
+      "cost_eur": 0.1319,
+      "saving_vs_peak_eur": 0.0
+    },
+    {
+      "hour": "23:00",
+      "day": "Mon",
+      "action": "RUN_NOW",
+      "rate": "night",
+      "rate_eur_kwh": 0.2372,
+      "p50_kwh": 0.359,
+      "cost_eur": 0.0851,
+      "saving_vs_peak_eur": 0.0307
+    },
+    {
+      "hour": "00:00",
+      "day": "Tue",
+      "action": "RUN_NOW",
+      "rate": "night",
+      "rate_eur_kwh": 0.2372,
+      "p50_kwh": 0.247,
+      "cost_eur": 0.0586,
+      "saving_vs_peak_eur": 0.0211
+    },
+    {
+      "hour": "01:00",
+      "day": "Tue",
+      "action": "RUN_NOW",
+      "rate": "night",
+      "rate_eur_kwh": 0.2372,
+      "p50_kwh": 0.191,
+      "cost_eur": 0.0452,
+      "saving_vs_peak_eur": 0.0163
+    },
+    {
+      "hour": "02:00",
+      "day": "Tue",
+      "action": "RUN_NOW",
+      "rate": "night",
+      "rate_eur_kwh": 0.2372,
+      "p50_kwh": 0.156,
+      "cost_eur": 0.0369,
+      "saving_vs_peak_eur": 0.0133
+    },
+    {
+      "hour": "03:00",
+      "day": "Tue",
+      "action": "RUN_NOW",
+      "rate": "night",
+      "rate_eur_kwh": 0.2372,
+      "p50_kwh": 0.176,
+      "cost_eur": 0.0416,
+      "saving_vs_peak_eur": 0.015
+    },
+    {
+      "hour": "04:00",
+      "day": "Tue",
+      "action": "RUN_NOW",
+      "rate": "night",
+      "rate_eur_kwh": 0.2372,
+      "p50_kwh": 0.185,
+      "cost_eur": 0.0438,
+      "saving_vs_peak_eur": 0.0158
+    },
+    {
+      "hour": "05:00",
+      "day": "Tue",
+      "action": "RUN_NOW",
+      "rate": "night",
+      "rate_eur_kwh": 0.2372,
+      "p50_kwh": 0.185,
+      "cost_eur": 0.0438,
+      "saving_vs_peak_eur": 0.0158
+    },
+    {
+      "hour": "06:00",
+      "day": "Tue",
+      "action": "RUN_NOW",
+      "rate": "night",
+      "rate_eur_kwh": 0.2372,
+      "p50_kwh": 0.194,
+      "cost_eur": 0.046,
+      "saving_vs_peak_eur": 0.0166
+    },
+    {
+      "hour": "07:00",
+      "day": "Tue",
+      "action": "RUN_NOW",
+      "rate": "night",
+      "rate_eur_kwh": 0.2372,
+      "p50_kwh": 0.667,
+      "cost_eur": 0.1583,
+      "saving_vs_peak_eur": 0.0571
+    },
+    {
+      "hour": "08:00",
+      "day": "Tue",
+      "action": "NORMAL",
+      "rate": "day",
+      "rate_eur_kwh": 0.3227,
+      "p50_kwh": 0.249,
+      "cost_eur": 0.0803,
+      "saving_vs_peak_eur": 0.0
+    },
+    {
+      "hour": "09:00",
+      "day": "Tue",
+      "action": "RUN_NOW",
+      "rate": "day",
+      "rate_eur_kwh": 0.3227,
+      "p50_kwh": 0.291,
+      "cost_eur": 0.094,
+      "saving_vs_peak_eur": 0.0539
+    },
+    {
+      "hour": "10:00",
+      "day": "Tue",
+      "action": "RUN_NOW",
+      "rate": "day",
+      "rate_eur_kwh": 0.3227,
+      "p50_kwh": 0.28,
+      "cost_eur": 0.0903,
+      "saving_vs_peak_eur": 0.0518
+    },
+    {
+      "hour": "11:00",
+      "day": "Tue",
+      "action": "RUN_NOW",
+      "rate": "day",
+      "rate_eur_kwh": 0.3227,
+      "p50_kwh": 0.313,
+      "cost_eur": 0.101,
+      "saving_vs_peak_eur": 0.0579
+    },
+    {
+      "hour": "12:00",
+      "day": "Tue",
+      "action": "RUN_NOW",
+      "rate": "day",
+      "rate_eur_kwh": 0.3227,
+      "p50_kwh": 0.316,
+      "cost_eur": 0.1019,
+      "saving_vs_peak_eur": 0.0584
+    },
     {
       "hour": "13:00",
       "day": "Tue",
       "action": "RUN_NOW",
       "rate": "day",
       "rate_eur_kwh": 0.3227,
-      "p50_kwh": 0.272,
-      "cost_eur": 0.0878,
-      "saving_vs_peak_eur": 0.0503
+      "p50_kwh": 0.336,
+      "cost_eur": 0.1084,
+      "saving_vs_peak_eur": 0.0621
     },
     {
       "hour": "14:00",
@@ -19,9 +179,9 @@
       "action": "RUN_NOW",
       "rate": "day",
       "rate_eur_kwh": 0.3227,
-      "p50_kwh": 0.294,
-      "cost_eur": 0.0947,
-      "saving_vs_peak_eur": 0.0543
+      "p50_kwh": 0.276,
+      "cost_eur": 0.0892,
+      "saving_vs_peak_eur": 0.0511
     },
     {
       "hour": "15:00",
@@ -29,9 +189,9 @@
       "action": "RUN_NOW",
       "rate": "day",
       "rate_eur_kwh": 0.3227,
-      "p50_kwh": 0.287,
-      "cost_eur": 0.0926,
-      "saving_vs_peak_eur": 0.0531
+      "p50_kwh": 0.274,
+      "cost_eur": 0.0883,
+      "saving_vs_peak_eur": 0.0506
     },
     {
       "hour": "16:00",
@@ -39,9 +199,9 @@
       "action": "RUN_NOW",
       "rate": "day",
       "rate_eur_kwh": 0.3227,
-      "p50_kwh": 0.299,
-      "cost_eur": 0.0964,
-      "saving_vs_peak_eur": 0.0552
+      "p50_kwh": 0.26,
+      "cost_eur": 0.084,
+      "saving_vs_peak_eur": 0.0482
     },
     {
       "hour": "17:00",
@@ -49,9 +209,9 @@
       "action": "DEFER",
       "rate": "peak",
       "rate_eur_kwh": 0.3942,
-      "p50_kwh": 0.278,
-      "cost_eur": 0.1094,
-      "saving_vs_peak_eur": 0.0436
+      "p50_kwh": 0.251,
+      "cost_eur": 0.0988,
+      "saving_vs_peak_eur": 0.0394
     },
     {
       "hour": "18:00",
@@ -59,19 +219,19 @@
       "action": "DEFER",
       "rate": "peak",
       "rate_eur_kwh": 0.3942,
-      "p50_kwh": 0.369,
-      "cost_eur": 0.1455,
-      "saving_vs_peak_eur": 0.058
+      "p50_kwh": 0.279,
+      "cost_eur": 0.1099,
+      "saving_vs_peak_eur": 0.0438
     },
     {
       "hour": "19:00",
       "day": "Tue",
-      "action": "NORMAL",
+      "action": "RUN_NOW",
       "rate": "day",
       "rate_eur_kwh": 0.3227,
-      "p50_kwh": 0.416,
-      "cost_eur": 0.1344,
-      "saving_vs_peak_eur": 0.0
+      "p50_kwh": 0.326,
+      "cost_eur": 0.1052,
+      "saving_vs_peak_eur": 0.0603
     },
     {
       "hour": "20:00",
@@ -79,169 +239,9 @@
       "action": "NORMAL",
       "rate": "day",
       "rate_eur_kwh": 0.3227,
-      "p50_kwh": 0.578,
-      "cost_eur": 0.1865,
+      "p50_kwh": 0.367,
+      "cost_eur": 0.1183,
       "saving_vs_peak_eur": 0.0
-    },
-    {
-      "hour": "21:00",
-      "day": "Tue",
-      "action": "NORMAL",
-      "rate": "day",
-      "rate_eur_kwh": 0.3227,
-      "p50_kwh": 0.319,
-      "cost_eur": 0.103,
-      "saving_vs_peak_eur": 0.0
-    },
-    {
-      "hour": "22:00",
-      "day": "Tue",
-      "action": "NORMAL",
-      "rate": "day",
-      "rate_eur_kwh": 0.3227,
-      "p50_kwh": 0.292,
-      "cost_eur": 0.0944,
-      "saving_vs_peak_eur": 0.0
-    },
-    {
-      "hour": "23:00",
-      "day": "Tue",
-      "action": "RUN_NOW",
-      "rate": "night",
-      "rate_eur_kwh": 0.2372,
-      "p50_kwh": 0.216,
-      "cost_eur": 0.0513,
-      "saving_vs_peak_eur": 0.0185
-    },
-    {
-      "hour": "00:00",
-      "day": "Wed",
-      "action": "RUN_NOW",
-      "rate": "night",
-      "rate_eur_kwh": 0.2372,
-      "p50_kwh": 0.244,
-      "cost_eur": 0.0578,
-      "saving_vs_peak_eur": 0.0208
-    },
-    {
-      "hour": "01:00",
-      "day": "Wed",
-      "action": "RUN_NOW",
-      "rate": "night",
-      "rate_eur_kwh": 0.2372,
-      "p50_kwh": 0.244,
-      "cost_eur": 0.0578,
-      "saving_vs_peak_eur": 0.0208
-    },
-    {
-      "hour": "02:00",
-      "day": "Wed",
-      "action": "RUN_NOW",
-      "rate": "night",
-      "rate_eur_kwh": 0.2372,
-      "p50_kwh": 0.249,
-      "cost_eur": 0.059,
-      "saving_vs_peak_eur": 0.0213
-    },
-    {
-      "hour": "03:00",
-      "day": "Wed",
-      "action": "RUN_NOW",
-      "rate": "night",
-      "rate_eur_kwh": 0.2372,
-      "p50_kwh": 0.242,
-      "cost_eur": 0.0573,
-      "saving_vs_peak_eur": 0.0207
-    },
-    {
-      "hour": "04:00",
-      "day": "Wed",
-      "action": "RUN_NOW",
-      "rate": "night",
-      "rate_eur_kwh": 0.2372,
-      "p50_kwh": 0.238,
-      "cost_eur": 0.0565,
-      "saving_vs_peak_eur": 0.0204
-    },
-    {
-      "hour": "05:00",
-      "day": "Wed",
-      "action": "RUN_NOW",
-      "rate": "night",
-      "rate_eur_kwh": 0.2372,
-      "p50_kwh": 0.249,
-      "cost_eur": 0.0591,
-      "saving_vs_peak_eur": 0.0213
-    },
-    {
-      "hour": "06:00",
-      "day": "Wed",
-      "action": "RUN_NOW",
-      "rate": "night",
-      "rate_eur_kwh": 0.2372,
-      "p50_kwh": 0.252,
-      "cost_eur": 0.0598,
-      "saving_vs_peak_eur": 0.0215
-    },
-    {
-      "hour": "07:00",
-      "day": "Wed",
-      "action": "RUN_NOW",
-      "rate": "night",
-      "rate_eur_kwh": 0.2372,
-      "p50_kwh": 0.248,
-      "cost_eur": 0.0588,
-      "saving_vs_peak_eur": 0.0212
-    },
-    {
-      "hour": "08:00",
-      "day": "Wed",
-      "action": "NORMAL",
-      "rate": "day",
-      "rate_eur_kwh": 0.3227,
-      "p50_kwh": 0.267,
-      "cost_eur": 0.0862,
-      "saving_vs_peak_eur": 0.0
-    },
-    {
-      "hour": "09:00",
-      "day": "Wed",
-      "action": "RUN_NOW",
-      "rate": "day",
-      "rate_eur_kwh": 0.3227,
-      "p50_kwh": 0.225,
-      "cost_eur": 0.0725,
-      "saving_vs_peak_eur": 0.0416
-    },
-    {
-      "hour": "10:00",
-      "day": "Wed",
-      "action": "RUN_NOW",
-      "rate": "day",
-      "rate_eur_kwh": 0.3227,
-      "p50_kwh": 0.222,
-      "cost_eur": 0.0715,
-      "saving_vs_peak_eur": 0.041
-    },
-    {
-      "hour": "11:00",
-      "day": "Wed",
-      "action": "RUN_NOW",
-      "rate": "day",
-      "rate_eur_kwh": 0.3227,
-      "p50_kwh": 0.27,
-      "cost_eur": 0.0872,
-      "saving_vs_peak_eur": 0.05
-    },
-    {
-      "hour": "12:00",
-      "day": "Wed",
-      "action": "RUN_NOW",
-      "rate": "day",
-      "rate_eur_kwh": 0.3227,
-      "p50_kwh": 0.258,
-      "cost_eur": 0.0832,
-      "saving_vs_peak_eur": 0.0477
     }
   ]
 }
