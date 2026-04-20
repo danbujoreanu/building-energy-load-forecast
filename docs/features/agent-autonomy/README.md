@@ -156,6 +156,21 @@ This satisfies EU AI Act Article 52 transparency obligations for automated energ
 
 ## Mapping to PM Interview Frameworks
 
+### Which framework, when?
+
+Use frameworks **situationally** — and name the switch in interviews. That signals MBA-level fluency.
+
+| Context | Framework | Why |
+|---------|-----------|-----|
+| AI PM interview (system design round) | **DASME** | Built specifically for AI architecture interviews; "Architect" forces the diagram |
+| Irish energy company / SEAI / ops conversation | **DMAIC** | Six Sigma lingua franca for process improvement |
+| New product design with structured evidence | **DMEDI** | Design for Six Sigma — better than DMAIC for greenfield |
+| Strategy/competitive discussion | **Porter + VRIN** | MBA canonical; see `docs/STRATEGY.md` |
+
+Interview bridge: *"I used DASME to architect the ML pipeline — that's a new system design problem. But when I looked at customer onboarding friction, I switched to DMAIC — that's a process improvement problem. Different tools for different questions."*
+
+---
+
 ### DASME Applied to Energy Planner (L2)
 
 | DASME Stage | Energy Planner Answer |
@@ -165,6 +180,18 @@ This satisfies EU AI Act Article 52 transparency obligations for automated energ
 | **Specify** | LightGBM for scheduling (deterministic, cheap); Claude haiku-4-5 for explanation text (semantic). Response time <2s. |
 | **Map** | Success: % schedules approved unchanged (>80%). Model drift: 7d MAE >1.5× threshold. Business: €/household/month saved. |
 | **Edge Cases** | Price feed down → alert, no action. Forecast uncertainty high → alert. Eddi API timeout → retry ×3, then alert. Tank temp <50°C → override to HEAT_NOW. |
+
+### DMAIC Applied to Smart Meter Onboarding (improving existing process)
+
+> Use this framing when talking to a utility, SEAI, or operations-oriented interviewer.
+
+| DMAIC Stage | Onboarding Answer |
+|-------------|------------------|
+| **Define** | Problem: 74% of Irish households not on TOU tariffs despite 95% benefiting (CRU202566). Define: reduce time-to-first-saving for new users. |
+| **Measure** | Current: manual CSV upload, 10-minute setup, one tariff comparison. Baseline: €178/year identified but not acted on. |
+| **Analyse** | Root cause: no automated data access (SMDS not live), no schedule recommendation, no approval workflow. Gap: L2 Co-Pilot not built yet. |
+| **Improve** | SMDS integration → automated HDF pull; Energy Planner → one-tap schedule approval. |
+| **Control** | % schedules approved, MAE drift monitoring, monthly savings report to user. |
 
 ---
 
