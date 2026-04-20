@@ -143,7 +143,7 @@ def _build_inference_features(
     if df_feat.empty:
         raise RuntimeError(
             "Feature engineering produced an empty DataFrame. "
-            "Ensure history_df has at least 72 rows."
+            "Ensure history_df has at least 200 rows (max lag is lag_169h)."
         )
 
     # Drop non-feature columns
@@ -209,8 +209,8 @@ def run_morning_brief(
 
     # ── Step 1: Historical load + weather (last 72h) ────────────────────────
     if dry_run:
-        logger.info("DRY-RUN: using mock historical data (72h)")
-        history_df = _mock_historical_df(n_hours=72)
+        logger.info("DRY-RUN: using mock historical data (300h — covers max lag_169h)")
+        history_df = _mock_historical_df(n_hours=300)
     else:
         logger.info("Fetching historical data via CSVConnector for building=%s", building_id)
         connector = CSVConnector(data_dir=REPO_ROOT / "data" / "processed")
@@ -232,7 +232,10 @@ def run_morning_brief(
     prices = MockPriceConnector().get_day_ahead_prices()
 
     # ── Step 4: Feature engineering + model inference ─────────────────────
-    scaler_path = REPO_ROOT / "data" / "processed" / "splits" / f"{city}_scaler.pkl"
+    # Skip scaler in dry-run: mock data lacks building-metadata columns that
+    # the training scaler expects (Wind_Speed, floor_area, etc.). Scaler is
+    # only valid when real processed-parquet data is used (--live mode).
+    scaler_path = None if dry_run else REPO_ROOT / "data" / "processed" / "splits" / f"{city}_scaler.pkl"
 
     # Registry-aware loading: prefer the ACTIVE registry model, fall back to file-glob
     model = None
