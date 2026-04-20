@@ -14,6 +14,8 @@
 - **Start day:** Monday
 - **Current sprint:** Sprint 1 — 2026-04-21 → 2026-05-04
 - **Sprint 2:** 2026-05-05 → 2026-05-18
+- **Sprint 3:** 2026-05-19 → 2026-06-01
+- **Sprint 4:** 2026-06-02 → 2026-06-15 ← Mac Mini M4 delivery window
 
 ### Sprint Ceremonies (solo-adapted)
 

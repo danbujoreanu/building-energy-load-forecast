@@ -11,13 +11,14 @@
 
 ## Now — Sprint 1 (2026-04-21 → 2026-05-04)
 
-| Issue | Feature | Track | Status |
-|-------|---------|-------|--------|
-| DAN-69 | AWS Activate credits application | Commercial | 🔴 **Due April 25** |
-| DAN-24 | Ingest full intel corpus (all tiers) | Intel | 🟡 In Progress |
-| — | Intel RSS feed connector (DAN-81) | Intel | 🟡 Just built |
-| DAN-65 | Supabase project setup (website backend) | Engineering | 🟡 Planned |
-| — | Sparc Strategy + Governance docs | Product | ✅ Done this session |
+| Issue | Feature | Track | Due | Status |
+|-------|---------|-------|-----|--------|
+| DAN-69 | AWS Activate credits application | Commercial | **Apr 25** | 🔴 URGENT |
+| DAN-80 | Azure dual-stack portfolio (LangChain + Azure AI Search) | Engineering | May 18 | 🟠 This week |
+| DAN-24 | Ingest full intel corpus | Intel | May 4 | 🟡 In Progress |
+| DAN-81 | Intel RSS feed connector — first ingest run | Intel | May 4 | 🟡 Built, needs run |
+| DAN-65 | Supabase project setup | Engineering | May 10 | 🟡 Planned |
+| DAN-83 | Strategy + Governance docs | Product | — | ✅ Done |
 
 ---
 
