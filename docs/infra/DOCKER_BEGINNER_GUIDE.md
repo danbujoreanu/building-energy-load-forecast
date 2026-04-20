@@ -57,9 +57,21 @@ GRAFANA_PASSWORD=grafana_local_2026
 
 ---
 
+## Where to Run Commands
+
+**All `docker compose` commands run in Terminal.app — not in Docker Desktop, not in VS Code.**
+
+To open Terminal on your Mac:
+- Press **Cmd + Space**, type `Terminal`, press Enter
+- Or: Finder → Applications → Utilities → Terminal
+
+Docker Desktop is just a visual monitor — you can see containers running in it, but you don't type commands into it. VS Code has a built-in terminal (View → Terminal) which also works, but Terminal.app is simpler to start with.
+
+---
+
 ## First Run — Start Everything
 
-### Step 1: Open Terminal, go to the project
+### Step 1: Open Terminal.app, go to the project
 
 ```bash
 cd ~/building-energy-load-forecast

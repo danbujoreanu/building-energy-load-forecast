@@ -357,17 +357,13 @@ InfluxDB as a *database* adds complexity. Grafana connects directly to PostgreSQ
 **Why Grafana over Plotly Dash:**
 Grafana is pre-built for monitoring (alerting, annotations, user management built in). Dash requires you to write every dashboard in Python. Use Grafana for operations; use Plotly charts *inside* the Next.js app for consumer-facing visualisation.
 
-### Streamlit — Internal Analytics & Research
-```
-Purpose:    Ad-hoc data exploration, paper figure generation, model debugging
-Not for:    Consumer-facing product (too slow, not mobile-friendly)
-Run:        streamlit run scripts/explore.py (local, not deployed)
-```
+### Streamlit — NOT in roadmap
 
-Use Streamlit for:
-- Building the Home Plan Score visualisation quickly during development
-- Exploring drift reports, SHAP values, feature importance
-- Research / paper figure iteration
+Streamlit is not used in the product. An early `scripts/explore.py` script used it for ad-hoc data exploration during development. It is not deployed, not in docker-compose, and not planned for any roadmap item.
+
+**Consumer UI:** Next.js PWA (D-23)  
+**Operator dashboard:** Grafana (already in docker-compose)  
+**Data exploration:** Grafana SQL panels or TablePlus (connect to localhost:5432)
 
 ---
 

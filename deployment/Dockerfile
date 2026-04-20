@@ -34,6 +34,7 @@ COPY deployment/__init__.py ./deployment/
 COPY deployment/app.py ./deployment/
 COPY deployment/connectors.py ./deployment/
 COPY deployment/live_inference.py ./deployment/
+COPY deployment/mock_data.py ./deployment/
 COPY src/ ./src/
 COPY config/ ./config/
 
