@@ -142,6 +142,13 @@ services:
       - WEBHOOK_URL=http://localhost:5678
       - GENERIC_TIMEZONE=Europe/Dublin
       - N8N_BASIC_AUTH_ACTIVE=false
+      # Notification credentials — passed from .env so workflows can use $env.VAR
+      # Primary: Pushover push notifications
+      - PUSHOVER_USER_KEY=${PUSHOVER_USER_KEY}
+      - PUSHOVER_APP_TOKEN=${PUSHOVER_APP_TOKEN}
+      # Backup: CallMeBot WhatsApp
+      - CALLMEBOT_PHONE=${CALLMEBOT_PHONE}
+      - CALLMEBOT_API_KEY=${CALLMEBOT_API_KEY}
     env_file: .env
     volumes:
       - n8ndata:/home/node/.n8n

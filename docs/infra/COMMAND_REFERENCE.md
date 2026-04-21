@@ -119,6 +119,19 @@ git log --oneline -10
 
 ---
 
+## All Dashboards & Services — Quick Access
+
+| Service | URL | Login | What it shows |
+|---------|-----|-------|---------------|
+| **Grafana** | http://localhost:3001 | admin / grafana_local_2026 | Model drift, consumption, API health, alert rules |
+| **FastAPI docs** | http://localhost:8000/docs | — (no auth) | Swagger UI — test /health /predict /control |
+| **FastAPI health** | http://localhost:8000/health | — | JSON: model status, drift, inference ready |
+| **n8n workflows** | http://localhost:5678 | (your account) | 5 active workflows — view, edit, execution logs |
+| **PostgreSQL** | localhost:5432 | sparc / sparc_local_2026 | TablePlus or psql — raw time-series data |
+| **Redis** | localhost:6379 | — | redis-cli for cache inspection |
+
+---
+
 ## Open Grafana Dashboard
 
 Open a browser, type: **http://localhost:3001**  
@@ -136,6 +149,74 @@ You can test `/health`, `/predict`, and `/control` directly from the browser —
 
 ---
 
+## n8n Workflow Automation
+
+Open: **http://localhost:5678**
+
+### What's running (5 active workflows):
+| Workflow | Trigger | What it does |
+|----------|---------|-------------|
+| Sparc — Grafana Alert Relay | Grafana webhook | Sends Pushover alert when Grafana fires |
+| Greenhouse — Grafana Alert Relay | GH Grafana webhook | Same for Greenhouse |
+| Sparc — Daily Morning Brief | 08:00 every day | Calls `/control` → sends energy forecast to phone |
+| Greenhouse — Daily Evening Summary | 20:00 every day | Queries InfluxDB → sends GH summary |
+| Sparc — Weekly Drift Check | Mon 09:00 | Calls `/health` → alerts if model drift is CRITICAL |
+
+### Operating n8n day-to-day:
+```bash
+# View all workflow execution logs
+open http://localhost:5678/executions
+
+# Restart n8n (after .env changes or updates)
+docker compose up -d n8n
+
+# View n8n logs
+docker compose logs -f n8n --tail=30
+
+# Check env vars are loaded
+docker exec sparc-n8n env | grep -E "PUSHOVER|CALLMEBOT"
+```
+
+### Webhook URLs for Grafana contact points:
+- **Sparc Grafana** → `http://n8n:5678/webhook/sparc-alert`
+- **Greenhouse Grafana** → `http://host.docker.internal:5678/webhook/gh-alert`
+
+### To add a new workflow:
+1. Open http://localhost:5678 → New Workflow
+2. Or create via API: see `docs/infra/services/N8N_WORKFLOWS.md` for the Python script pattern used to create all 5 current workflows
+
+Full reference: `docs/infra/services/N8N_WORKFLOWS.md`
+
+---
+
+## Pushover Push Notifications
+
+Pushover delivers real-time push notifications from n8n to your phone.
+
+**First time:** Install the **Pushover** app (App Store / Google Play) → log in with your account. You'll start receiving notifications immediately.
+
+### Test Pushover manually:
+```bash
+source ~/building-energy-load-forecast/.env
+curl -s \
+  --form-string "token=${PUSHOVER_APP_TOKEN}" \
+  --form-string "user=${PUSHOVER_USER_KEY}" \
+  --form-string "title=Sparc Test" \
+  --form-string "message=Pushover is working" \
+  https://api.pushover.net/1/messages.json
+# Expected: {"status":1,"request":"..."}
+```
+
+### Test a Grafana alert relay manually:
+```bash
+# Simulate what Grafana sends to n8n → gets forwarded to your phone
+curl -s -X POST http://localhost:5678/webhook/sparc-alert \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test Alert","state":"firing","ruleName":"Manual test"}'
+```
+
+---
+
 ## Where Commands Run
 
 | Command type | Where to run | How to open |
@@ -145,9 +226,10 @@ You can test `/health`, `/predict`, and `/control` directly from the browser —
 | `curl localhost:8000/health` | Terminal.app | Same window |
 | `python scripts/...` | Terminal.app | Same window |
 | `.env` file editing | TextEdit or VS Code | Right-click → Open With |
-| Grafana dashboard | Browser | Type `localhost:3001` |
-| API Swagger docs | Browser | Type `localhost:8000/docs` |
-| n8n workflow UI | Browser | Type `localhost:5678` (when added) |
+| Grafana dashboard | Browser | http://localhost:3001 |
+| API Swagger docs | Browser | http://localhost:8000/docs |
+| n8n workflow UI | Browser | http://localhost:5678 |
+| n8n execution logs | Browser | http://localhost:5678/executions |
 | Docker Desktop app | Just for watching | Click menu bar icon |
 
 ---
