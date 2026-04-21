@@ -136,11 +136,27 @@ All credentials live in `~/building-energy-load-forecast/.env` (gitignored).
 | Variable | Description | Status |
 |----------|-------------|--------|
 | `PUSHOVER_USER_KEY` | Your Pushover user key | ✅ Set |
-| `PUSHOVER_APP_TOKEN` | Pushover app token (create at pushover.net/apps/build) | ⏳ Needs creation |
+| `PUSHOVER_APP_TOKEN` | Pushover app token — Sparc Energy app | ✅ Set |
+| `PUSHOVER_GH_TOKEN` | Pushover app token — DT Greenhouse app (`aewujm4...`) | ✅ Set (Apr 21) |
+| `INFLUXDB_GH_TOKEN` | GH InfluxDB token for WF4 daily summary | ✅ Set (Apr 21) |
 | `CALLMEBOT_PHONE` | WhatsApp backup (353863531001) | ✅ Set |
 | `CALLMEBOT_API_KEY` | CallMeBot API key | ✅ Set |
 | `N8N_API_KEY` | n8n REST API key | ✅ Set |
-| `INFLUXDB_TOKEN` | Greenhouse InfluxDB token (WF4) | ⏳ Not yet added |
+
+**WF2 and WF4 use `PUSHOVER_GH_TOKEN`** — GH alerts appear as "DT Greenhouse" on phone.
+**WF4 uses `INFLUXDB_GH_TOKEN`** to query `http://host.docker.internal:8086` (GH InfluxDB).
+
+---
+
+## Part 7 — Workflow Status (Apr 21 2026)
+
+| Workflow | Status | Notes |
+|---|---|---|
+| WF1: Sparc — Grafana Alert Relay | ✅ Active | Awaiting DAN-101 (Grafana alert rules) |
+| WF2: GH — Grafana Alert Relay | ✅ Active + configured | GH Grafana contact point provisioned, GH token set |
+| WF3: Sparc — Daily Morning Brief | ✅ Active | Awaiting DAN-96 (real data) |
+| WF4: GH — Daily Evening Summary (20:00) | ✅ Active + configured | InfluxDB GH token set, real sensor parsing in Format Message |
+| WF5: Sparc — Weekly Drift Check | ✅ Active | Awaiting DAN-96 |
 
 ---
 
@@ -150,26 +166,30 @@ All credentials live in `~/building-energy-load-forecast/.env` (gitignored).
 # n8n won't start
 docker compose logs n8n --tail=30
 
-# Port conflict
-lsof -i :5678
-
 # Verify env vars loaded into n8n container
-docker exec sparc-n8n env | grep PUSHOVER
+docker exec sparc-n8n env | grep -E "PUSHOVER|INFLUXDB_GH"
+
+# Test GH alert chain end-to-end (fires Pushover "DT Greenhouse" app)
+curl -s -X POST http://localhost:5678/webhook/gh-alert \
+  -H "Content-Type: application/json" \
+  -d '{"status":"firing","alerts":[{"labels":{"alertname":"Test"},"annotations":{"summary":"Manual test from CLI"}}]}'
+
+# Test Pushover directly (Sparc app)
+source ~/building-energy-load-forecast/.env
+curl -s --form-string "token=${PUSHOVER_APP_TOKEN}" --form-string "user=${PUSHOVER_USER_KEY}" \
+  --form-string "title=Sparc Test" --form-string "message=Direct test" \
+  https://api.pushover.net/1/messages.json
+
+# Test Pushover directly (GH app)
+curl -s --form-string "token=${PUSHOVER_GH_TOKEN}" --form-string "user=${PUSHOVER_USER_KEY}" \
+  --form-string "title=GH Test" --form-string "message=Direct test" \
+  https://api.pushover.net/1/messages.json
 
 # Greenhouse Grafana can't reach n8n
-docker exec -it gh_grafana wget -qO- http://host.docker.internal:5678/healthz
+docker exec gh_grafana wget -qO- http://host.docker.internal:5678/healthz
 
-# Sparc Grafana can't reach n8n
-docker exec -it sparc-grafana wget -qO- http://n8n:5678/healthz
-
-# Test Pushover manually
-source ~/building-energy-load-forecast/.env
-curl -s \
-  --form-string "token=${PUSHOVER_APP_TOKEN}" \
-  --form-string "user=${PUSHOVER_USER_KEY}" \
-  --form-string "title=Test" \
-  --form-string "message=From n8n test" \
-  https://api.pushover.net/1/messages.json
+# Verify GH Grafana alert rules loaded
+curl -s -u admin:maynooth_gh_2026 http://localhost:3000/api/ruler/grafana/api/v1/rules | python3 -m json.tool | head -30
 ```
 
 ---
@@ -178,7 +198,8 @@ curl -s \
 
 | Issue | Status | What |
 |-------|--------|------|
-| DAN-94 | 🔵 In Progress | n8n setup — workflows created, awaiting PUSHOVER_APP_TOKEN |
-| DAN-101 | 🟡 Todo | Grafana alert rules (configure after DAN-96 has data) |
+| DAN-94 | ✅ Done | n8n setup — all 5 workflows active, GH tokens configured Apr 21 |
+| DAN-101 | 🟡 Todo | Sparc Grafana alert rules (configure after DAN-96 has data) |
+| GARDEN-76 | ✅ Done | GH Grafana alerts + Pushover via n8n — live Apr 21 |
 
 *File: `docs/infra/services/N8N_WORKFLOWS.md` | Last updated: 21 April 2026*
