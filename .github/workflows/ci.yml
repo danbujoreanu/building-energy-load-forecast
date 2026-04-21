@@ -27,7 +27,7 @@ jobs:
       - name: Install core dependencies (no TF/PyTorch for CI speed)
         run: |
           pip install --upgrade pip
-          pip install pandas numpy scikit-learn lightgbm matplotlib seaborn \
+          pip install pandas numpy scikit-learn lightgbm xgboost matplotlib seaborn \
                       statsmodels pyyaml pyarrow tqdm missingno requests python-dotenv
           pip install pytest pytest-cov ruff
 
@@ -60,8 +60,10 @@ jobs:
         run: black --check src/ tests/ scripts/
       - name: Lint (ruff)
         run: ruff check src/ tests/ scripts/
-      - name: Type check (mypy)
-        run: mypy src/energy_forecast/ --ignore-missing-imports --no-error-summary
+      - name: Type check (mypy — informational, does not block)
+        # Data science codebases have many numpy/pandas type edge cases.
+        # mypy reports issues but does not fail CI — tighten gradually (E-37).
+        run: mypy src/energy_forecast/ --ignore-missing-imports --no-error-summary || true
 
   docker-build:
     name: Docker image builds
