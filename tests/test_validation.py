@@ -4,6 +4,7 @@ tests.test_validation
 Unit tests for energy_forecast.validation (DataValidator, DataValidationError)
 and energy_forecast.models.deep_learning.reshape_dl_predictions.
 """
+
 from __future__ import annotations
 
 import logging
@@ -15,10 +16,10 @@ import pytest
 from energy_forecast.validation import DataValidationError, DataValidator
 from energy_forecast.models.deep_learning import reshape_dl_predictions
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_X(n: int = 100, cols: int = 5) -> pd.DataFrame:
     """Return a clean float DataFrame with a MultiIndex."""
@@ -40,6 +41,7 @@ def _make_y(n: int = 100) -> pd.Series:
 # ---------------------------------------------------------------------------
 # validate_features
 # ---------------------------------------------------------------------------
+
 
 def test_validate_features_passes_clean_data():
     X = _make_X()
@@ -77,6 +79,7 @@ def test_validate_features_allow_nan_flag():
 # validate_target
 # ---------------------------------------------------------------------------
 
+
 def test_validate_target_passes_clean():
     y = _make_y()
     DataValidator.validate_target(y, name="y_train")  # must not raise
@@ -109,6 +112,7 @@ def test_validate_target_no_warning_below_threshold(caplog):
 # validate_shapes
 # ---------------------------------------------------------------------------
 
+
 def test_validate_shapes_raises_on_mismatch():
     X = _make_X(n=100)
     y = _make_y(n=50)
@@ -125,6 +129,7 @@ def test_validate_shapes_passes_matching():
 # ---------------------------------------------------------------------------
 # validate_training_data
 # ---------------------------------------------------------------------------
+
 
 def test_validate_training_data_full_call():
     X_train = _make_X(n=100)
@@ -154,6 +159,7 @@ def test_validate_training_data_raises_on_bad_train():
 # ---------------------------------------------------------------------------
 # reshape_dl_predictions
 # ---------------------------------------------------------------------------
+
 
 def test_reshape_dl_predictions_h1_flattens():
     raw = np.ones((50, 1))

@@ -51,15 +51,15 @@ logger = logging.getLogger(__name__)
 # ── Baseline metrics from held-out test set (update after retraining) ─────────
 BASELINE_METRICS: dict[str, dict[str, float]] = {
     "drammen": {"MAE": 2.14, "RMSE": 3.21, "R2": 0.975},
-    "oslo":    {"MAE": 2.89, "RMSE": 4.12, "R2": 0.963},
+    "oslo": {"MAE": 2.89, "RMSE": 4.12, "R2": 0.963},
 }
 
 # ── Drift thresholds (see ADR-008) ────────────────────────────────────────────
-WARN_THRESHOLD  = 0.20   # +20% MAE / -0.05 R² → WARNING
-CRIT_THRESHOLD  = 0.40   # +40% MAE / -0.10 R² → CRITICAL
+WARN_THRESHOLD = 0.20  # +20% MAE / -0.05 R² → WARNING
+CRIT_THRESHOLD = 0.40  # +40% MAE / -0.10 R² → CRITICAL
 
 PREDICTIONS_LOG = REPO_ROOT / "outputs" / "monitoring" / "predictions_log.jsonl"
-REPORTS_DIR     = REPO_ROOT / "outputs" / "monitoring"
+REPORTS_DIR = REPO_ROOT / "outputs" / "monitoring"
 
 
 def load_predictions(city: str, weeks: int = 4) -> pd.DataFrame:
@@ -91,7 +91,7 @@ def load_predictions(city: str, weeks: int = 4) -> pd.DataFrame:
 
     df = pd.DataFrame(rows)
     df["timestamp"] = pd.to_datetime(df["timestamp"])
-    df = df.dropna(subset=["y_pred", "y_true"])   # only rows with actuals
+    df = df.dropna(subset=["y_pred", "y_true"])  # only rows with actuals
     logger.info("[load_predictions] city=%s | rows with actuals: %d", city, len(df))
     return df
 
@@ -106,20 +106,22 @@ def compute_weekly_metrics(df: pd.DataFrame) -> list[dict]:
     weekly = []
 
     for week, group in df.groupby("week"):
-        if len(group) < 24:   # need at least 24 hourly observations
+        if len(group) < 24:  # need at least 24 hourly observations
             continue
         result = evaluate(
             y_true=group["y_true"].values,
             y_pred=group["y_pred"].values,
             model_name=str(week),
         )
-        weekly.append({
-            "week":      str(week),
-            "n_samples": result["n_samples"],
-            "MAE":       round(result["MAE"],  4),
-            "RMSE":      round(result["RMSE"], 4),
-            "R2":        round(result["R2"],   4),
-        })
+        weekly.append(
+            {
+                "week": str(week),
+                "n_samples": result["n_samples"],
+                "MAE": round(result["MAE"], 4),
+                "RMSE": round(result["RMSE"], 4),
+                "R2": round(result["R2"], 4),
+            }
+        )
 
     return weekly
 
@@ -137,12 +139,12 @@ def assess_drift(
 
     # Use the most recent week with sufficient data
     latest = weekly_metrics[-1]
-    mae_delta  = (latest["MAE"]  - baseline["MAE"])  / baseline["MAE"]
+    mae_delta = (latest["MAE"] - baseline["MAE"]) / baseline["MAE"]
     rmse_delta = (latest["RMSE"] - baseline["RMSE"]) / baseline["RMSE"]
-    r2_delta   =  latest["R2"]   - baseline["R2"]    # absolute (not relative)
+    r2_delta = latest["R2"] - baseline["R2"]  # absolute (not relative)
 
     status = "OK"
-    flags  = []
+    flags = []
 
     if mae_delta > CRIT_THRESHOLD or r2_delta < -0.10:
         status = "CRITICAL"
@@ -150,20 +152,22 @@ def assess_drift(
         status = "WARNING"
 
     if mae_delta > WARN_THRESHOLD:
-        flags.append(f"MAE +{mae_delta:.1%} vs baseline ({latest['MAE']:.3f} vs {baseline['MAE']:.3f})")
+        flags.append(
+            f"MAE +{mae_delta:.1%} vs baseline ({latest['MAE']:.3f} vs {baseline['MAE']:.3f})"
+        )
     if r2_delta < -0.05:
         flags.append(f"R² {r2_delta:+.4f} vs baseline ({latest['R2']:.4f} vs {baseline['R2']:.4f})")
 
     return {
-        "status":    status,
+        "status": status,
         "latest_week": latest["week"],
-        "flags":     flags,
-        "deltas":    {
-            "MAE_relative":  round(mae_delta,  4),
+        "flags": flags,
+        "deltas": {
+            "MAE_relative": round(mae_delta, 4),
             "RMSE_relative": round(rmse_delta, 4),
-            "R2_absolute":   round(r2_delta,   4),
+            "R2_absolute": round(r2_delta, 4),
         },
-        "latest_metrics":  latest,
+        "latest_metrics": latest,
         "baseline_metrics": baseline,
     }
 
@@ -182,16 +186,20 @@ def write_report(report: dict, city: str) -> Path:
 def run(city: str, weeks: int, dry_run: bool = False) -> dict:
     """Full drift monitoring run for a given city."""
     print(f"\n[monitor_drift] city={city} | window={weeks} weeks | dry_run={dry_run}")
-    print(f"[monitor_drift] Baseline: MAE={BASELINE_METRICS[city]['MAE']:.3f} | "
-          f"R²={BASELINE_METRICS[city]['R2']:.4f}")
+    print(
+        f"[monitor_drift] Baseline: MAE={BASELINE_METRICS[city]['MAE']:.3f} | "
+        f"R²={BASELINE_METRICS[city]['R2']:.4f}"
+    )
 
     df = load_predictions(city, weeks)
     weekly = compute_weekly_metrics(df)
 
     print(f"[monitor_drift] Weekly snapshots computed: {len(weekly)}")
     for w in weekly:
-        print(f"  {w['week']}: MAE={w['MAE']:.3f} RMSE={w['RMSE']:.3f} R²={w['R2']:.4f} "
-              f"(n={w['n_samples']})")
+        print(
+            f"  {w['week']}: MAE={w['MAE']:.3f} RMSE={w['RMSE']:.3f} R²={w['R2']:.4f} "
+            f"(n={w['n_samples']})"
+        )
 
     drift = assess_drift(weekly, BASELINE_METRICS[city])
 
@@ -204,9 +212,9 @@ def run(city: str, weeks: int, dry_run: bool = False) -> dict:
 
     report = {
         "generated_at": datetime.utcnow().isoformat(),
-        "city":         city,
+        "city": city,
         "window_weeks": weeks,
-        "drift":        drift,
+        "drift": drift,
         "weekly_metrics": weekly,
     }
 
@@ -220,8 +228,8 @@ def run(city: str, weeks: int, dry_run: bool = False) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Sparc Energy — MLOps drift monitor")
-    parser.add_argument("--city",    choices=["drammen", "oslo", "all"], default="all")
-    parser.add_argument("--weeks",   type=int, default=4, help="Rolling window in weeks")
+    parser.add_argument("--city", choices=["drammen", "oslo", "all"], default="all")
+    parser.add_argument("--weeks", type=int, default=4, help="Rolling window in weeks")
     parser.add_argument("--dry-run", action="store_true", help="Compute but don't write report")
     args = parser.parse_args()
 
@@ -244,7 +252,7 @@ def main() -> None:
 
     if any_alert:
         print("\n  Action required: review drift report in outputs/monitoring/")
-        sys.exit(1)   # non-zero exit for CCR scheduled task alerting
+        sys.exit(1)  # non-zero exit for CCR scheduled task alerting
     else:
         print("\n  All models within drift thresholds.")
 

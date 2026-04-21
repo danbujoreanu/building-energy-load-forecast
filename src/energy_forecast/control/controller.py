@@ -86,17 +86,17 @@ def _append_audit_log(
     try:
         _AUDIT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         entry = {
-            "timestamp":     datetime.now(timezone.utc).isoformat(),
-            "city":          city,
-            "building_id":   building_id,
-            "target_hour":   action.target_hour,
-            "action":        action.action.value,
-            "confidence":    round(action.confidence, 4),
-            "reasoning":     action.reasoning,
-            "p50_kwh":       round(action.p50_kwh, 4),
-            "solar_wh_m2":   round(action.solar_wh_m2, 2),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "city": city,
+            "building_id": building_id,
+            "target_hour": action.target_hour,
+            "action": action.action.value,
+            "confidence": round(action.confidence, 4),
+            "reasoning": action.reasoning,
+            "p50_kwh": round(action.p50_kwh, 4),
+            "solar_wh_m2": round(action.solar_wh_m2, 2),
             "price_eur_kwh": round(action.price_eur_kwh, 4),
-            "dry_run":       dry_run,
+            "dry_run": dry_run,
         }
         line = json.dumps(entry, ensure_ascii=False) + "\n"
         with open(_AUDIT_LOG_PATH, "a", encoding="utf-8") as fh:
@@ -234,9 +234,7 @@ class ControlEngine:
             hour_str = f"{a.target_hour:02d}:00"
             action_str = a.action.value.ljust(20)
             conf_str = f"[conf={a.confidence:.2f}]"
-            lines.append(
-                f"  {hour_str}  {action_str}  {conf_str}  {a.reasoning}"
-            )
+            lines.append(f"  {hour_str}  {action_str}  {conf_str}  {a.reasoning}")
         lines.append(f"  Generated at {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
         return "\n".join(lines)
 
@@ -370,7 +368,9 @@ class ControlEngine:
             return ControlAction(
                 target_hour=h,
                 action=ActionType.HEAT_NOW,
-                confidence=round(min(0.70 + (self.price_offpeak - price) / self.price_offpeak * 0.25, 0.95), 2),
+                confidence=round(
+                    min(0.70 + (self.price_offpeak - price) / self.price_offpeak * 0.25, 0.95), 2
+                ),
                 reasoning=(
                     f"Price {price:.3f} EUR/kWh (< off-peak threshold {self.price_offpeak:.2f}) "
                     f"→ cheap window, heat water / charge battery now"

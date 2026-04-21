@@ -47,10 +47,10 @@ class ModelRegressionError(RegistryError):
 class ModelStatus(str, Enum):
     """Lifecycle status of a model version."""
 
-    CANDIDATE = "candidate"   # just trained, not yet evaluated vs baseline
-    ACTIVE = "active"         # currently serving in production
-    RETIRED = "retired"       # superseded by a newer active version
-    FAILED = "failed"         # failed quality gate, never promoted
+    CANDIDATE = "candidate"  # just trained, not yet evaluated vs baseline
+    ACTIVE = "active"  # currently serving in production
+    RETIRED = "retired"  # superseded by a newer active version
+    FAILED = "failed"  # failed quality gate, never promoted
 
 
 @dataclass
@@ -224,9 +224,7 @@ class ModelRegistry:
         with self._write_lock():
             versions = self._load()
             if any(v.version_id == version.version_id for v in versions):
-                raise RegistryError(
-                    f"version_id '{version.version_id}' already exists in registry"
-                )
+                raise RegistryError(f"version_id '{version.version_id}' already exists in registry")
             versions.append(version)
             self._save(versions)
 
@@ -275,13 +273,10 @@ class ModelRegistry:
                 raise ValueError(f"version_id '{version_id}' not found in registry")
             if candidate.status != ModelStatus.CANDIDATE:
                 raise ValueError(
-                    f"version_id '{version_id}' is {candidate.status.value}, "
-                    "expected CANDIDATE"
+                    f"version_id '{version_id}' is {candidate.status.value}, " "expected CANDIDATE"
                 )
 
-            current_active = self._find_active(
-                versions, candidate.city, candidate.model_name
-            )
+            current_active = self._find_active(versions, candidate.city, candidate.model_name)
             if not force and current_active is not None:
                 self._check_regression(candidate, current_active)
 
@@ -463,9 +458,7 @@ class ModelRegistry:
         rows = [header, separator]
 
         for v in versions:
-            mae_str = (
-                f"{v.test_metrics.MAE:.4f}" if v.test_metrics is not None else "N/A"
-            )
+            mae_str = f"{v.test_metrics.MAE:.4f}" if v.test_metrics is not None else "N/A"
             vid_short = v.version_id[:20]
             rows.append(
                 f"{v.city:<12} {v.model_name:<14} {vid_short:<22} "
@@ -544,7 +537,7 @@ class ModelRegistry:
             Updated list of versions.
         """
         retired = self._sorted_retired(versions, city, model_name)
-        excess = retired[self.MAX_RETIRED_VERSIONS:]
+        excess = retired[self.MAX_RETIRED_VERSIONS :]
         for old in excess:
             logger.info(
                 "Purging retired version_id=%s (exceeds MAX_RETIRED_VERSIONS=%d)",
@@ -590,10 +583,9 @@ class ModelRegistry:
     ) -> list[ModelVersion]:
         """Return RETIRED versions for (city, model_name) sorted newest first."""
         retired = [
-            v for v in versions
-            if v.city == city
-            and v.model_name == model_name
-            and v.status == ModelStatus.RETIRED
+            v
+            for v in versions
+            if v.city == city and v.model_name == model_name and v.status == ModelStatus.RETIRED
         ]
         return sorted(retired, key=lambda v: v.retired_at or v.trained_at, reverse=True)
 

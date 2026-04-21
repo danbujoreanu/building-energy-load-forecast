@@ -38,6 +38,5 @@ def _find_config() -> Path:
         if candidate.exists():
             return candidate
     raise FileNotFoundError(
-        "Could not find config/config.yaml. "
-        "Run scripts from the project root directory."
+        "Could not find config/config.yaml. " "Run scripts from the project root directory."
     )

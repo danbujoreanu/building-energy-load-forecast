@@ -130,9 +130,7 @@ def validate_features(features: dict[str, float]) -> dict[str, float]:
     if not missing and not extra:
         return features
 
-    parts: list[str] = [
-        f"Expected {len(expected)} features: {_expected_features}."
-    ]
+    parts: list[str] = [f"Expected {len(expected)} features: {_expected_features}."]
     if missing:
         parts.append(f"Missing {len(missing)}: {missing}.")
     if extra:

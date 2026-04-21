@@ -65,9 +65,7 @@ class SHAPExplainer:
         try:
             import shap
         except ImportError as exc:
-            raise ImportError(
-                "shap is required for explainability: pip install shap"
-            ) from exc
+            raise ImportError("shap is required for explainability: pip install shap") from exc
 
         # Unwrap SklearnForecaster if needed
         estimator = getattr(model, "estimator", model)
@@ -85,7 +83,9 @@ class SHAPExplainer:
     # Core compute
     # ------------------------------------------------------------------
 
-    def compute(self, X: pd.DataFrame, check_additivity: bool = False) -> shap.Explanation:  # noqa: F821, N803
+    def compute(
+        self, X: pd.DataFrame, check_additivity: bool = False
+    ) -> shap.Explanation:  # noqa: F821, N803
         """Compute SHAP values for the given dataset.
 
         Parameters
@@ -140,7 +140,9 @@ class SHAPExplainer:
 
         fig, ax = plt.subplots(figsize=(10, 8))
         shap.plots.beeswarm(sv, max_display=max_display, show=False)
-        plt.title(f"SHAP Beeswarm — {self.model_name}\n(feature impact on predicted load)", fontsize=13)
+        plt.title(
+            f"SHAP Beeswarm — {self.model_name}\n(feature impact on predicted load)", fontsize=13
+        )
         plt.tight_layout()
         _save_or_show(fig, save_path, f"shap_beeswarm_{self.model_name.lower()}.png")
 
@@ -280,10 +282,17 @@ class SHAPExplainer:
             raise RuntimeError("Call compute() before get_top_features().")
 
         mean_abs = np.abs(sv.values).mean(axis=0)
-        df = pd.DataFrame({
-            "feature": self.feature_names_,
-            "mean_abs_shap": mean_abs,
-        }).sort_values("mean_abs_shap", ascending=False).head(n).reset_index(drop=True)
+        df = (
+            pd.DataFrame(
+                {
+                    "feature": self.feature_names_,
+                    "mean_abs_shap": mean_abs,
+                }
+            )
+            .sort_values("mean_abs_shap", ascending=False)
+            .head(n)
+            .reset_index(drop=True)
+        )
         df.index += 1
         return df
 
@@ -291,6 +300,7 @@ class SHAPExplainer:
 # ---------------------------------------------------------------------------
 # Module-level convenience function (matches the pattern in visualization/plots.py)
 # ---------------------------------------------------------------------------
+
 
 def explain_model(
     model: Any,
@@ -347,6 +357,7 @@ def explain_model(
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
+
 
 def _save_or_show(fig: Any, save_path: str | Path | None, default_name: str) -> None:
     """Save figure to save_path or show interactively."""

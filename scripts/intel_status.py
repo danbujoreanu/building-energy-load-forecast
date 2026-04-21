@@ -23,11 +23,10 @@ from intel.ingest import get_status, VALID_TIERS, _PROJECT_ROOT as INTEL_ROOT
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Sparc Energy Intelligence — corpus status report"
-    )
+    parser = argparse.ArgumentParser(description="Sparc Energy Intelligence — corpus status report")
     parser.add_argument(
-        "--json", action="store_true",
+        "--json",
+        action="store_true",
         help="Output as JSON (useful for CI / scripting).",
     )
     return parser.parse_args()

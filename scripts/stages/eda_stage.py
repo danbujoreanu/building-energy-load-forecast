@@ -14,10 +14,10 @@ def run(cfg: dict) -> None:
     """Stage 1: Load raw data, preprocess, and save model-ready parquet."""
     from energy_forecast.data import build_model_ready_data, load_city_data
 
-    city      = cfg["city"]
-    raw_dir   = Path(cfg["paths"]["raw_data"][city])
+    city = cfg["city"]
+    raw_dir = Path(cfg["paths"]["raw_data"][city])
     # City-specific processed dir prevents cross-city data clobbering
-    proc_dir  = Path(cfg["paths"]["processed"]) / city
+    proc_dir = Path(cfg["paths"]["processed"]) / city
 
     logger.info("── Stage 1: EDA (%s) ──────────────────────────", city.upper())
     metadata, timeseries = load_city_data(city, raw_dir, cfg)
@@ -37,6 +37,7 @@ def run(cfg: dict) -> None:
         plot_seasonal_patterns,
         plot_temperature_sensitivity,
     )
+
     fig_dir = Path(cfg["paths"]["outputs"]["figures"])
     plot_building_profiles(timeseries, save_path=fig_dir / "building_profiles.png")
     plot_temperature_sensitivity(timeseries, save_path=fig_dir / "temperature_sensitivity.png")

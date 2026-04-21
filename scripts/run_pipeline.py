@@ -32,9 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Building Energy Load Forecast — full pipeline"
-    )
+    parser = argparse.ArgumentParser(description="Building Energy Load Forecast — full pipeline")
     parser.add_argument(
         "--city",
         choices=["drammen", "oslo"],
@@ -88,8 +86,13 @@ def main() -> None:
     city = cfg["city"]
     logger.info("=" * 60)
     logger.info("Building Energy Load Forecast Pipeline")
-    logger.info("City: %s | Skip slow: %s | Stages: %s | Save preds: %s",
-                city, args.skip_slow, args.stages, args.save_predictions)
+    logger.info(
+        "City: %s | Skip slow: %s | Stages: %s | Save preds: %s",
+        city,
+        args.skip_slow,
+        args.stages,
+        args.save_predictions,
+    )
     logger.info("=" * 60)
 
     t0 = time.perf_counter()
@@ -117,7 +120,6 @@ def main() -> None:
     logger.info("SHAP   → outputs/figures/shap/")
     logger.info("Figures → outputs/figures/")
     logger.info("=" * 60)
-
 
 
 if __name__ == "__main__":

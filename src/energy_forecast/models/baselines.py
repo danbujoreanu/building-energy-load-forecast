@@ -64,9 +64,7 @@ class MeanModel(BaseForecaster):
 
     def fit(self, X_train, y_train, X_val=None, y_val=None, **kwargs):  # noqa: N803
         if "building_id" in y_train.index.names:
-            self._building_means = (
-                y_train.groupby(level="building_id").mean().to_dict()
-            )
+            self._building_means = y_train.groupby(level="building_id").mean().to_dict()
             self._global_mean = float(y_train.mean())
         else:
             self._building_means = {}
@@ -76,8 +74,7 @@ class MeanModel(BaseForecaster):
     def predict(self, X: pd.DataFrame) -> np.ndarray:  # noqa: N803
         if self._building_means and "building_id" in X.index.names:
             building_ids = X.index.get_level_values("building_id")
-            return np.array([
-                self._building_means.get(bid, self._global_mean)
-                for bid in building_ids
-            ])
+            return np.array(
+                [self._building_means.get(bid, self._global_mean) for bid in building_ids]
+            )
         return np.full(len(X), self._global_mean)

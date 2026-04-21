@@ -51,12 +51,14 @@ _DB_URL = os.environ.get("DATABASE_URL", "")
 try:
     import psycopg2
     import psycopg2.extras  # for execute_values
+
     _PSYCOPG2_AVAILABLE = True
 except ImportError:
     _PSYCOPG2_AVAILABLE = False
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
+
 
 def store_prediction(
     building_id: str,
@@ -96,6 +98,7 @@ def store_prediction(
 
 
 # ── Tier 1: JSONL ──────────────────────────────────────────────────────────────
+
 
 def _append_jsonl(record: dict) -> None:
     """Append one JSON line to prediction_history.jsonl.  Flock-safe for concurrency."""
@@ -142,6 +145,7 @@ def _building_id_to_uuid(building_id: str) -> str:
     the same UUID without storing a lookup table.
     """
     import uuid
+
     return str(uuid.uuid5(uuid.NAMESPACE_DNS, building_id))
 
 
@@ -154,29 +158,36 @@ def _upsert_postgres(record: dict) -> None:
             household_uuid = _building_id_to_uuid(record["building_id"])
 
             # Ensure household row exists (idempotent — ON CONFLICT DO NOTHING)
-            cur.execute(_ENSURE_HOUSEHOLD_SQL, {
-                "id": household_uuid,
-                "user_id": household_uuid,   # Phase 1: user_id = household_id
-                "city": "ireland",
-            })
+            cur.execute(
+                _ENSURE_HOUSEHOLD_SQL,
+                {
+                    "id": household_uuid,
+                    "user_id": household_uuid,  # Phase 1: user_id = household_id
+                    "city": "ireland",
+                },
+            )
 
             # Cast Python lists → PostgreSQL ARRAY via psycopg2 adaptation
             p10_arr = record["p10_kwh"]
             p50_arr = record["p50_kwh"]
             p90_arr = record["p90_kwh"]
 
-            cur.execute(_UPSERT_SQL, {
-                "household_id": household_uuid,
-                "issued_at": record["issued_at"],
-                "forecast_date": record["forecast_date"],
-                "p10_kwh": p10_arr,
-                "p50_kwh": p50_arr,
-                "p90_kwh": p90_arr,
-                "model_version": record["model_version"],
-            })
+            cur.execute(
+                _UPSERT_SQL,
+                {
+                    "household_id": household_uuid,
+                    "issued_at": record["issued_at"],
+                    "forecast_date": record["forecast_date"],
+                    "p10_kwh": p10_arr,
+                    "p50_kwh": p50_arr,
+                    "p90_kwh": p90_arr,
+                    "model_version": record["model_version"],
+                },
+            )
         logger.debug(
             "[prediction_store] Upserted prediction for %s on %s.",
-            record["building_id"], record["forecast_date"],
+            record["building_id"],
+            record["forecast_date"],
         )
     except Exception as exc:
         logger.warning("[prediction_store] PostgreSQL write failed: %s", exc)

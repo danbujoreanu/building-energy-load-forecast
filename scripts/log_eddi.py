@@ -79,16 +79,26 @@ COLUMNS = [
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Eddi status logger")
-    p.add_argument("--interval", type=int, default=60,
-                   help="Poll interval in seconds (default: 60)")
-    p.add_argument("--output", type=str,
-                   default=str(ROOT / "data" / "home" / "eddi_log.csv"),
-                   help="Output CSV path")
-    p.add_argument("--once", action="store_true",
-                   help="Poll once and exit (useful for cron at 23:55 nightly)")
-    p.add_argument("--history", type=int, default=0, metavar="DAYS",
-                   help="Pull last N days of history via cloud API and exit "
-                        "(no polling needed; requires hub to support history endpoint)")
+    p.add_argument(
+        "--interval", type=int, default=60, help="Poll interval in seconds (default: 60)"
+    )
+    p.add_argument(
+        "--output",
+        type=str,
+        default=str(ROOT / "data" / "home" / "eddi_log.csv"),
+        help="Output CSV path",
+    )
+    p.add_argument(
+        "--once", action="store_true", help="Poll once and exit (useful for cron at 23:55 nightly)"
+    )
+    p.add_argument(
+        "--history",
+        type=int,
+        default=0,
+        metavar="DAYS",
+        help="Pull last N days of history via cloud API and exit "
+        "(no polling needed; requires hub to support history endpoint)",
+    )
     return p.parse_args()
 
 
@@ -119,16 +129,16 @@ def _poll_once(connector) -> dict | None:
     now_dublin = now_utc.tz_convert("Europe/Dublin")
 
     return {
-        "timestamp":       now_utc.isoformat(),
+        "timestamp": now_utc.isoformat(),
         "timestamp_dublin": now_dublin.strftime("%Y-%m-%d %H:%M:%S"),
-        "mode":            status.get("mode", ""),
-        "diverted_w":      status.get("diverted_w", 0),
-        "grid_w":          status.get("grid_w", 0),
-        "today_kwh":       status.get("today_kwh", 0.0),
-        "solar_lower_w":   status.get("solar_lower_w", 0),
-        "tank_temp_c":     status.get("tank_temp_c"),
-        "harvi_ct1":       status.get("ct1_load", 0),
-        "frequency_hz":    status.get("frequency_hz"),
+        "mode": status.get("mode", ""),
+        "diverted_w": status.get("diverted_w", 0),
+        "grid_w": status.get("grid_w", 0),
+        "today_kwh": status.get("today_kwh", 0.0),
+        "solar_lower_w": status.get("solar_lower_w", 0),
+        "tank_temp_c": status.get("tank_temp_c"),
+        "harvi_ct1": status.get("ct1_load", 0),
+        "frequency_hz": status.get("frequency_hz"),
     }
 
 
@@ -136,7 +146,7 @@ def main() -> None:
     args = _parse_args()
     output = Path(args.output)
 
-    serial  = os.environ.get("MYENERGI_SERIAL", "")
+    serial = os.environ.get("MYENERGI_SERIAL", "")
     api_key = os.environ.get("MYENERGI_API_KEY", "")
     if not serial or not api_key:
         logger.error(
@@ -147,15 +157,15 @@ def main() -> None:
         sys.exit(1)
 
     from connectors import MyEnergiConnector
+
     connector = MyEnergiConnector(serial=serial, api_key=api_key)
 
     # ── History pull mode (no continuous polling required) ──────────────────
     if args.history > 0:
-        logger.info(
-            "Pulling last %d days of Eddi history via cloud API...", args.history
-        )
+        logger.info("Pulling last %d days of Eddi history via cloud API...", args.history)
         from datetime import timedelta
-        end_dt   = date.today() - timedelta(days=1)   # yesterday complete
+
+        end_dt = date.today() - timedelta(days=1)  # yesterday complete
         start_dt = end_dt - timedelta(days=args.history - 1)
         rows = connector.get_history_range(start_dt, end_dt)
         if not rows:
@@ -168,6 +178,7 @@ def main() -> None:
             hist_path = output.parent / "eddi_history.csv"
             hist_path.parent.mkdir(parents=True, exist_ok=True)
             import csv as _csv
+
             write_header = not hist_path.exists() or hist_path.stat().st_size == 0
             with open(hist_path, "a", newline="") as f:
                 w = _csv.DictWriter(f, fieldnames=["date", "diverted_kwh", "imported_kwh"])
@@ -190,15 +201,18 @@ def main() -> None:
             consecutive_failures = 0
             logger.info(
                 "mode=%-20s  diverted=%5d W  grid=%+6d W  today=%.3f kWh  solar_lower=%4d W",
-                row["mode"], row["diverted_w"], row["grid_w"],
-                row["today_kwh"], row["solar_lower_w"],
+                row["mode"],
+                row["diverted_w"],
+                row["grid_w"],
+                row["today_kwh"],
+                row["solar_lower_w"],
             )
         else:
             consecutive_failures += 1
             if consecutive_failures >= MAX_FAILURES:
                 logger.error(
                     "%d consecutive failures — pausing 10 minutes before retrying",
-                    consecutive_failures
+                    consecutive_failures,
                 )
                 time.sleep(600)
                 consecutive_failures = 0

@@ -61,20 +61,23 @@ def main() -> None:
     from energy_forecast.models.sklearn_models import build_sklearn_models
 
     proc_dir = ROOT / "data" / "processed" / "splits"
-    res_dir  = ROOT / "outputs" / "results"
+    res_dir = ROOT / "outputs" / "results"
     res_dir.mkdir(parents=True, exist_ok=True)
 
     # ── Load pre-computed splits ───────────────────────────────────────────────
     logger.info("Loading feature-selected splits from %s …", proc_dir)
     X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")
     y_train = pd.read_parquet(proc_dir / "y_train.parquet").squeeze()
-    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")   # noqa: N806
-    y_val   = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
-    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
-    y_test  = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
+    X_val = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
+    y_val = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
+    X_test = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
+    y_test = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
     logger.info(
         "Splits loaded — train: %d | val: %d | test: %d rows, %d features",
-        len(X_train), len(X_val), len(X_test), X_train.shape[1],
+        len(X_train),
+        len(X_val),
+        len(X_test),
+        X_train.shape[1],
     )
 
     # ── Instantiate base models ───────────────────────────────────────────────
@@ -111,13 +114,16 @@ def main() -> None:
     # ── Evaluate on test set ───────────────────────────────────────────────────
     preds = ensemble.predict(X_test)
     test_bids = y_test.index.get_level_values("building_id")
-    test_ts   = y_test.index.get_level_values("timestamp")
-    res = evaluate(y_test, preds, ensemble.name,
-                   building_ids=test_bids, timestamps=test_ts)
+    test_ts = y_test.index.get_level_values("timestamp")
+    res = evaluate(y_test, preds, ensemble.name, building_ids=test_bids, timestamps=test_ts)
     res["train_time_s"] = train_time_s
     logger.info(
         "%s | MAE=%.3f kWh | RMSE=%.3f | R²=%.4f | n=%d",
-        ensemble.name, res["MAE"], res["RMSE"], res["R2"], len(y_test),
+        ensemble.name,
+        res["MAE"],
+        res["RMSE"],
+        res["R2"],
+        len(y_test),
     )
 
     # ── Append to final_metrics.csv ───────────────────────────────────────────

@@ -57,14 +57,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SPLITS_DIR   = PROJECT_ROOT / "data" / "processed" / "splits"
-RESULTS_DIR  = PROJECT_ROOT / "outputs" / "results"
-CONFIG_PATH  = PROJECT_ROOT / "config" / "config.yaml"
+SPLITS_DIR = PROJECT_ROOT / "data" / "processed" / "splits"
+RESULTS_DIR = PROJECT_ROOT / "outputs" / "results"
+CONFIG_PATH = PROJECT_ROOT / "config" / "config.yaml"
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _load_splits(city: str) -> dict:
     """Load pre-computed split parquets for a city."""
@@ -74,8 +75,7 @@ def _load_splits(city: str) -> dict:
         path = SPLITS_DIR / f"{prefix}_{key}.parquet"
         if not path.exists():
             raise FileNotFoundError(
-                f"Split not found: {path}\n"
-                f"Run: python scripts/run_pipeline.py --city {city}"
+                f"Split not found: {path}\n" f"Run: python scripts/run_pipeline.py --city {city}"
             )
         df = pd.read_parquet(path)
         splits[key] = df.squeeze() if key.startswith("y") else df
@@ -115,8 +115,8 @@ def _blend_and_evaluate(
 
     # Trim to the minimum length across y_true and all prediction arrays
     n_min = min(len(y_true_2d), *(len(v) for v in preds_dict.values()))
-    y_true_2d   = y_true_2d[:n_min]
-    preds_dict  = {k: v[:n_min] for k, v in preds_dict.items()}
+    y_true_2d = y_true_2d[:n_min]
+    preds_dict = {k: v[:n_min] for k, v in preds_dict.items()}
 
     blend = np.zeros_like(y_true_2d, dtype=np.float64)
     for name, w in weights.items():
@@ -125,12 +125,13 @@ def _blend_and_evaluate(
 
     # Flatten last step for point evaluation (horizon_mae = per-step profile kept)
     res = evaluate(y_true_2d, blend, model_name=ensemble_name)
-    weight_str = " + ".join(
-        f"{name}({w:.2f})" for name, w in weights.items()
-    )
+    weight_str = " + ".join(f"{name}({w:.2f})" for name, w in weights.items())
     logger.info(
         "%s | weights: %s | MAE=%.4f | R²=%.4f",
-        ensemble_name, weight_str, res["MAE"], res["R2"],
+        ensemble_name,
+        weight_str,
+        res["MAE"],
+        res["R2"],
     )
     return res
 
@@ -138,6 +139,7 @@ def _blend_and_evaluate(
 # ---------------------------------------------------------------------------
 # Model trainers
 # ---------------------------------------------------------------------------
+
 
 def _train_lightgbm(cfg: dict, splits: dict) -> tuple[np.ndarray, np.ndarray, float, float]:
     """Train LightGBM (Setup A) and return (val_preds, test_preds, val_mae, train_time)."""
@@ -149,7 +151,7 @@ def _train_lightgbm(cfg: dict, splits: dict) -> tuple[np.ndarray, np.ndarray, fl
     m.fit(splits["X_train_fs"], splits["y_train"], splits["X_val_fs"], splits["y_val"])
     train_t = time.time() - t0
 
-    val_preds  = m.predict(splits["X_val_fs"])
+    val_preds = m.predict(splits["X_val_fs"])
     test_preds = m.predict(splits["X_test_fs"])
 
     val_mae = float(np.mean(np.abs(splits["y_val"].values - val_preds)))
@@ -164,7 +166,7 @@ def _train_cnnlstm_b(cfg: dict, splits: dict) -> tuple[np.ndarray, np.ndarray, f
     from energy_forecast.models.deep_learning import CNNLSTMForecaster  # noqa: PLC0415
 
     lookback = cfg["sequence"]["lookback"]
-    horizon  = cfg["sequence"]["horizon"]
+    horizon = cfg["sequence"]["horizon"]
 
     logger.info("Training CNN-LSTM (Setup B) — 10 epochs ...")
     tf.keras.backend.clear_session()
@@ -178,21 +180,19 @@ def _train_cnnlstm_b(cfg: dict, splits: dict) -> tuple[np.ndarray, np.ndarray, f
     train_t = time.time() - t0
 
     # CNN-LSTM predict() returns (n_windows, horizon) for H+24
-    val_preds_2d  = m.predict(splits["X_val_fs"])   # (n_val_windows, horizon)
+    val_preds_2d = m.predict(splits["X_val_fs"])  # (n_val_windows, horizon)
     test_preds_2d = m.predict(splits["X_test_fs"])  # (n_test_windows, horizon)
 
     # Build y_true 2D for validation MAE calculation
     y_val_2d = _build_y_true_matrix(splits["y_val"], lookback, horizon)
 
     # Align shapes (CNN-LSTM may produce one fewer window than y_true_2d)
-    min_val  = min(len(y_val_2d), len(val_preds_2d))
+    min_val = min(len(y_val_2d), len(val_preds_2d))
     min_test = min(  # matched below when merging with LightGBM test preds  # noqa: F841
         len(val_preds_2d), len(y_val_2d)  # just for val_mae here
     )
 
-    val_mae = float(
-        np.mean(np.abs(y_val_2d[:min_val, -1] - val_preds_2d[:min_val, -1]))
-    )
+    val_mae = float(np.mean(np.abs(y_val_2d[:min_val, -1] - val_preds_2d[:min_val, -1])))
     logger.info("  CNN-LSTM val_MAE=%.4f  train_time=%.1fs", val_mae, train_t)
     return val_preds_2d, test_preds_2d, val_mae, train_t
 
@@ -213,7 +213,7 @@ def _train_patchtst(cfg: dict, splits: dict) -> tuple[np.ndarray, np.ndarray, fl
     from energy_forecast.models.deep_learning import CNNLSTMForecaster  # noqa: PLC0415
 
     lookback = cfg["sequence"]["lookback"]
-    horizon  = cfg["sequence"]["horizon"]
+    horizon = cfg["sequence"]["horizon"]
 
     logger.info("Training CNN-LSTM (Setup C proxy, 20 epochs) for A+B+C ensemble ...")
     tf.keras.backend.clear_session()
@@ -226,14 +226,12 @@ def _train_patchtst(cfg: dict, splits: dict) -> tuple[np.ndarray, np.ndarray, fl
     m.fit(splits["X_train_fs"], splits["y_train"], splits["X_val_fs"], splits["y_val"])
     train_t = time.time() - t0
 
-    val_preds_2d  = m.predict(splits["X_val_fs"])
+    val_preds_2d = m.predict(splits["X_val_fs"])
     test_preds_2d = m.predict(splits["X_test_fs"])
 
     y_val_2d = _build_y_true_matrix(splits["y_val"], lookback, horizon)
-    min_val  = min(len(y_val_2d), len(val_preds_2d))
-    val_mae  = float(
-        np.mean(np.abs(y_val_2d[:min_val, -1] - val_preds_2d[:min_val, -1]))
-    )
+    min_val = min(len(y_val_2d), len(val_preds_2d))
+    val_mae = float(np.mean(np.abs(y_val_2d[:min_val, -1] - val_preds_2d[:min_val, -1])))
     logger.info("  CNN-LSTM [C-proxy] val_MAE=%.4f  train_time=%.1fs", val_mae, train_t)
     return val_preds_2d, test_preds_2d, val_mae, train_t
 
@@ -241,6 +239,7 @@ def _train_patchtst(cfg: dict, splits: dict) -> tuple[np.ndarray, np.ndarray, fl
 # ---------------------------------------------------------------------------
 # Main evaluation
 # ---------------------------------------------------------------------------
+
 
 def run_cross_setup_ensembles(city: str, include_patchtst: bool = False) -> None:
     from energy_forecast.utils import load_config, set_global_seed  # noqa: PLC0415
@@ -254,7 +253,7 @@ def run_cross_setup_ensembles(city: str, include_patchtst: bool = False) -> None
     set_global_seed(cfg.get("seed", 42))
 
     lookback = cfg["sequence"]["lookback"]
-    horizon  = cfg["sequence"]["horizon"]
+    horizon = cfg["sequence"]["horizon"]
 
     # ── Load splits ──────────────────────────────────────────────────────────
     logger.info("Loading saved splits ...")
@@ -284,19 +283,21 @@ def run_cross_setup_ensembles(city: str, include_patchtst: bool = False) -> None
     # across all 24 horizon steps would be wrong — it predicts H+24 only, not
     # H+1 through H+23, so blending at earlier steps would inflate MAE.
 
-    lgbm_test_flat = lgbm_test          # (n_test,) — H+24 point forecast
+    lgbm_test_flat = lgbm_test  # (n_test,) — H+24 point forecast
 
     # Trim LightGBM to the DL window count (skip first `lookback` steps per
     # building — mirrors the windowing offset in build_sequences()).
     n_buildings = splits["y_test"].index.get_level_values("building_id").nunique()
     lgbm_per_bldg = len(lgbm_test_flat) // n_buildings
-    dl_per_bldg   = len(y_test_2d) // n_buildings
+    dl_per_bldg = len(y_test_2d) // n_buildings
     skip = lgbm_per_bldg - dl_per_bldg
 
-    lgbm_test_trimmed = np.concatenate([
-        lgbm_test_flat[b * lgbm_per_bldg + skip : (b + 1) * lgbm_per_bldg]
-        for b in range(n_buildings)
-    ])  # shape (n_windows,) — aligned to DL window boundaries
+    lgbm_test_trimmed = np.concatenate(
+        [
+            lgbm_test_flat[b * lgbm_per_bldg + skip : (b + 1) * lgbm_per_bldg]
+            for b in range(n_buildings)
+        ]
+    )  # shape (n_windows,) — aligned to DL window boundaries
 
     # Extract H+24 step from CNN-LSTM 2-D predictions
     cnnlstm_test_1d = cnnlstm_test[:, -1]  # (n_windows,) — H+24 predictions only
@@ -306,16 +307,19 @@ def run_cross_setup_ensembles(city: str, include_patchtst: bool = False) -> None
 
     # Final alignment (guard against off-by-one differences)
     n = min(len(y_true_h24), len(lgbm_test_trimmed), len(cnnlstm_test_1d))
-    y_true_aligned     = y_true_h24[:n]
-    lgbm_aligned       = lgbm_test_trimmed[:n]
-    cnnlstm_aligned    = cnnlstm_test_1d[:n]
+    y_true_aligned = y_true_h24[:n]
+    lgbm_aligned = lgbm_test_trimmed[:n]
+    cnnlstm_aligned = cnnlstm_test_1d[:n]
 
     # ── Compute ensemble weights from validation MAE ─────────────────────────
     w_lgbm, w_cnnlstm = _inverse_mae_weights(lgbm_val_mae, cnnlstm_val_mae)
     logger.info(
         "A+B weights (val MAE inverse): LightGBM=%.3f (val_MAE=%.4f)  "
         "CNN-LSTM=%.3f (val_MAE=%.4f)",
-        w_lgbm, lgbm_val_mae, w_cnnlstm, cnnlstm_val_mae,
+        w_lgbm,
+        lgbm_val_mae,
+        w_cnnlstm,
+        cnnlstm_val_mae,
     )
 
     # ── A+B ensemble — H+24 point forecast blend ─────────────────────────────
@@ -328,7 +332,9 @@ def run_cross_setup_ensembles(city: str, include_patchtst: bool = False) -> None
         "CNN-LSTM_SetupB": w_cnnlstm,
     }
     res_ab = _blend_and_evaluate(
-        preds_ab, weights_ab, y_true_aligned,
+        preds_ab,
+        weights_ab,
+        y_true_aligned,
         f"CrossEnsemble_A+B_{city}",
     )
 
@@ -338,12 +344,12 @@ def run_cross_setup_ensembles(city: str, include_patchtst: bool = False) -> None
         # Extract H+24 from proxy model (2-D) and align
         patchtst_test_1d = patchtst_test[:, -1]
         n_abc = min(n, len(patchtst_test_1d))
-        w_l, w_c, w_p = _inverse_mae_weights(
-            lgbm_val_mae, cnnlstm_val_mae, patchtst_val_mae
-        )
+        w_l, w_c, w_p = _inverse_mae_weights(lgbm_val_mae, cnnlstm_val_mae, patchtst_val_mae)
         logger.info(
             "A+B+C weights (val MAE inverse): LightGBM=%.3f  CNN-LSTM=%.3f  Proxy=%.3f",
-            w_l, w_c, w_p,
+            w_l,
+            w_c,
+            w_p,
         )
         preds_abc = {
             "LightGBM_SetupA": lgbm_aligned[:n_abc],
@@ -356,14 +362,14 @@ def run_cross_setup_ensembles(city: str, include_patchtst: bool = False) -> None
             "PatchTST_SetupC": w_p,
         }
         res_abc = _blend_and_evaluate(
-            preds_abc, weights_abc, y_true_aligned[:n_abc],
+            preds_abc,
+            weights_abc,
+            y_true_aligned[:n_abc],
             f"CrossEnsemble_A+B+C_{city}",
         )
     else:
         res_abc = None
-        logger.info(
-            "Skipping A+B+C (--include-patchtst not set; add ~50 min PatchTST run)"
-        )
+        logger.info("Skipping A+B+C (--include-patchtst not set; add ~50 min PatchTST run)")
 
     # ── Save results ─────────────────────────────────────────────────────────
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -406,6 +412,7 @@ def run_cross_setup_ensembles(city: str, include_patchtst: bool = False) -> None
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(

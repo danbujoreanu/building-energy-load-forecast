@@ -78,14 +78,14 @@ class TFTForecaster(BaseForecaster):
                 "Install: pip install pytorch-forecasting lightning"
             ) from e
 
-        tft_cfg  = self.cfg["training"]["tft"]
-        seq_cfg  = self.cfg["sequence"]
-        seed     = self.cfg.get("seed", 42)
+        tft_cfg = self.cfg["training"]["tft"]
+        seq_cfg = self.cfg["sequence"]
+        seed = self.cfg.get("seed", 42)
         pl.seed_everything(seed)
 
         # Combine splits into a single DataFrame for TimeSeriesDataSet
         df_train = self._prepare_df(X_train, y_train, "train")
-        df_val   = self._prepare_df(X_val, y_val, "val") if X_val is not None else df_train.iloc[:0]
+        df_val = self._prepare_df(X_val, y_val, "val") if X_val is not None else df_train.iloc[:0]
 
         df_full = pd.concat([df_train, df_val]).reset_index(drop=True)
         # Sort by building + time before assigning time_idx.
@@ -124,8 +124,8 @@ class TFTForecaster(BaseForecaster):
             target_normalizer=GroupNormalizer(
                 groups=["building_id"],
                 transformation="softplus",  # Thesis value: prevents NaN gradients when
-                center=True,                # target values are near zero (StandardScaler
-            ),                              # default causes loss errors on low-load periods)
+                center=True,  # target values are near zero (StandardScaler
+            ),  # default causes loss errors on low-load periods)
             add_relative_time_idx=True,
             add_target_scales=True,
         )
@@ -138,13 +138,15 @@ class TFTForecaster(BaseForecaster):
         )
 
         train_loader = training_dataset.to_dataloader(
-            train=True, batch_size=tft_cfg["batch_size"],
-            num_workers=0,   # macOS "spawn" multiprocessing adds IPC overhead that
-                             # hurts in-memory datasets — synchronous is faster here.
-                             # Linux/CUDA users can safely raise this to 4+.
+            train=True,
+            batch_size=tft_cfg["batch_size"],
+            num_workers=0,  # macOS "spawn" multiprocessing adds IPC overhead that
+            # hurts in-memory datasets — synchronous is faster here.
+            # Linux/CUDA users can safely raise this to 4+.
         )
         val_loader = val_dataset.to_dataloader(
-            train=False, batch_size=tft_cfg["batch_size"] * 2,
+            train=False,
+            batch_size=tft_cfg["batch_size"] * 2,
             num_workers=0,
         )
 
@@ -155,7 +157,7 @@ class TFTForecaster(BaseForecaster):
         )
         self._target_col_ = target_col
         self._tft_cfg_ = tft_cfg
-        self._seq_cfg_ = seq_cfg   # needed in predict() for horizon
+        self._seq_cfg_ = seq_cfg  # needed in predict() for horizon
 
         tft = TemporalFusionTransformer.from_dataset(
             training_dataset,
@@ -184,14 +186,15 @@ class TFTForecaster(BaseForecaster):
               - live training loss
             so the operator can confirm forward progress and estimate time remaining.
             """
+
             def __init__(self, log_every_n_batches: int = 50):
                 self.n = log_every_n_batches
 
             def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
                 if (batch_idx + 1) % self.n != 0:
                     return
-                total    = trainer.num_training_batches
-                pct      = 100.0 * (batch_idx + 1) / total if total else 0.0
+                total = trainer.num_training_batches
+                pct = 100.0 * (batch_idx + 1) / total if total else 0.0
                 # Loss function is TFT_MAE() so train_loss IS train_MAE.
                 train_mae = (
                     outputs["loss"].item()
@@ -201,9 +204,7 @@ class TFTForecaster(BaseForecaster):
                 # Best val_MAE seen so far (populated after each validation epoch).
                 # Falls back to sanity-check value until epoch 1 validation completes.
                 cb = trainer.callback_metrics
-                val_mae = (
-                    cb.get("val_MAE", cb.get("sanity_check_MAE", None))
-                )
+                val_mae = cb.get("val_MAE", cb.get("sanity_check_MAE", None))
                 val_str = f" | val_MAE {val_mae:.4f}" if val_mae is not None else ""
                 logger.info(
                     "TFT | epoch %d | batch %d/%d (%.0f%%) | train_MAE %.4f%s",
@@ -217,8 +218,9 @@ class TFTForecaster(BaseForecaster):
 
         class _EpochLogger(pl.Callback):
             """Write one clean summary line at the end of each validation epoch."""
+
             def on_validation_epoch_end(self, trainer, pl_module):  # noqa: N802
-                ep      = trainer.current_epoch
+                ep = trainer.current_epoch
                 metrics = {k: f"{v:.4f}" for k, v in trainer.callback_metrics.items()}
                 logger.info("TFT epoch %d complete | %s", ep, metrics)
 
@@ -252,19 +254,19 @@ class TFTForecaster(BaseForecaster):
             gradient_clip_val=tft_cfg["gradient_clip_val"],
             callbacks=callbacks,
             enable_progress_bar=False,  # avoids \r-per-batch flood in log files
-            logger=True,               # MUST be True: enables EarlyStopping verbose
-                                       # messages ("Metric val_loss improved ...").
-                                       # With logger=False those messages are suppressed.
-            accelerator="auto",        # explicitly request auto-detect: MPS on Apple
-            devices=1,                 # Silicon, CUDA on NVIDIA, CPU as fallback.
-                                       # Without this, PL sometimes silently falls back
-                                       # to CPU, making each epoch take hours.
+            logger=True,  # MUST be True: enables EarlyStopping verbose
+            # messages ("Metric val_loss improved ...").
+            # With logger=False those messages are suppressed.
+            accelerator="auto",  # explicitly request auto-detect: MPS on Apple
+            devices=1,  # Silicon, CUDA on NVIDIA, CPU as fallback.
+            # Without this, PL sometimes silently falls back
+            # to CPU, making each epoch take hours.
         )
 
         logger.info("Training TFT (slow model — use --skip-slow during development) ...")
         trainer.fit(tft, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
-        self.model_   = tft
+        self.model_ = tft
         self.trainer_ = trainer
         self._val_loader = val_loader
         self.best_checkpoint_path_ = ckpt_cb.best_model_path
@@ -301,10 +303,8 @@ class TFTForecaster(BaseForecaster):
             offset = int(self._max_time_idx_.get(bid, -1)) + 1
             return pd.Series(range(offset, offset + len(g)), index=g.index)
 
-        df_test["time_idx"] = (
-            df_test
-            .groupby("building_id", group_keys=False)
-            .apply(_continuing_time_idx)
+        df_test["time_idx"] = df_test.groupby("building_id", group_keys=False).apply(
+            _continuing_time_idx
         )
 
         # predict=False creates ALL valid sliding encoder/decoder windows through
@@ -344,6 +344,7 @@ class TFTForecaster(BaseForecaster):
         preds = raw_preds.cpu().numpy()
         horizon = self._seq_cfg_.get("horizon", 1)
         from energy_forecast.models.deep_learning import reshape_dl_predictions
+
         return reshape_dl_predictions(preds, horizon)
 
     # ------------------------------------------------------------------

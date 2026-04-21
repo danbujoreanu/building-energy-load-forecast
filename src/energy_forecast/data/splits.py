@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 # circular imports between loader and splits)
 # ---------------------------------------------------------------------------
 
+
 def _get_timezone(cfg: dict, city: str | None = None) -> str:
     """Return the timezone string for a given city, with fallback chain.
 
@@ -81,13 +82,13 @@ def make_splits(
     target = target or cfg["data"]["target_column"]
     tz = _get_timezone(cfg, city)
     train_end = pd.Timestamp(cfg["splits"]["train_end"], tz=tz)
-    val_end   = pd.Timestamp(cfg["splits"]["val_end"],   tz=tz)
+    val_end = pd.Timestamp(cfg["splits"]["val_end"], tz=tz)
 
     ts = df.index.get_level_values("timestamp")
 
     train_mask = ts <= train_end
-    val_mask   = (ts > train_end) & (ts <= val_end)
-    test_mask  = ts > val_end
+    val_mask = (ts > train_end) & (ts <= val_end)
+    test_mask = ts > val_end
 
     for label, mask in [("train", train_mask), ("val", val_mask), ("test", test_mask)]:
         count = mask.sum()
@@ -98,24 +99,30 @@ def make_splits(
 
     # ── Feature / target separation ───────────────────────────────────────────
     # Drop non-numeric or categorical columns that can't be fed to models
-    drop_cols = [target, "building_category", "energy_label",
-                 "sh_heat_source", "dhw_heat_source", "notes"]
+    drop_cols = [
+        target,
+        "building_category",
+        "energy_label",
+        "sh_heat_source",
+        "dhw_heat_source",
+        "notes",
+    ]
     feature_cols = [c for c in df.columns if c not in drop_cols]
 
     X_train = df.loc[train_mask, feature_cols]  # noqa: N806
     y_train = df.loc[train_mask, target]
-    X_val   = df.loc[val_mask,   feature_cols]  # noqa: N806
-    y_val   = df.loc[val_mask,   target]
-    X_test  = df.loc[test_mask,  feature_cols]  # noqa: N806
-    y_test  = df.loc[test_mask,  target]
+    X_val = df.loc[val_mask, feature_cols]  # noqa: N806
+    y_val = df.loc[val_mask, target]
+    X_test = df.loc[test_mask, feature_cols]  # noqa: N806
+    y_test = df.loc[test_mask, target]
 
     # ── Impute remaining NaN with training-set median (no data leakage) ──────
     # Weather gaps > 3 h and missing metadata are filled with column medians
     # computed from X_train only and then applied to val/test.
     train_medians = X_train.median()
     X_train = X_train.fillna(train_medians)  # noqa: N806
-    X_val   = X_val.fillna(train_medians)  # noqa: N806
-    X_test  = X_test.fillna(train_medians)  # noqa: N806
+    X_val = X_val.fillna(train_medians)  # noqa: N806
+    X_test = X_test.fillna(train_medians)  # noqa: N806
 
     # Post-imputation validation: fillna with medians should eliminate all NaN.
     # If any remain, the column had no non-NaN training values — a data quality issue.
@@ -149,11 +156,11 @@ def make_splits(
     splits = {
         "X_train": X_train_scaled,
         "y_train": y_train,
-        "X_val":   X_val_scaled,
-        "y_val":   y_val,
-        "X_test":  X_test_scaled,
-        "y_test":  y_test,
-        "scaler":  scaler,
+        "X_val": X_val_scaled,
+        "y_val": y_val,
+        "X_test": X_test_scaled,
+        "y_test": y_test,
+        "scaler": scaler,
     }
 
     # ── Persist ───────────────────────────────────────────────────────────────

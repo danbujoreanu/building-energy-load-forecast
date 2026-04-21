@@ -48,14 +48,15 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-RESULTS_DIR  = PROJECT_ROOT / "outputs" / "results"
-SPLITS_DIR   = PROJECT_ROOT / "data" / "processed" / "splits"
-CONFIG_PATH  = PROJECT_ROOT / "config" / "config.yaml"
+RESULTS_DIR = PROJECT_ROOT / "outputs" / "results"
+SPLITS_DIR = PROJECT_ROOT / "data" / "processed" / "splits"
+CONFIG_PATH = PROJECT_ROOT / "config" / "config.yaml"
 
 
 # ---------------------------------------------------------------------------
 # Metrics
 # ---------------------------------------------------------------------------
+
 
 def winkler_score(
     y_true: np.ndarray,
@@ -109,6 +110,7 @@ def mean_interval_width(lower: np.ndarray, upper: np.ndarray) -> float:
 # Per-building breakdown
 # ---------------------------------------------------------------------------
 
+
 def per_building_quantile_metrics(
     y_true: pd.Series,
     q_df: pd.DataFrame,
@@ -123,23 +125,28 @@ def per_building_quantile_metrics(
     rows = []
     for bid in y_true.index.get_level_values("building_id").unique():
         y_b = y_true.xs(bid, level="building_id").values
-        lo  = q_df.xs(bid, level="building_id")["P10"].values
-        hi  = q_df.xs(bid, level="building_id")["P90"].values
+        lo = q_df.xs(bid, level="building_id")["P10"].values
+        hi = q_df.xs(bid, level="building_id")["P90"].values
 
-        rows.append({
-            "building_id":    bid,
-            "n":              len(y_b),
-            "winkler_score":  round(winkler_score(y_b, lo, hi), 4),
-            "coverage_rate":  round(coverage_rate(y_b, lo, hi), 4),
-            "mean_pi_width":  round(mean_interval_width(lo, hi), 4),
-            "p50_mae":        round(float(np.mean(np.abs(y_b - q_df.xs(bid, level="building_id")["P50"].values))), 4),
-        })
+        rows.append(
+            {
+                "building_id": bid,
+                "n": len(y_b),
+                "winkler_score": round(winkler_score(y_b, lo, hi), 4),
+                "coverage_rate": round(coverage_rate(y_b, lo, hi), 4),
+                "mean_pi_width": round(mean_interval_width(lo, hi), 4),
+                "p50_mae": round(
+                    float(np.mean(np.abs(y_b - q_df.xs(bid, level="building_id")["P50"].values))), 4
+                ),
+            }
+        )
     return pd.DataFrame(rows)
 
 
 # ---------------------------------------------------------------------------
 # Main evaluation
 # ---------------------------------------------------------------------------
+
 
 def evaluate_city(city: str) -> dict:
     """Retrain LightGBM_Quantile on saved splits and compute interval metrics.
@@ -173,20 +180,23 @@ def evaluate_city(city: str) -> dict:
 
     X_train = _load("X_train_fs")  # noqa: N806
     y_train = _load("y_train", as_series=True)
-    X_val   = _load("X_val_fs")  # noqa: N806
-    y_val   = _load("y_val", as_series=True)
-    X_test  = _load("X_test_fs")  # noqa: N806
-    y_test  = _load("y_test", as_series=True)
+    X_val = _load("X_val_fs")  # noqa: N806
+    y_val = _load("y_val", as_series=True)
+    X_test = _load("X_test_fs")  # noqa: N806
+    y_test = _load("y_test", as_series=True)
 
     logger.info(
         "Splits loaded — train: %d, val: %d, test: %d, features: %d",
-        len(X_train), len(X_val), len(X_test), X_train.shape[1],
+        len(X_train),
+        len(X_val),
+        len(X_test),
+        X_train.shape[1],
     )
 
     # ── Retrain LightGBM_Quantile ────────────────────────────────────────────
     lgbm_cfg = cfg["training"]["lightgbm"]
-    seed     = cfg.get("seed", 42)
-    model    = LightGBMQuantileForecaster(lgbm_cfg, seed, quantiles=[0.1, 0.5, 0.9])
+    seed = cfg.get("seed", 42)
+    model = LightGBMQuantileForecaster(lgbm_cfg, seed, quantiles=[0.1, 0.5, 0.9])
 
     logger.info("Training LightGBM_Quantile (P10 / P50 / P90) ...")
     model.fit(X_train, y_train, X_val, y_val)
@@ -196,16 +206,16 @@ def evaluate_city(city: str) -> dict:
     # q_df has the same index as X_test (same as y_test)
 
     y_true = y_test.values
-    lower  = q_df["P10"].values
+    lower = q_df["P10"].values
     median = q_df["P50"].values
-    upper  = q_df["P90"].values
+    upper = q_df["P90"].values
 
     # ── Aggregate metrics ────────────────────────────────────────────────────
-    ws       = winkler_score(y_true, lower, upper, alpha=0.20)  # 80% PI → alpha=0.20
-    cov      = coverage_rate(y_true, lower, upper)
+    ws = winkler_score(y_true, lower, upper, alpha=0.20)  # 80% PI → alpha=0.20
+    cov = coverage_rate(y_true, lower, upper)
     pi_width = mean_interval_width(lower, upper)
-    p50_mae  = float(np.mean(np.abs(y_true - median)))
-    n        = len(y_true)
+    p50_mae = float(np.mean(np.abs(y_true - median)))
+    n = len(y_true)
 
     logger.info("── Results ──────────────────────────────────────────────")
     logger.info("  City             : %s", city.upper())
@@ -217,20 +227,20 @@ def evaluate_city(city: str) -> dict:
     logger.info("")
 
     calibration_note = (
-        "well-calibrated" if abs(cov - 0.80) < 0.05
+        "well-calibrated"
+        if abs(cov - 0.80) < 0.05
         else ("over-conservative" if cov > 0.85 else "under-covering")
     )
-    logger.info("  Calibration: %s (coverage %.1f%% vs target 80.0%%)",
-                calibration_note, cov * 100)
+    logger.info("  Calibration: %s (coverage %.1f%% vs target 80.0%%)", calibration_note, cov * 100)
 
     result = {
-        "city":           city,
-        "n_test":         n,
-        "p50_mae":        round(p50_mae, 4),
-        "winkler_score":  round(ws, 4),
-        "coverage_rate":  round(cov, 4),
-        "mean_pi_width":  round(pi_width, 4),
-        "calibration":    calibration_note,
+        "city": city,
+        "n_test": n,
+        "p50_mae": round(p50_mae, 4),
+        "winkler_score": round(ws, 4),
+        "coverage_rate": round(cov, 4),
+        "mean_pi_width": round(pi_width, 4),
+        "calibration": calibration_note,
     }
 
     # ── Per-building breakdown ────────────────────────────────────────────────
@@ -244,12 +254,14 @@ def evaluate_city(city: str) -> dict:
         logger.info("  Saved → %s", pb_path)
 
         # Coverage range across buildings
-        cov_min  = pb_df["coverage_rate"].min()
-        cov_max  = pb_df["coverage_rate"].max()
-        cov_std  = pb_df["coverage_rate"].std()
+        cov_min = pb_df["coverage_rate"].min()
+        cov_max = pb_df["coverage_rate"].max()
+        cov_std = pb_df["coverage_rate"].std()
         logger.info(
             "  Coverage across buildings: min=%.3f  max=%.3f  std=%.3f",
-            cov_min, cov_max, cov_std,
+            cov_min,
+            cov_max,
+            cov_std,
         )
         result["cov_building_min"] = round(float(cov_min), 4)
         result["cov_building_max"] = round(float(cov_max), 4)
@@ -261,7 +273,10 @@ def evaluate_city(city: str) -> dict:
     logger.info(
         "%s & %.3f & %.3f & %.1f%% & %.3f \\\\",
         city.capitalize(),
-        p50_mae, ws, cov * 100, pi_width,
+        p50_mae,
+        ws,
+        cov * 100,
+        pi_width,
     )
 
     return result
@@ -270,6 +285,7 @@ def evaluate_city(city: str) -> dict:
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -316,7 +332,8 @@ def main() -> None:
         logger.info(
             "%s & %.3f & %.3f & %.1f\\%% & %.3f \\\\",
             r["city"].capitalize(),
-            r["p50_mae"], r["winkler_score"],
+            r["p50_mae"],
+            r["winkler_score"],
             r["coverage_rate"] * 100,
             r["mean_pi_width"],
         )

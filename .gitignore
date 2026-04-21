@@ -103,3 +103,12 @@ knowledge/procedural/EDDI_API.md
 # Career intelligence — personal profiles and job research (NEVER in git)
 # These are private documents: other people's profiles, interview notes, job specs
 intel/docs/career/
+
+# Personal meter data — NEVER commit (contains home energy consumption patterns)
+data/ESB\ Smart\ Meter\ Data/
+data/ESB*
+HDF_calckWh*.csv
+HDF_kW*.csv
+
+# ChromaDB vector store (large binaries, machine-specific)
+data/chromadb/

@@ -73,38 +73,41 @@ def main() -> None:  # noqa: PLR0914 (many local vars — dataset reconstruction
             y_b = y.xs(bid, level="building_id").values
             n = len(y_b)
             for i in range(lookback, n - horizon + 1):
-                parts.append(y_b[i: i + horizon])
+                parts.append(y_b[i : i + horizon])
         import numpy as np  # noqa: PLC0415
+
         return np.array(parts, dtype=np.float32)
 
     proc_dir = ROOT / "data" / "processed" / "splits"
-    res_dir  = ROOT / "outputs" / "results"
+    res_dir = ROOT / "outputs" / "results"
     res_dir.mkdir(parents=True, exist_ok=True)
 
     # ── Load splits ────────────────────────────────────────────────────────────
     logger.info("Loading splits …")
     X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")
     y_train = pd.read_parquet(proc_dir / "y_train.parquet").squeeze()
-    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")   # noqa: N806
-    y_val   = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
-    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
-    y_test  = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
+    X_val = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
+    y_val = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
+    X_test = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
+    y_test = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
     logger.info(
         "Splits loaded — train: %d | val: %d | test: %d",
-        len(X_train), len(X_val), len(X_test),
+        len(X_train),
+        len(X_val),
+        len(X_test),
     )
 
     # ── Rebuild training TimeSeriesDataSet (no training!) ─────────────────────
     # We need _training_dataset_ and _max_time_idx_ to call predict().
     # These are built identically to TFTForecaster.fit() but without calling
     # trainer.fit() — so no GPU time is consumed here.
-    seq_cfg    = cfg["sequence"]
+    seq_cfg = cfg["sequence"]
     target_col = cfg["data"]["target_column"]
 
     df_train = TFTForecaster._prepare_df(X_train, y_train, "train")
-    df_val   = TFTForecaster._prepare_df(X_val,   y_val,   "val")
-    df_full  = pd.concat([df_train, df_val]).reset_index(drop=True)
-    df_full  = df_full.sort_values(by=["building_id", "timestamp"]).reset_index(drop=True)
+    df_val = TFTForecaster._prepare_df(X_val, y_val, "val")
+    df_full = pd.concat([df_train, df_val]).reset_index(drop=True)
+    df_full = df_full.sort_values(by=["building_id", "timestamp"]).reset_index(drop=True)
     df_full["time_idx"] = df_full.groupby("building_id").cumcount()
 
     _EXCLUDE = {"building_id", "time_idx", target_col, "split", "timestamp"}
@@ -112,7 +115,8 @@ def main() -> None:  # noqa: PLR0914 (many local vars — dataset reconstruction
 
     logger.info(
         "Building TimeSeriesDataSet — %d train rows, %d features …",
-        len(df_full[df_full["split"] == "train"]), len(time_varying_known),
+        len(df_full[df_full["split"] == "train"]),
+        len(time_varying_known),
     )
     training_dataset = TimeSeriesDataSet(
         df_full[df_full["split"] == "train"],
@@ -137,15 +141,15 @@ def main() -> None:  # noqa: PLR0914 (many local vars — dataset reconstruction
 
     # ── Assemble TFTForecaster state without calling fit() ────────────────────
     tft_obj = TFTForecaster.__new__(TFTForecaster)
-    tft_obj.cfg                 = cfg
-    tft_obj.model_              = None
-    tft_obj.trainer_            = None
-    tft_obj._dataset_params     = {}
-    tft_obj._training_dataset_  = training_dataset
-    tft_obj._max_time_idx_      = df_full.groupby("building_id")["time_idx"].max().to_dict()
-    tft_obj._target_col_        = target_col
-    tft_obj._tft_cfg_           = cfg["training"]["tft"]
-    tft_obj._seq_cfg_           = seq_cfg
+    tft_obj.cfg = cfg
+    tft_obj.model_ = None
+    tft_obj.trainer_ = None
+    tft_obj._dataset_params = {}
+    tft_obj._training_dataset_ = training_dataset
+    tft_obj._max_time_idx_ = df_full.groupby("building_id")["time_idx"].max().to_dict()
+    tft_obj._target_col_ = target_col
+    tft_obj._tft_cfg_ = cfg["training"]["tft"]
+    tft_obj._seq_cfg_ = seq_cfg
 
     # ── Load checkpoint ────────────────────────────────────────────────────────
     if not CKPT_PATH.exists():
@@ -166,7 +170,7 @@ def main() -> None:  # noqa: PLR0914 (many local vars — dataset reconstruction
 
     # ── Build y_true_2d ────────────────────────────────────────────────────────
     lookback = seq_cfg["lookback"]
-    horizon  = seq_cfg["horizon"]
+    horizon = seq_cfg["horizon"]
     y_true_2d = _build_y_true_matrix(y_test, lookback, horizon)
     logger.info("y_true_2d shape: %s", y_true_2d.shape)
 
@@ -177,21 +181,24 @@ def main() -> None:  # noqa: PLR0914 (many local vars — dataset reconstruction
     # beyond the available test data).  Empirically: 2024/243417 = 0.83% NaN rows,
     # and after filtering, exactly 241,393 finite rows remain — matching y_true_2d.
     import numpy as _np  # noqa: PLC0415
+
     finite_mask = ~_np.any(_np.isnan(preds), axis=1)
-    n_nan   = int(_np.sum(~finite_mask))
+    n_nan = int(_np.sum(~finite_mask))
     preds_t = preds[finite_mask]
     logger.info(
         "NaN rows removed: %d (%.2f%%). Finite predictions: %d rows.",
-        n_nan, 100 * n_nan / len(preds), len(preds_t),
+        n_nan,
+        100 * n_nan / len(preds),
+        len(preds_t),
     )
     if len(preds_t) != len(y_true_2d):
         logger.warning(
-            "After NaN filtering, preds (%d) != y_true (%d). "
-            "Truncating to min to proceed.",
-            len(preds_t), len(y_true_2d),
+            "After NaN filtering, preds (%d) != y_true (%d). " "Truncating to min to proceed.",
+            len(preds_t),
+            len(y_true_2d),
         )
         n = min(len(preds_t), len(y_true_2d))
-        preds_t  = preds_t[:n]
+        preds_t = preds_t[:n]
         y_true_t = y_true_2d[:n]
     else:
         y_true_t = y_true_2d
@@ -200,15 +207,19 @@ def main() -> None:  # noqa: PLR0914 (many local vars — dataset reconstruction
     res = evaluate(y_true_t, preds_t, MODEL_NAME)
     logger.info(
         "%s | MAE=%6.3f kWh | RMSE=%6.3f | R²=%.4f | n=%d",
-        MODEL_NAME, res["MAE"], res["RMSE"], res["R2"], n,
+        MODEL_NAME,
+        res["MAE"],
+        res["RMSE"],
+        res["R2"],
+        n,
     )
 
     # ── Append to final_metrics.csv ───────────────────────────────────────────
     csv_path = res_dir / "final_metrics.csv"
-    res["model"]        = MODEL_NAME
-    res["n_samples"]    = n
+    res["model"] = MODEL_NAME
+    res["n_samples"] = n
     res["train_time_s"] = TRAIN_TIME_S
-    res["horizon"]      = horizon
+    res["horizon"] = horizon
     df_res = pd.DataFrame([res])
 
     if csv_path.exists():
@@ -221,7 +232,9 @@ def main() -> None:  # noqa: PLR0914 (many local vars — dataset reconstruction
         df_res.to_csv(csv_path)
         logger.info("Created %s with TFT_SetupB row.", csv_path)
 
-    logger.info("Done.\n%s", df_res[["model", "MAE", "RMSE", "R2", "n_samples"]].to_string(index=False))
+    logger.info(
+        "Done.\n%s", df_res[["model", "MAE", "RMSE", "R2", "n_samples"]].to_string(index=False)
+    )
 
 
 if __name__ == "__main__":

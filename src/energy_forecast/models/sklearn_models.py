@@ -84,6 +84,7 @@ def _build_lgbm_quantile(lgbm_cfg: dict, seed: int) -> LightGBMQuantileForecaste
     """Build the specialised probabilistic forecaster outputting P10/P50/P90 quantiles."""
     return LightGBMQuantileForecaster(lgbm_cfg, seed, name="LightGBM_Quantile")
 
+
 def _build_xgboost(xgb_cfg: dict, seed: int) -> SklearnForecaster:
     """Build XGBoost regressor — MSc thesis rank 2 (MAE 3.42 kWh, ~3s train time)."""
     try:
@@ -123,6 +124,7 @@ class SklearnForecaster(BaseForecaster):
         **kwargs: Any,
     ) -> SklearnForecaster:
         from energy_forecast.validation import DataValidator
+
         DataValidator.validate_training_data(X_train, y_train, X_val, y_val, split_name=self.name)
         logger.info("Training %s ...", self.name)
         fit_params: dict = {}
@@ -136,6 +138,7 @@ class SklearnForecaster(BaseForecaster):
         if X_val is not None and hasattr(self.estimator, "fit"):
             try:
                 import lightgbm as lgb
+
                 if isinstance(self.estimator, lgb.LGBMRegressor):
                     fit_params = {
                         "eval_set": [(X_val, y_val.values)],
@@ -148,6 +151,7 @@ class SklearnForecaster(BaseForecaster):
         if X_val is not None and not fit_params:
             try:
                 from xgboost import XGBRegressor
+
                 if isinstance(self.estimator, XGBRegressor):
                     fit_params = {
                         "eval_set": [(X_val, y_val.values)],
@@ -178,7 +182,7 @@ class LightGBMQuantileForecaster(BaseForecaster):
         lgbm_cfg: dict,
         seed: int,
         name: str = "LightGBM_Quantile",
-        quantiles: list[float] = [0.1, 0.5, 0.9]
+        quantiles: list[float] = [0.1, 0.5, 0.9],
     ) -> None:
         self.name = name
         self.lgbm_cfg = lgbm_cfg.copy()
@@ -195,6 +199,7 @@ class LightGBMQuantileForecaster(BaseForecaster):
         **kwargs: Any,
     ) -> LightGBMQuantileForecaster:
         from energy_forecast.validation import DataValidator
+
         DataValidator.validate_training_data(X_train, y_train, X_val, y_val, split_name=self.name)
         try:
             import lightgbm as lgb
@@ -204,7 +209,7 @@ class LightGBMQuantileForecaster(BaseForecaster):
         for alpha in self.quantiles:
             logger.info("Training %s for alpha=%s", self.name, alpha)
             model = lgb.LGBMRegressor(
-                objective='quantile',
+                objective="quantile",
                 alpha=alpha,
                 n_estimators=self.lgbm_cfg["n_estimators"],
                 learning_rate=self.lgbm_cfg["learning_rate"],

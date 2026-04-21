@@ -49,12 +49,13 @@ if str(_PROJECT_ROOT) not in sys.path:
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-_DEFAULT_MAX_ITEMS = 20   # Per feed per run
-_ITEM_CHAR_LIMIT   = 8_000  # Truncate very long articles
+_DEFAULT_MAX_ITEMS = 20  # Per feed per run
+_ITEM_CHAR_LIMIT = 8_000  # Truncate very long articles
 
 
 def _load_config() -> dict:
     import yaml
+
     cfg_path = _PROJECT_ROOT / "config" / "config.yaml"
     with open(cfg_path) as f:
         return yaml.safe_load(f)
@@ -81,7 +82,7 @@ def _fetch_feed(url: str) -> list[dict]:
 def _entry_to_markdown(entry: dict, feed_name: str) -> tuple[str, dict]:
     """Convert a feed entry to markdown text + metadata dict."""
     title = entry.get("title", "Untitled")
-    link  = entry.get("link", "")
+    link = entry.get("link", "")
     published = entry.get("published", entry.get("updated", ""))
 
     # Build content: prefer summary > content > description
@@ -95,6 +96,7 @@ def _entry_to_markdown(entry: dict, feed_name: str) -> tuple[str, dict]:
 
     # Strip HTML tags simply
     import re
+
     content_clean = re.sub(r"<[^>]+>", " ", content_raw)
     content_clean = re.sub(r"\s+", " ", content_clean).strip()
     content_clean = content_clean[:_ITEM_CHAR_LIMIT]
@@ -171,7 +173,7 @@ def ingest_feeds(tier_filter: str | None = None, max_items: int = _DEFAULT_MAX_I
             if isinstance(feed_entry, str):
                 url, name = feed_entry, feed_entry
             else:
-                url  = feed_entry.get("url", "")
+                url = feed_entry.get("url", "")
                 name = feed_entry.get("name", url)
 
             if not url:
@@ -197,6 +199,7 @@ def ingest_feeds(tier_filter: str | None = None, max_items: int = _DEFAULT_MAX_I
 
                     # Embed and store
                     from intel.ingest import _get_embedding_model
+
                     embed_model = _get_embedding_model()
                     embedding = embed_model.get_text_embedding(markdown)
 
@@ -247,14 +250,20 @@ def main():
     parser = argparse.ArgumentParser(
         description="Intel feed ingester — RSS/Atom/Substack → ChromaDB"
     )
-    parser.add_argument("--ingest", action="store_true",
-                        help="Ingest all configured feeds")
-    parser.add_argument("--tier", type=str, default=None,
-                        help="Ingest only this tier (e.g. strategic, research, market)")
-    parser.add_argument("--max-items", type=int, default=_DEFAULT_MAX_ITEMS,
-                        help=f"Max new items per feed per run (default: {_DEFAULT_MAX_ITEMS})")
-    parser.add_argument("--status", action="store_true",
-                        help="Show item counts per collection")
+    parser.add_argument("--ingest", action="store_true", help="Ingest all configured feeds")
+    parser.add_argument(
+        "--tier",
+        type=str,
+        default=None,
+        help="Ingest only this tier (e.g. strategic, research, market)",
+    )
+    parser.add_argument(
+        "--max-items",
+        type=int,
+        default=_DEFAULT_MAX_ITEMS,
+        help=f"Max new items per feed per run (default: {_DEFAULT_MAX_ITEMS})",
+    )
+    parser.add_argument("--status", action="store_true", help="Show item counts per collection")
     args = parser.parse_args()
 
     if args.status:
@@ -262,7 +271,9 @@ def main():
         return
 
     if args.ingest:
-        print(f"\n🌐 Ingesting intel feeds" + (f" (tier: {args.tier})" if args.tier else "") + "...\n")
+        print(
+            f"\n🌐 Ingesting intel feeds" + (f" (tier: {args.tier})" if args.tier else "") + "...\n"
+        )
         results = ingest_feeds(tier_filter=args.tier, max_items=args.max_items)
         total_new = sum(v["ingested"] for tier in results.values() for v in tier.values())
         print(f"\n✅ Done — {total_new} new items ingested across {len(results)} tier(s)")

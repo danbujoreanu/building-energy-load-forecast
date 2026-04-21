@@ -55,8 +55,8 @@ logger = logging.getLogger(__name__)
 class DriftSeverity(str, Enum):
     """Severity levels for any single drift check or an aggregated report."""
 
-    OK = "ok"           # All checks pass; no action needed
-    WARNING = "warning" # Drift detected — monitor closely
+    OK = "ok"  # All checks pass; no action needed
+    WARNING = "warning"  # Drift detected — monitor closely
     CRITICAL = "critical"  # Drift is severe — retrain recommended
 
 
@@ -305,9 +305,7 @@ class DriftReport:
                 )
             if len(self.feature_results) > 10:
                 n_remaining = len(self.feature_results) - 10
-                drifted_remaining = sum(
-                    1 for r in self.feature_results[10:] if r.is_drifted
-                )
+                drifted_remaining = sum(1 for r in self.feature_results[10:] if r.is_drifted)
                 lines.append(
                     f"\n_...{n_remaining} more features"
                     f" ({drifted_remaining} drifted, not shown)_"
@@ -393,16 +391,10 @@ class DriftDetector:
             else float(mon_cfg.get("mae_threshold_multiplier", mae_threshold_multiplier))
         )
         self._ks_alpha: float = (
-            ks_alpha
-            if ks_alpha != 0.05
-            else float(mon_cfg.get("ks_alpha", ks_alpha))
+            ks_alpha if ks_alpha != 0.05 else float(mon_cfg.get("ks_alpha", ks_alpha))
         )
-        self._psi_warning: float = float(
-            mon_cfg.get("psi_warning", self.PSI_WARNING_THRESHOLD)
-        )
-        self._psi_critical: float = float(
-            mon_cfg.get("psi_critical", self.PSI_CRITICAL_THRESHOLD)
-        )
+        self._psi_warning: float = float(mon_cfg.get("psi_warning", self.PSI_WARNING_THRESHOLD))
+        self._psi_critical: float = float(mon_cfg.get("psi_critical", self.PSI_CRITICAL_THRESHOLD))
 
         logger.debug(
             "DriftDetector initialised | window=%dd | mae_mult=%.2f | ks_alpha=%.3f"
@@ -443,9 +435,7 @@ class DriftDetector:
         """
         if feature_names is None:
             numeric_cols = X_reference.select_dtypes(include=[np.number]).columns
-            feature_names = [
-                c for c in numeric_cols if c in X_check.columns
-            ]
+            feature_names = [c for c in numeric_cols if c in X_check.columns]
 
         results: list[FeatureDriftResult] = []
 
@@ -481,9 +471,7 @@ class DriftDetector:
 
         results.sort(key=lambda r: r.psi, reverse=True)
         n_drifted = sum(1 for r in results if r.is_drifted)
-        logger.info(
-            "Feature drift check: %d/%d features drifted", n_drifted, len(results)
-        )
+        logger.info("Feature drift check: %d/%d features drifted", n_drifted, len(results))
         return results
 
     def check_target_drift(
@@ -514,12 +502,8 @@ class DriftDetector:
         chk_mean, chk_std = float(np.mean(chk)), float(np.std(chk))
 
         # Avoid division by zero if reference is degenerate
-        mean_shift_pct = (
-            100.0 * (chk_mean - ref_mean) / ref_mean if ref_mean != 0.0 else 0.0
-        )
-        std_shift_pct = (
-            100.0 * (chk_std - ref_std) / ref_std if ref_std != 0.0 else 0.0
-        )
+        mean_shift_pct = 100.0 * (chk_mean - ref_mean) / ref_mean if ref_mean != 0.0 else 0.0
+        std_shift_pct = 100.0 * (chk_std - ref_std) / ref_std if ref_std != 0.0 else 0.0
 
         is_drifted = float(ks_pval) < self._ks_alpha
 
@@ -883,21 +867,15 @@ class DriftDetector:
         """
         n_features = len(feature_results)
         n_drifted = sum(1 for r in feature_results if r.is_drifted)
-        n_critical = sum(
-            1 for r in feature_results if r.severity == DriftSeverity.CRITICAL
-        )
+        n_critical = sum(1 for r in feature_results if r.severity == DriftSeverity.CRITICAL)
 
-        parts: list[str] = [
-            f"Drift check for {model_name} on {city}:"
-        ]
+        parts: list[str] = [f"Drift check for {model_name} on {city}:"]
 
         # Features
         if n_features == 0:
             parts.append("No numeric features were available for drift assessment.")
         elif n_drifted == 0:
-            parts.append(
-                f"All {n_features} feature(s) are within normal distribution bounds."
-            )
+            parts.append(f"All {n_features} feature(s) are within normal distribution bounds.")
         else:
             worst = feature_results[0]
             parts.append(
@@ -936,9 +914,7 @@ class DriftDetector:
                     f" ({r.ratio:.2f}× training MAE — within threshold)."
                 )
         else:
-            parts.append(
-                "No model predictions provided — rolling MAE check was skipped."
-            )
+            parts.append("No model predictions provided — rolling MAE check was skipped.")
 
         # Overall verdict
         sev_str = overall_severity.value.upper()

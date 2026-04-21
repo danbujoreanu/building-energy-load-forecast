@@ -61,16 +61,8 @@ def load_esb_csv(path: str) -> pd.DataFrame:
     df["ts"] = pd.to_datetime(df["Read Date and End Time"], dayfirst=True)
     df = df.sort_values("ts").reset_index(drop=True)
 
-    pivot = (
-        df.groupby(["ts", "Read Type"])["Read Value"]
-        .sum()
-        .unstack("Read Type")
-        .fillna(0)
-    )
-    col_map = {
-        c: ("import_kwh" if "Import" in c else "export_kwh")
-        for c in pivot.columns
-    }
+    pivot = df.groupby(["ts", "Read Type"])["Read Value"].sum().unstack("Read Type").fillna(0)
+    col_map = {c: ("import_kwh" if "Import" in c else "export_kwh") for c in pivot.columns}
     pivot = pivot.rename(columns=col_map)
 
     for col in ("import_kwh", "export_kwh"):
@@ -89,6 +81,7 @@ def load_esb_csv(path: str) -> pd.DataFrame:
 # Monthly breakdown
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def compute_monthly_breakdown(hourly: pd.DataFrame) -> list[dict]:
     """Compute per-month billing breakdown."""
     records = []
@@ -102,43 +95,45 @@ def compute_monthly_breakdown(hourly: pd.DataFrame) -> list[dict]:
         month = period.month
         days_in_month = monthrange(year, month)[1]
 
-        import_kwh   = grp["import_kwh"].sum()
-        export_kwh   = grp["export_kwh"].sum()
-        free_kwh     = grp.loc[grp["slot"] == "free",  "import_kwh"].sum()
-        peak_kwh     = grp.loc[grp["slot"] == "peak",  "import_kwh"].sum()
-        night_kwh    = grp.loc[grp["slot"] == "night", "import_kwh"].sum()
-        day_kwh      = grp.loc[grp["slot"] == "day",   "import_kwh"].sum()
+        import_kwh = grp["import_kwh"].sum()
+        export_kwh = grp["export_kwh"].sum()
+        free_kwh = grp.loc[grp["slot"] == "free", "import_kwh"].sum()
+        peak_kwh = grp.loc[grp["slot"] == "peak", "import_kwh"].sum()
+        night_kwh = grp.loc[grp["slot"] == "night", "import_kwh"].sum()
+        day_kwh = grp.loc[grp["slot"] == "day", "import_kwh"].sum()
 
         # Free slot is capped at 100 kWh — usage beyond cap is billed at day rate
         billed_free_kwh = min(free_kwh, FREE_CAP_KWH)
-        overflow_kwh    = max(0.0, free_kwh - FREE_CAP_KWH)
+        overflow_kwh = max(0.0, free_kwh - FREE_CAP_KWH)
 
         energy_cost = (
             billed_free_kwh * BGE["free"]
-            + overflow_kwh  * BGE["day"]
-            + peak_kwh      * BGE["peak"]
-            + night_kwh     * BGE["night"]
-            + day_kwh       * BGE["day"]
+            + overflow_kwh * BGE["day"]
+            + peak_kwh * BGE["peak"]
+            + night_kwh * BGE["night"]
+            + day_kwh * BGE["day"]
         )
-        export_credit  = export_kwh * BGE["export"]
-        standing       = days_in_month * BGE["standing_daily"]
-        net_bill       = energy_cost + standing - export_credit
+        export_credit = export_kwh * BGE["export"]
+        standing = days_in_month * BGE["standing_daily"]
+        net_bill = energy_cost + standing - export_credit
 
-        records.append({
-            "month":          str(period),
-            "days_in_month":  days_in_month,
-            "import_kwh":     round(import_kwh,  2),
-            "export_kwh":     round(export_kwh,  2),
-            "free_kwh":       round(free_kwh,    2),
-            "peak_kwh":       round(peak_kwh,    2),
-            "night_kwh":      round(night_kwh,   2),
-            "day_kwh":        round(day_kwh,     2),
-            "overflow_kwh":   round(overflow_kwh, 2),
-            "energy_cost":    round(energy_cost,  2),
-            "export_credit":  round(export_credit, 2),
-            "standing_charge": round(standing,    2),
-            "net_bill":        round(net_bill,    2),
-        })
+        records.append(
+            {
+                "month": str(period),
+                "days_in_month": days_in_month,
+                "import_kwh": round(import_kwh, 2),
+                "export_kwh": round(export_kwh, 2),
+                "free_kwh": round(free_kwh, 2),
+                "peak_kwh": round(peak_kwh, 2),
+                "night_kwh": round(night_kwh, 2),
+                "day_kwh": round(day_kwh, 2),
+                "overflow_kwh": round(overflow_kwh, 2),
+                "energy_cost": round(energy_cost, 2),
+                "export_credit": round(export_credit, 2),
+                "standing_charge": round(standing, 2),
+                "net_bill": round(net_bill, 2),
+            }
+        )
 
     return records
 
@@ -146,6 +141,7 @@ def compute_monthly_breakdown(hourly: pd.DataFrame) -> list[dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 # Saturday free-window analysis
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def compute_saturday_analysis(hourly: pd.DataFrame) -> dict:
     """Per-Saturday and monthly Saturday free-window statistics.
@@ -160,17 +156,11 @@ def compute_saturday_analysis(hourly: pd.DataFrame) -> dict:
     Saturday (full correction requires Eddi history API).
     """
     free = hourly[
-        (hourly.index.weekday == 5)
-        & (hourly.index.hour >= 9)
-        & (hourly.index.hour < 17)
+        (hourly.index.weekday == 5) & (hourly.index.hour >= 9) & (hourly.index.hour < 17)
     ].copy()
     free["date"] = free.index.date
 
-    per_sat = (
-        free.groupby("date")[["import_kwh", "export_kwh"]]
-        .sum()
-        .reset_index()
-    )
+    per_sat = free.groupby("date")[["import_kwh", "export_kwh"]].sum().reset_index()
     per_sat.columns = ["date", "free_kwh", "sat_export_kwh"]
     per_sat["month"] = pd.to_datetime(per_sat["date"]).dt.to_period("M").astype(str)
     # Solar active flag: >0.5 kWh export in the free window = panels generating
@@ -180,36 +170,40 @@ def compute_saturday_analysis(hourly: pd.DataFrame) -> dict:
         per_sat.groupby("month")[["free_kwh", "sat_export_kwh"]]
         .sum()
         .reset_index()
-        .rename(columns={
-            "free_kwh":        "monthly_free_kwh",
-            "sat_export_kwh":  "monthly_sat_export_kwh",
-        })
+        .rename(
+            columns={
+                "free_kwh": "monthly_free_kwh",
+                "sat_export_kwh": "monthly_sat_export_kwh",
+            }
+        )
     )
-    monthly_sat["cap_used_pct"]  = (monthly_sat["monthly_free_kwh"] / FREE_CAP_KWH * 100).round(1)
-    monthly_sat["headroom_kwh"]  = (FREE_CAP_KWH - monthly_sat["monthly_free_kwh"]).clip(lower=0).round(2)
+    monthly_sat["cap_used_pct"] = (monthly_sat["monthly_free_kwh"] / FREE_CAP_KWH * 100).round(1)
+    monthly_sat["headroom_kwh"] = (
+        (FREE_CAP_KWH - monthly_sat["monthly_free_kwh"]).clip(lower=0).round(2)
+    )
     # Flag months where solar export suggests Eddi diversion is hiding real consumption
     monthly_sat["solar_undercount_flag"] = monthly_sat["monthly_sat_export_kwh"] > 2.0
 
     sat_list = [
         {
-            "date":            str(r.date),
-            "free_kwh":        round(r.free_kwh, 2),
-            "sat_export_kwh":  round(r.sat_export_kwh, 2),
-            "solar_active":    bool(r.solar_active),
+            "date": str(r.date),
+            "free_kwh": round(r.free_kwh, 2),
+            "sat_export_kwh": round(r.sat_export_kwh, 2),
+            "solar_active": bool(r.solar_active),
         }
         for r in per_sat.itertuples()
     ]
 
     return {
-        "per_saturday":             sat_list,
-        "monthly_saturday":         monthly_sat.round(2).to_dict("records"),
-        "avg_saturday_kwh":         round(per_sat["free_kwh"].mean(), 2),
-        "max_saturday_kwh":         round(per_sat["free_kwh"].max(),  2),
-        "min_saturday_kwh":         round(per_sat["free_kwh"].min(),  2),
-        "monthly_free_avg_kwh":     round(monthly_sat["monthly_free_kwh"].mean(), 2),
-        "monthly_headroom_avg":     round(monthly_sat["headroom_kwh"].mean(), 2),
-        "avg_sat_export_kwh":       round(per_sat["sat_export_kwh"].mean(), 2),
-        "solar_active_saturdays":   int(per_sat["solar_active"].sum()),
+        "per_saturday": sat_list,
+        "monthly_saturday": monthly_sat.round(2).to_dict("records"),
+        "avg_saturday_kwh": round(per_sat["free_kwh"].mean(), 2),
+        "max_saturday_kwh": round(per_sat["free_kwh"].max(), 2),
+        "min_saturday_kwh": round(per_sat["free_kwh"].min(), 2),
+        "monthly_free_avg_kwh": round(monthly_sat["monthly_free_kwh"].mean(), 2),
+        "monthly_headroom_avg": round(monthly_sat["headroom_kwh"].mean(), 2),
+        "avg_sat_export_kwh": round(per_sat["sat_export_kwh"].mean(), 2),
+        "solar_active_saturdays": int(per_sat["solar_active"].sum()),
         "solar_undercount_note": (
             "free_kwh = grid import only. In summer, Eddi diverts solar to hot "
             "water before it reaches the grid meter — not counted here. "
@@ -225,6 +219,7 @@ def compute_saturday_analysis(hourly: pd.DataFrame) -> dict:
 # Optimisation score
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def compute_optimisation_score(
     monthly_breakdown: list[dict],
     saturday_analysis: dict,
@@ -232,31 +227,27 @@ def compute_optimisation_score(
     """Compute the 0–100 composite optimisation score."""
     monthly_free_avg = saturday_analysis["monthly_free_avg_kwh"]
 
-    total_import    = sum(m["import_kwh"] for m in monthly_breakdown)
-    total_peak      = sum(m["peak_kwh"]   for m in monthly_breakdown)
-    total_night     = sum(m["night_kwh"]  for m in monthly_breakdown)
+    total_import = sum(m["import_kwh"] for m in monthly_breakdown)
+    total_peak = sum(m["peak_kwh"] for m in monthly_breakdown)
+    total_night = sum(m["night_kwh"] for m in monthly_breakdown)
 
-    peak_pct  = (total_peak  / total_import * 100) if total_import > 0 else 0.0
+    peak_pct = (total_peak / total_import * 100) if total_import > 0 else 0.0
     night_pct = (total_night / total_import * 100) if total_import > 0 else 0.0
 
-    free_score  = min(100.0, (monthly_free_avg / FREE_CAP_KWH) * 100.0)
-    peak_score  = max(0.0,   100.0 - (peak_pct  * 15.0))
+    free_score = min(100.0, (monthly_free_avg / FREE_CAP_KWH) * 100.0)
+    peak_score = max(0.0, 100.0 - (peak_pct * 15.0))
     night_score = min(100.0, night_pct * 3.0)
 
-    overall = (
-        free_score  * 0.50
-        + peak_score  * 0.30
-        + night_score * 0.20
-    )
+    overall = free_score * 0.50 + peak_score * 0.30 + night_score * 0.20
 
     return {
-        "overall":          round(overall,     1),
-        "free_score":       round(free_score,  1),
-        "peak_score":       round(peak_score,  1),
-        "night_score":      round(night_score, 1),
+        "overall": round(overall, 1),
+        "free_score": round(free_score, 1),
+        "peak_score": round(peak_score, 1),
+        "night_score": round(night_score, 1),
         "free_utilisation_pct": round(free_score, 1),
-        "peak_pct":         round(peak_pct,    2),
-        "night_pct":        round(night_pct,   2),
+        "peak_pct": round(peak_pct, 2),
+        "night_pct": round(night_pct, 2),
     }
 
 
@@ -264,30 +255,32 @@ def compute_optimisation_score(
 # Money on the table
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def compute_money_on_table(
     monthly_breakdown: list[dict],
     saturday_analysis: dict,
 ) -> dict:
     """Quantify unrealised savings."""
-    monthly_free_avg      = saturday_analysis["monthly_free_avg_kwh"]
-    unused_free_monthly   = max(0.0, FREE_CAP_KWH - monthly_free_avg)
-    monthly_saving_pot    = unused_free_monthly * BGE["day"]
-    annual_saving_pot     = monthly_saving_pot * 12
+    monthly_free_avg = saturday_analysis["monthly_free_avg_kwh"]
+    unused_free_monthly = max(0.0, FREE_CAP_KWH - monthly_free_avg)
+    monthly_saving_pot = unused_free_monthly * BGE["day"]
+    annual_saving_pot = monthly_saving_pot * 12
 
     total_peak_kwh = sum(m["peak_kwh"] for m in monthly_breakdown)
-    peak_overpay   = total_peak_kwh * (BGE["peak"] - BGE["day"])
+    peak_overpay = total_peak_kwh * (BGE["peak"] - BGE["day"])
 
     return {
-        "unused_free_kwh_monthly_avg":  round(unused_free_monthly,  2),
-        "monthly_saving_potential_eur": round(monthly_saving_pot,   2),
-        "annual_saving_potential_eur":  round(annual_saving_pot,    2),
-        "peak_overpay_total_eur":       round(peak_overpay,         2),
+        "unused_free_kwh_monthly_avg": round(unused_free_monthly, 2),
+        "monthly_saving_potential_eur": round(monthly_saving_pot, 2),
+        "annual_saving_potential_eur": round(annual_saving_pot, 2),
+        "peak_overpay_total_eur": round(peak_overpay, 2),
     }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Recommendations
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def generate_recommendations(
     score: dict,
@@ -296,8 +289,8 @@ def generate_recommendations(
 ) -> list[str]:
     """Return a list of actionable recommendation strings."""
     recs = []
-    free_util  = score["free_utilisation_pct"]
-    peak_pct   = score["peak_pct"]
+    free_util = score["free_utilisation_pct"]
+    peak_pct = score["peak_pct"]
     monthly_free_avg = saturday_analysis["monthly_free_avg_kwh"]
 
     if free_util < 60:
@@ -309,7 +302,7 @@ def generate_recommendations(
 
     if peak_pct > 2.0:
         total_import = sum(m["import_kwh"] for m in monthly_breakdown)
-        months       = len(monthly_breakdown)
+        months = len(monthly_breakdown)
         peak_monthly = (total_import * peak_pct / 100) / max(months, 1)
         recs.append(
             f"You have {peak_monthly:.1f} kWh at peak rate monthly. "
@@ -318,14 +311,13 @@ def generate_recommendations(
 
     # Summer (May–Sep) free-window analysis — solar undercount aware
     summer_months = [
-        m for m in saturday_analysis.get("monthly_saturday", [])
+        m
+        for m in saturday_analysis.get("monthly_saturday", [])
         if int(m["month"].split("-")[1]) in (5, 6, 7, 8, 9)
     ]
     if summer_months:
         summer_free_avg = np.mean([m["monthly_free_kwh"] for m in summer_months])
-        summer_export_avg = np.mean(
-            [m.get("monthly_sat_export_kwh", 0.0) for m in summer_months]
-        )
+        summer_export_avg = np.mean([m.get("monthly_sat_export_kwh", 0.0) for m in summer_months])
         if summer_free_avg < 40:
             if summer_export_avg > 2.0:
                 recs.append(
@@ -343,7 +335,9 @@ def generate_recommendations(
                 )
 
     if not recs:
-        recs.append("Your usage is well-optimised for this plan. Keep Saturday appliances in the 09:00–17:00 window.")
+        recs.append(
+            "Your usage is well-optimised for this plan. Keep Saturday appliances in the 09:00–17:00 window."
+        )
 
     return recs
 
@@ -351,6 +345,7 @@ def generate_recommendations(
 # ─────────────────────────────────────────────────────────────────────────────
 # Report printer
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def print_report(result: dict) -> None:
     sep = "=" * 64
@@ -364,19 +359,29 @@ def print_report(result: dict) -> None:
 
     s = result["optimisation_score"]
     print(f"\n  Optimisation Score:  {s['overall']:.1f} / 100")
-    print(f"    Free-window score: {s['free_score']:.1f}  (weight 50%)  — utilisation {s['free_utilisation_pct']:.1f}%")
-    print(f"    Peak-avoid score:  {s['peak_score']:.1f}  (weight 30%)  — peak consumption {s['peak_pct']:.2f}% of total")
-    print(f"    Night-shift score: {s['night_score']:.1f}  (weight 20%)  — night consumption {s['night_pct']:.2f}% of total")
+    print(
+        f"    Free-window score: {s['free_score']:.1f}  (weight 50%)  — utilisation {s['free_utilisation_pct']:.1f}%"
+    )
+    print(
+        f"    Peak-avoid score:  {s['peak_score']:.1f}  (weight 30%)  — peak consumption {s['peak_pct']:.2f}% of total"
+    )
+    print(
+        f"    Night-shift score: {s['night_score']:.1f}  (weight 20%)  — night consumption {s['night_pct']:.2f}% of total"
+    )
 
     sa = result["saturday_analysis"]
     print(f"\n  Saturday free window:")
     print(f"    Avg per Saturday:  {sa['avg_saturday_kwh']:.1f} kWh  (grid import only)")
-    print(f"    Monthly avg:       {sa['monthly_free_avg_kwh']:.1f} kWh  (cap: {FREE_CAP_KWH:.0f} kWh)")
+    print(
+        f"    Monthly avg:       {sa['monthly_free_avg_kwh']:.1f} kWh  (cap: {FREE_CAP_KWH:.0f} kWh)"
+    )
     print(f"    Monthly headroom:  {sa['monthly_headroom_avg']:.1f} kWh unused on average")
     if sa.get("avg_sat_export_kwh", 0) > 0.5:
         n_solar = sa.get("solar_active_saturdays", 0)
-        print(f"    Avg Saturday solar export: {sa['avg_sat_export_kwh']:.1f} kWh/month  "
-              f"({n_solar} Saturdays with active solar generation)")
+        print(
+            f"    Avg Saturday solar export: {sa['avg_sat_export_kwh']:.1f} kWh/month  "
+            f"({n_solar} Saturdays with active solar generation)"
+        )
         print(f"    Note: Eddi solar diversion not in grid data — summer score is conservative.")
 
     mot = result["money_on_table"]
@@ -410,6 +415,7 @@ def print_report(result: dict) -> None:
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Score your BGE Free Time Saturday plan utilisation."
@@ -428,29 +434,33 @@ def main() -> None:
 
     logger.info("Loading ESB CSV: %s", args.csv)
     hourly = load_esb_csv(args.csv)
-    logger.info("Loaded %s hourly rows  (%s → %s)",
-                f"{len(hourly):,}", hourly.index.min().date(), hourly.index.max().date())
+    logger.info(
+        "Loaded %s hourly rows  (%s → %s)",
+        f"{len(hourly):,}",
+        hourly.index.min().date(),
+        hourly.index.max().date(),
+    )
 
     monthly_breakdown = compute_monthly_breakdown(hourly)
     saturday_analysis = compute_saturday_analysis(hourly)
-    score             = compute_optimisation_score(monthly_breakdown, saturday_analysis)
-    money             = compute_money_on_table(monthly_breakdown, saturday_analysis)
-    recommendations   = generate_recommendations(score, saturday_analysis, monthly_breakdown)
+    score = compute_optimisation_score(monthly_breakdown, saturday_analysis)
+    money = compute_money_on_table(monthly_breakdown, saturday_analysis)
+    recommendations = generate_recommendations(score, saturday_analysis, monthly_breakdown)
 
     result = {
         "date_range": {
             "start": str(hourly.index.min().date()),
-            "end":   str(hourly.index.max().date()),
+            "end": str(hourly.index.max().date()),
         },
-        "total_days":         (hourly.index.max() - hourly.index.min()).days + 1,
-        "total_import_kwh":   round(hourly["import_kwh"].sum(), 2),
-        "total_export_kwh":   round(hourly["export_kwh"].sum(), 2),
-        "monthly_breakdown":  monthly_breakdown,
-        "saturday_analysis":  saturday_analysis,
+        "total_days": (hourly.index.max() - hourly.index.min()).days + 1,
+        "total_import_kwh": round(hourly["import_kwh"].sum(), 2),
+        "total_export_kwh": round(hourly["export_kwh"].sum(), 2),
+        "monthly_breakdown": monthly_breakdown,
+        "saturday_analysis": saturday_analysis,
         "optimisation_score": score,
-        "money_on_table":     money,
-        "recommendations":    recommendations,
-        "tariff_used":        {k: v for k, v in BGE.items()},
+        "money_on_table": money,
+        "recommendations": recommendations,
+        "tariff_used": {k: v for k, v in BGE.items()},
     }
 
     print_report(result)

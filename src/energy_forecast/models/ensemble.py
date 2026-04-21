@@ -10,12 +10,12 @@ StackingEnsemble (Intra-Paradigm Stacking for Setup A)
     Final prediction = meta_learner(base_preds on test).
 
     **Out-of-Fold (OOF)** (default, ``oof_folds: 5``) is the gold standard used
-    for Setup A (Tree models). TimeSeriesSplit is used on the training set. 
-    Base models are cloned, retrained on the fold's training portion, and 
+    for Setup A (Tree models). TimeSeriesSplit is used on the training set.
+    Base models are cloned, retrained on the fold's training portion, and
     predict on the validation portion to prevent overfitting.
 
-    Because Tree models are extremely fast, building 5 OOF folds is computationally 
-    cheap. It allows the Ridge meta-learner to unbiasedly learn exactly how much 
+    Because Tree models are extremely fast, building 5 OOF folds is computationally
+    cheap. It allows the Ridge meta-learner to unbiasedly learn exactly how much
     to trust LightGBM vs. XGBoost. Deep Learning models are computationally
     infeasible for OOF stacking without a cluster.
 
@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 
 
 _META_LABELS: dict[str, str] = {
-    "ridge":    "Ridge",
+    "ridge": "Ridge",
     "lightgbm": "LGBM",
 }
 
@@ -113,18 +113,12 @@ class StackingEnsemble(BaseForecaster):
 
         if oof_folds > 0:
             # ── OOF stacking ──────────────────────────────────────────────────
-            logger.info(
-                "Stacking ensemble: OOF mode with %d time-aware folds.", oof_folds
-            )
-            meta_features, meta_targets = self._oof_meta_features(
-                X_train, y_train, oof_folds
-            )
+            logger.info("Stacking ensemble: OOF mode with %d time-aware folds.", oof_folds)
+            meta_features, meta_targets = self._oof_meta_features(X_train, y_train, oof_folds)
         else:
             # ── Legacy fixed-validation stacking ──────────────────────────────
             if X_val is None or y_val is None:
-                raise ValueError(
-                    "StackingEnsemble requires X_val and y_val when oof_folds=0."
-                )
+                raise ValueError("StackingEnsemble requires X_val and y_val when oof_folds=0.")
             logger.info("Stacking ensemble: fixed-validation mode.")
             meta_features = self._generate_meta_features(X_val)
             meta_targets = y_val.values
@@ -224,9 +218,7 @@ class StackingEnsemble(BaseForecaster):
 
         oof_preds = np.full((n_rows, n_models), np.nan)
 
-        for fold_idx, (tr_ts_positions, val_ts_positions) in enumerate(
-            tss.split(timestamps)
-        ):
+        for fold_idx, (tr_ts_positions, val_ts_positions) in enumerate(tss.split(timestamps)):
             tr_ts = set(timestamps[tr_ts_positions].tolist())
             val_ts = set(timestamps[val_ts_positions].tolist())
 
@@ -269,9 +261,7 @@ class StackingEnsemble(BaseForecaster):
                     fold_preds = cloned.predict(X_fold_val)
                     oof_preds[val_positions, i] = fold_preds
                 except Exception as exc:  # noqa: BLE001
-                    logger.warning(
-                        "OOF fold %d, model '%s' failed: %s", fold_idx + 1, mname, exc
-                    )
+                    logger.warning("OOF fold %d, model '%s' failed: %s", fold_idx + 1, mname, exc)
 
         # Only keep rows where every column has a valid OOF prediction.
         valid_mask = ~np.isnan(oof_preds).any(axis=1)
@@ -317,9 +307,7 @@ class WeightedAverageEnsemble(BaseForecaster):
     ) -> WeightedAverageEnsemble:
         """Compute inverse-MAE weights from the validation set."""
         if X_val is None or y_val is None:
-            raise ValueError(
-                "WeightedAverageEnsemble requires X_val and y_val to compute weights."
-            )
+            raise ValueError("WeightedAverageEnsemble requires X_val and y_val to compute weights.")
 
         maes: dict[str, float] = {}
         for model_name, model in self.base_models.items():
@@ -338,9 +326,7 @@ class WeightedAverageEnsemble(BaseForecaster):
         self.weights_ = {k: v / total for k, v in inv_maes.items()}
 
         for name, w in sorted(self.weights_.items(), key=lambda x: -x[1]):
-            logger.info(
-                "  Weight %-35s = %.4f  (val MAE=%.4f kWh)", name, w, maes[name]
-            )
+            logger.info("  Weight %-35s = %.4f  (val MAE=%.4f kWh)", name, w, maes[name])
 
         return self
 
@@ -404,9 +390,7 @@ def _clone_forecaster(model: BaseForecaster) -> BaseForecaster | None:
         cloned_estimator = clone(model.estimator)
         return SklearnForecaster(cloned_estimator, name=model.name)
     except Exception as exc:  # noqa: BLE001
-        logger.debug(
-            "Could not clone model '%s': %s", getattr(model, "name", "?"), exc
-        )
+        logger.debug("Could not clone model '%s': %s", getattr(model, "name", "?"), exc)
         return None
 
 

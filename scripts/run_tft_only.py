@@ -49,19 +49,21 @@ def main() -> None:
     import pandas as pd
 
     proc_dir = ROOT / "data" / "processed" / "splits"
-    res_dir  = ROOT / "outputs" / "results"
+    res_dir = ROOT / "outputs" / "results"
     res_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("Loading pre-computed feature-selected splits …")
     X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")  # noqa: N806
     y_train = pd.read_parquet(proc_dir / "y_train.parquet").squeeze()
-    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
-    y_val   = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
-    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
-    y_test  = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
+    X_val = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
+    y_val = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
+    X_test = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
+    y_test = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
     logger.info(
         "Splits loaded — train: %d rows | val: %d rows | test: %d rows",
-        len(X_train), len(X_val), len(X_test),
+        len(X_train),
+        len(X_val),
+        len(X_test),
     )
 
     # ── TFT training ─────────────────────────────────────────────────────────
@@ -70,7 +72,14 @@ def main() -> None:
 
     tft = TFTForecaster(cfg)
     logger.info("Starting TFT training — this will take 2–6 hours …")
-    logger.info("Parameters: %s", sum(p.numel() for p in tft.model_.parameters()) if hasattr(tft, "model_") and tft.model_ is not None else "not yet built")
+    logger.info(
+        "Parameters: %s",
+        (
+            sum(p.numel() for p in tft.model_.parameters())
+            if hasattr(tft, "model_") and tft.model_ is not None
+            else "not yet built"
+        ),
+    )
 
     t0 = time.time()
     tft.fit(X_train, y_train, X_val, y_val)
@@ -101,8 +110,12 @@ def main() -> None:
     # after a 6-hour training run (BUG-C1 from pipeline audit 2026-03-02).
     logger.info(
         "TFT | MAE=%6.4f | RMSE=%6.4f | MAPE=%6.2f%% | R²=%6.4f | n=%d | train_time=%.0fs",
-        result["MAE"], result["RMSE"], result["MAPE"], result["R2"],
-        len(y_tft), train_time_s,
+        result["MAE"],
+        result["RMSE"],
+        result["MAPE"],
+        result["R2"],
+        len(y_tft),
+        train_time_s,
     )
 
     # ── Save model checkpoint ─────────────────────────────────────────────────

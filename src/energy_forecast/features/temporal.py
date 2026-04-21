@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 _CYCLICAL_PERIODS: dict[str, int] = {
     "hour_of_day": 24,
     "day_of_week": 7,
-    "month":       12,
+    "month": 12,
     "day_of_year": 365,
 }
 
@@ -80,7 +80,8 @@ def build_temporal_features(
         logger.info(
             "  horizon=%dh: removing lag/rolling features shorter than "
             "%dh to prevent oracle leakage.",
-            horizon, horizon,
+            horizon,
+            horizon,
         )
 
     df = df.copy()
@@ -109,7 +110,7 @@ def build_temporal_features(
     # Enforce minimum lag = forecast_horizon (no oracle leakage)
     lag_windows = [w for w in all_lag_windows if w >= horizon]
     if not lag_windows:
-        lag_windows = [horizon]   # always include at least the horizon lag
+        lag_windows = [horizon]  # always include at least the horizon lag
     if len(lag_windows) < len(all_lag_windows):
         removed = sorted(set(all_lag_windows) - set(lag_windows))
         logger.info("  Removed oracle lags (< %dh): %s", horizon, removed)
@@ -117,9 +118,8 @@ def build_temporal_features(
     lag_sources = [target, "Temperature_Outdoor_C"]
     lag_sources = [c for c in lag_sources if c in df.columns]
 
-    df = (
-        df.groupby(level="building_id", group_keys=False)
-        .apply(_add_lags, lag_sources=lag_sources, lags=lag_windows)
+    df = df.groupby(level="building_id", group_keys=False).apply(
+        _add_lags, lag_sources=lag_sources, lags=lag_windows
     )
 
     # ── 4. Rolling window statistics (per building, horizon-aware) ────────────
@@ -136,9 +136,8 @@ def build_temporal_features(
     roll_sources = [target, "Temperature_Outdoor_C"]
     roll_sources = [c for c in roll_sources if c in df.columns]
 
-    df = (
-        df.groupby(level="building_id", group_keys=False)
-        .apply(_add_rolling, sources=roll_sources, windows=roll_windows, stats=roll_stats)
+    df = df.groupby(level="building_id", group_keys=False).apply(
+        _add_rolling, sources=roll_sources, windows=roll_windows, stats=roll_stats
     )
 
     # ── 5. Drop NaN rows introduced by lag/rolling (warmup rows only) ─────────
@@ -162,6 +161,7 @@ def build_temporal_features(
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
+
 
 def _add_cyclical(df: pd.DataFrame, col: str, period: int) -> pd.DataFrame:
     """Encode a cyclic column as sin and cos components."""

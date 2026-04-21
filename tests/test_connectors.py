@@ -29,10 +29,10 @@ sys.path.insert(0, str(ROOT / "deployment"))
 
 from connectors import MockDeviceConnector, MockPriceConnector, MyEnergiConnector
 
-
 # ---------------------------------------------------------------------------
 # Helper: build a connector without making any network calls
 # ---------------------------------------------------------------------------
+
 
 def make_connector() -> MyEnergiConnector:
     """Return a MyEnergiConnector with test credentials and a pre-set server.
@@ -48,6 +48,7 @@ def make_connector() -> MyEnergiConnector:
 # ---------------------------------------------------------------------------
 # 1. _decode_bdd
 # ---------------------------------------------------------------------------
+
 
 class TestDecodeBdd:
     """Unit tests for MyEnergiConnector._decode_bdd().
@@ -126,13 +127,14 @@ class TestDecodeBdd:
     def test_position_zero_does_not_add_extra_day(self):
         """'11111111' = same as '01111111' — position 0 never adds a day."""
         with_bit0 = MyEnergiConnector._decode_bdd("11111111")
-        without   = MyEnergiConnector._decode_bdd("01111111")
+        without = MyEnergiConnector._decode_bdd("01111111")
         assert with_bit0 == without
 
 
 # ---------------------------------------------------------------------------
 # 2. get_schedule parsing
 # ---------------------------------------------------------------------------
+
 
 class TestGetScheduleParsing:
     """Tests for get_schedule() response parsing.
@@ -147,15 +149,15 @@ class TestGetScheduleParsing:
     _MOCK_BOOST_TIMES = {
         "boost_times": [
             # Slot 11: 07:00 +30min Mon–Fri+Sun
-            {"slt": 11, "bsh": 7,  "bsm": 0,  "bdh": 0, "bdm": 30, "bdd": "01111101"},
+            {"slt": 11, "bsh": 7, "bsm": 0, "bdh": 0, "bdm": 30, "bdd": "01111101"},
             # Slot 12: 19:45 +30min Mon–Fri+Sun
             {"slt": 12, "bsh": 19, "bsm": 45, "bdh": 0, "bdm": 30, "bdd": "01111101"},
             # Slot 13: 09:15 +3h Saturday only
-            {"slt": 13, "bsh": 9,  "bsm": 15, "bdh": 3, "bdm": 0,  "bdd": "00000010"},
+            {"slt": 13, "bsh": 9, "bsm": 15, "bdh": 3, "bdm": 0, "bdd": "00000010"},
             # Slot 14: 14:00 +3h Saturday only
-            {"slt": 14, "bsh": 14, "bsm": 0,  "bdh": 3, "bdm": 0,  "bdd": "00000010"},
+            {"slt": 14, "bsh": 14, "bsm": 0, "bdh": 3, "bdm": 0, "bdd": "00000010"},
             # Inactive slot — must be filtered out
-            {"slt": 21, "bsh": 0,  "bsm": 0,  "bdh": 0, "bdm": 0,  "bdd": "00000000"},
+            {"slt": 21, "bsh": 0, "bsm": 0, "bdh": 0, "bdm": 0, "bdd": "00000000"},
         ]
     }
 
@@ -260,8 +262,17 @@ class TestGetScheduleParsing:
 
     def test_all_required_keys_present(self):
         """Each timer dict contains all expected keys."""
-        required = {"slot", "start_hour", "start_min", "duration_h", "duration_m",
-                    "duration_min", "days", "bdd", "label"}
+        required = {
+            "slot",
+            "start_hour",
+            "start_min",
+            "duration_h",
+            "duration_m",
+            "duration_min",
+            "days",
+            "bdd",
+            "label",
+        }
         c = make_connector()
         with patch.object(c, "_get", return_value=self._MOCK_BOOST_TIMES):
             timers = c.get_schedule()
@@ -273,6 +284,7 @@ class TestGetScheduleParsing:
 # ---------------------------------------------------------------------------
 # 3. get_history_day parsing
 # ---------------------------------------------------------------------------
+
 
 class TestGetHistoryDayParsing:
     """Tests for get_history_day() 1441-entry response parsing.
@@ -297,7 +309,7 @@ class TestGetHistoryDayParsing:
         """
         entries = [{"yr": 2026, "mon": 3, "dom": 14}]  # index 0: global header
         for _hour in range(24):
-            entries.append({"imp": imp_cw, "hsk": hsk_cw})          # hour-start (no 'min')
+            entries.append({"imp": imp_cw, "hsk": hsk_cw})  # hour-start (no 'min')
             for minute in range(1, 60):
                 entries.append({"min": minute, "imp": imp_cw, "hsk": hsk_cw})
         assert len(entries) == 1441
@@ -332,12 +344,12 @@ class TestGetHistoryDayParsing:
         with patch.object(c, "_get", return_value=mock_data):
             hours = c.get_history_day(date(2026, 3, 14))
         for h in hours:
-            assert abs(h["imported_kwh"] - 0.1) < 2e-3, (
-                f"Hour {h['hour']}: expected imported_kwh≈0.1, got {h['imported_kwh']}"
-            )
-            assert abs(h["diverted_kwh"] - 0.05) < 1e-3, (
-                f"Hour {h['hour']}: expected diverted_kwh≈0.05, got {h['diverted_kwh']}"
-            )
+            assert (
+                abs(h["imported_kwh"] - 0.1) < 2e-3
+            ), f"Hour {h['hour']}: expected imported_kwh≈0.1, got {h['imported_kwh']}"
+            assert (
+                abs(h["diverted_kwh"] - 0.05) < 1e-3
+            ), f"Hour {h['hour']}: expected diverted_kwh≈0.05, got {h['diverted_kwh']}"
 
     def test_zero_fields_give_zero_kwh(self):
         """Entries with imp=0, hsk=0 → both kWh values are 0."""
@@ -385,9 +397,9 @@ class TestGetHistoryDayParsing:
         today = date.today()
         expected_fragment = f"-{today.year}-{today.month:02d}-{today.day:02d}"
         assert captured_path, "No API call was made"
-        assert expected_fragment in captured_path[0], (
-            f"Expected date fragment {expected_fragment!r} in URL, got {captured_path[0]!r}"
-        )
+        assert (
+            expected_fragment in captured_path[0]
+        ), f"Expected date fragment {expected_fragment!r} in URL, got {captured_path[0]!r}"
 
     def test_output_keys_present(self):
         """Each hourly record contains 'hour', 'diverted_kwh', 'imported_kwh'."""
@@ -405,6 +417,7 @@ class TestGetHistoryDayParsing:
 # 4. get_status parsing
 # ---------------------------------------------------------------------------
 
+
 class TestGetStatusParsing:
     """Tests for get_status() response parsing.
 
@@ -416,12 +429,12 @@ class TestGetStatusParsing:
 
     _BASE_EDDI = {
         "sno": 21509692,
-        "sta": 1,       # 1 = paused
+        "sta": 1,  # 1 = paused
         "div": 0,
         "grd": 191,
-        "che": 1.234,   # today_kwh
+        "che": 1.234,  # today_kwh
         "frq": 4994,
-        "v1":  2391,
+        "v1": 2391,
     }
 
     def test_list_format_response(self):
@@ -488,8 +501,14 @@ class TestGetStatusParsing:
     def test_all_expected_keys_present(self):
         """get_status() output contains all expected keys."""
         expected = {
-            "eddi_serial", "mode", "diverted_w", "grid_w", "today_kwh",
-            "tank_temp_c", "solar_w", "solar_lower_w",
+            "eddi_serial",
+            "mode",
+            "diverted_w",
+            "grid_w",
+            "today_kwh",
+            "tank_temp_c",
+            "solar_w",
+            "solar_lower_w",
         }
         c = make_connector()
         with patch.object(c, "_get", return_value=[{"eddi": [self._BASE_EDDI]}]):
@@ -501,6 +520,7 @@ class TestGetStatusParsing:
 # ---------------------------------------------------------------------------
 # 5. MockDeviceConnector
 # ---------------------------------------------------------------------------
+
 
 class TestMockDeviceConnector:
     """Tests for MockDeviceConnector (used in CI and demos — no real device)."""
@@ -528,8 +548,8 @@ class TestMockDeviceConnector:
     def test_multiple_commands_accumulated(self):
         """Multiple commands all appear in command_log."""
         dev = MockDeviceConnector()
-        dev.send_command("HEAT_NOW",          "B001")
-        dev.send_command("DEFER_HEATING",     "B001")
+        dev.send_command("HEAT_NOW", "B001")
+        dev.send_command("DEFER_HEATING", "B001")
         dev.send_command("ALERT_HIGH_DEMAND", "B002")
         assert len(dev.command_log) == 3
         actions = [e["action"] for e in dev.command_log]
@@ -546,6 +566,7 @@ class TestMockDeviceConnector:
 # ---------------------------------------------------------------------------
 # 6. MockPriceConnector
 # ---------------------------------------------------------------------------
+
 
 class TestMockPriceConnector:
     """Smoke tests for MockPriceConnector (realistic Irish day-ahead curve)."""
@@ -570,10 +591,10 @@ class TestMockPriceConnector:
         """Night-time prices (00:00–07:00) are lower than evening peak (17:00–19:00)."""
         prices = MockPriceConnector().get_day_ahead_prices()
         avg_night = sum(prices[0:8]) / 8
-        avg_peak  = sum(prices[17:20]) / 3
-        assert avg_night < avg_peak, (
-            f"Night avg {avg_night:.3f} should be < peak avg {avg_peak:.3f}"
-        )
+        avg_peak = sum(prices[17:20]) / 3
+        assert (
+            avg_night < avg_peak
+        ), f"Night avg {avg_night:.3f} should be < peak avg {avg_peak:.3f}"
 
     def test_same_result_repeated_calls(self):
         """Repeated calls return identical lists (deterministic mock)."""

@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 # Calculate project root (assuming script is in project_root/scripts/)
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 
+
 def main():
     # Use absolute paths relative to PROJECT_ROOT
     cfg = load_config(PROJECT_ROOT / "config/config.yaml")
@@ -54,7 +55,7 @@ def main():
     df = pd.read_parquet(model_ready_path)
     ts = df.index.get_level_values("timestamp")
     train_end = pd.Timestamp(cfg["splits"]["train_end"], tz="Europe/Oslo")
-    val_end   = pd.Timestamp(cfg["splits"]["val_end"],   tz="Europe/Oslo")
+    val_end = pd.Timestamp(cfg["splits"]["val_end"], tz="Europe/Oslo")
 
     # --- MODEL A: LightGBM (Setup A) ---
     logger.info("--- Phase 2: Generating Setup A Predictions (LightGBM) ---")
@@ -62,7 +63,7 @@ def main():
     splits_a = make_splits(df_feat, cfg, target_col)
     X_tr_a = splits_a["X_train"]  # noqa: N806
     y_tr_a = splits_a["y_train"]
-    X_v_a  = splits_a["X_val"]  # noqa: N806
+    X_v_a = splits_a["X_val"]  # noqa: N806
     X_te_a = splits_a["X_test"]  # noqa: N806
     y_te_a = splits_a["y_test"]
 
@@ -85,25 +86,24 @@ def main():
 
     # Create a DataFrame for aligned predictions
     # y_te_a is pd.Series with MultiIndex (building_id, timestamp)
-    df_preds_a = pd.DataFrame({
-        "pred_a": preds_raw_a,
-        "y": y_te_a.values
-    }, index=y_te_a.index)
+    df_preds_a = pd.DataFrame({"pred_a": preds_raw_a, "y": y_te_a.values}, index=y_te_a.index)
 
     # --- MODEL C: PatchTST (Setup C) ---
     logger.info("--- Phase 3: Generating Setup C Predictions (Patch_TST) ---")
     feature_cols = [target_col, "Temperature_Outdoor_C", "Global_Solar_Horizontal_Radiation_W_m2"]
     df_train_c = df[ts <= train_end].copy()
-    df_val_c   = df[(ts > train_end) & (ts <= val_end)].copy()
-    df_test_c  = df[ts > val_end].copy()
+    df_val_c = df[(ts > train_end) & (ts <= val_end)].copy()
+    df_test_c = df[ts > val_end].copy()
 
     for col in feature_cols:
         med = df_train_c[col].median()
         df_train_c[col] = df_train_c[col].fillna(med)
-        df_val_c[col]   = df_val_c[col].fillna(med)
-        df_test_c[col]  = df_test_c[col].fillna(med)
+        df_val_c[col] = df_val_c[col].fillna(med)
+        df_test_c[col] = df_test_c[col].fillna(med)
 
-    res = build_raw_sequences(df_train_c, df_val_c, df_test_c, target_col, feature_cols, lookback, horizon)
+    res = build_raw_sequences(
+        df_train_c, df_val_c, df_test_c, target_col, feature_cols, lookback, horizon
+    )
     # Scalers needed for inverse
     scaler_y = res[7]
 
@@ -112,7 +112,9 @@ def main():
         # Scale X columns
         df_scaled[feature_cols] = res[6].transform(df_scaled[feature_cols].values)
         df_nf = df_scaled.reset_index()
-        df_nf = df_nf.rename(columns={"building_id": "unique_id", "timestamp": "ds", target_col: "y"})
+        df_nf = df_nf.rename(
+            columns={"building_id": "unique_id", "timestamp": "ds", target_col: "y"}
+        )
         cols = ["unique_id", "ds", "y"] + [c for c in feature_cols if c != target_col]
         return df_nf[cols].sort_values(by=["unique_id", "ds"]).reset_index(drop=True)
 
@@ -120,7 +122,9 @@ def main():
     nf_test = _prep_nf(df_test_c)
     nf_full = pd.concat([nf_train, nf_test]).reset_index(drop=True)
 
-    patch_model = PatchTST(h=horizon, input_size=lookback, max_steps=500, batch_size=64, scaler_type="identity")
+    patch_model = PatchTST(
+        h=horizon, input_size=lookback, max_steps=500, batch_size=64, scaler_type="identity"
+    )
     nf = NeuralForecast(models=[patch_model], freq="h")
     nf.fit(df=nf_train, val_size=24)
 
@@ -141,7 +145,9 @@ def main():
 
     # Align by join
     logger.info("Aligning predictions by join...")
-    df_final = df_preds_a.join(cv_df.set_index(["building_id", "timestamp"])[["pred_c"]], how="inner")
+    df_final = df_preds_a.join(
+        cv_df.set_index(["building_id", "timestamp"])[["pred_c"]], how="inner"
+    )
 
     logger.info(f"Aligned samples: {len(df_final)}")
 
@@ -156,7 +162,9 @@ def main():
 
     for alpha in weights:
         p_ens = alpha * p_a + (1 - alpha) * p_c
-        metrics = evaluate(y_gold, p_ens, model_name=f"GrandEnsemble_A{int(alpha*100)}_C{int((1-alpha)*100)}")
+        metrics = evaluate(
+            y_gold, p_ens, model_name=f"GrandEnsemble_A{int(alpha*100)}_C{int((1-alpha)*100)}"
+        )
         ensemble_results.append(metrics)
         logger.info(f"Alpha {alpha}: MAE {metrics['MAE']:.3f} | R2 {metrics['R2']:.3f}")
 
@@ -164,12 +172,15 @@ def main():
     metrics_file = results_dir / "final_metrics.csv"
     if metrics_file.exists():
         existing = pd.read_csv(metrics_file, index_col=0)
-        combined = pd.concat([existing, df_ens], ignore_index=True).drop_duplicates(subset=["model"], keep="last")
+        combined = pd.concat([existing, df_ens], ignore_index=True).drop_duplicates(
+            subset=["model"], keep="last"
+        )
         combined.to_csv(metrics_file)
     else:
         df_ens.to_csv(metrics_file)
 
     logger.info("Grand Ensemble finished! Index-aligned results saved.")
+
 
 if __name__ == "__main__":
     main()

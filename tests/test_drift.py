@@ -36,7 +36,6 @@ from energy_forecast.monitoring import (
 )
 from energy_forecast.monitoring.drift_detector import _max_severity
 
-
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
@@ -130,14 +129,14 @@ def test_no_drift_returns_ok() -> None:
         # No y_pred — rolling MAE check skipped
     )
 
-    assert report.overall_severity == DriftSeverity.OK, (
-        f"Expected OK for identical distributions, got {report.overall_severity}"
-    )
+    assert (
+        report.overall_severity == DriftSeverity.OK
+    ), f"Expected OK for identical distributions, got {report.overall_severity}"
     assert report.recommended_action == "no_action"
     drifted_features = [r for r in report.feature_results if r.is_drifted]
-    assert len(drifted_features) == 0, (
-        f"Expected 0 drifted features, got {[r.feature_name for r in drifted_features]}"
-    )
+    assert (
+        len(drifted_features) == 0
+    ), f"Expected 0 drifted features, got {[r.feature_name for r in drifted_features]}"
 
 
 # ---------------------------------------------------------------------------
@@ -149,9 +148,7 @@ def test_feature_drift_detected() -> None:
     """Injecting a large mean shift into check features should trigger drift."""
     rng = np.random.default_rng(1)
     # Large shift (5 standard deviations) guarantees detection
-    X_ref, X_chk, y_ref, y_chk = _make_frames(
-        n_ref=1000, n_chk=500, shift=5.0, scale=1.0, rng=rng
-    )
+    X_ref, X_chk, y_ref, y_chk = _make_frames(n_ref=1000, n_chk=500, shift=5.0, scale=1.0, rng=rng)
 
     detector = DriftDetector(_make_cfg())
     feature_results = detector.check_feature_drift(X_ref, X_chk)
@@ -167,9 +164,9 @@ def test_feature_drift_detected() -> None:
 
     # Results should be sorted by PSI descending
     psi_values = [r.psi for r in feature_results]
-    assert psi_values == sorted(psi_values, reverse=True), (
-        "Feature results should be sorted by PSI descending"
-    )
+    assert psi_values == sorted(
+        psi_values, reverse=True
+    ), "Feature results should be sorted by PSI descending"
 
 
 # ---------------------------------------------------------------------------
@@ -198,8 +195,8 @@ def test_psi_large_shift_is_high() -> None:
     """PSI should be large (>= 0.2) when distributions are completely non-overlapping."""
     n = 2000
     rng = np.random.default_rng(3)
-    reference = rng.normal(0, 1, n)       # centred at 0
-    actual = rng.normal(10, 1, n)         # centred at 10 — completely separate
+    reference = rng.normal(0, 1, n)  # centred at 0
+    actual = rng.normal(10, 1, n)  # centred at 10 — completely separate
 
     psi = DriftDetector._compute_psi(reference, actual, n_bins=10)
     assert psi >= DriftDetector.PSI_CRITICAL_THRESHOLD, (
@@ -223,9 +220,9 @@ def test_target_drift_detected() -> None:
     result = detector.check_target_drift(y_ref, y_chk)
 
     assert result.is_drifted, "Large mean shift should be detected as target drift"
-    assert result.mean_shift_pct > 50.0, (
-        f"Mean shift should be > 50%, got {result.mean_shift_pct:.1f}%"
-    )
+    assert (
+        result.mean_shift_pct > 50.0
+    ), f"Mean shift should be > 50%, got {result.mean_shift_pct:.1f}%"
     assert isinstance(result.ks_statistic, float)
     assert isinstance(result.ks_pvalue, float)
 
@@ -239,9 +236,9 @@ def test_target_no_drift_same_distribution() -> None:
     detector = DriftDetector(_make_cfg())
     result = detector.check_target_drift(y_ref, y_chk)
 
-    assert not result.is_drifted, (
-        f"Identical distribution should not trigger target drift; p={result.ks_pvalue:.4f}"
-    )
+    assert (
+        not result.is_drifted
+    ), f"Identical distribution should not trigger target drift; p={result.ks_pvalue:.4f}"
 
 
 # ---------------------------------------------------------------------------
@@ -262,9 +259,9 @@ def test_rolling_mae_trigger() -> None:
     detector = DriftDetector(_make_cfg())
     result = detector.check_rolling_mae(y_true, y_pred, training_mae)
 
-    assert result.is_triggered, (
-        f"Expected triggered=True with large errors; ratio={result.ratio:.2f}"
-    )
+    assert (
+        result.is_triggered
+    ), f"Expected triggered=True with large errors; ratio={result.ratio:.2f}"
     assert result.severity == DriftSeverity.CRITICAL
     assert result.ratio > result.threshold
 
@@ -286,9 +283,9 @@ def test_rolling_mae_no_trigger() -> None:
     detector = DriftDetector(_make_cfg())
     result = detector.check_rolling_mae(y_true, y_pred, training_mae)
 
-    assert not result.is_triggered, (
-        f"Expected triggered=False with small errors; ratio={result.ratio:.2f}"
-    )
+    assert (
+        not result.is_triggered
+    ), f"Expected triggered=False with small errors; ratio={result.ratio:.2f}"
     assert result.severity == DriftSeverity.OK
     assert result.ratio < result.threshold
 
@@ -303,9 +300,7 @@ def test_rolling_mae_with_timestamps() -> None:
     y_pred = y_true.to_numpy() + rng.normal(0, 0.5, n)
 
     detector = DriftDetector(_make_cfg(rolling_window_days=7))
-    result = detector.check_rolling_mae(
-        y_true, y_pred, training_mae, timestamps=timestamps
-    )
+    result = detector.check_rolling_mae(y_true, y_pred, training_mae, timestamps=timestamps)
 
     assert result.window_days == 7
     assert not result.is_triggered
@@ -321,9 +316,7 @@ def test_full_report_severity_max() -> None:
     rng = np.random.default_rng(9)
 
     # Reference: stable
-    X_ref = pd.DataFrame(
-        {"a": rng.normal(0, 1, 2000), "b": rng.normal(5, 2, 2000)}
-    )
+    X_ref = pd.DataFrame({"a": rng.normal(0, 1, 2000), "b": rng.normal(5, 2, 2000)})
     y_ref = pd.Series(rng.normal(50, 10, 2000))
 
     # Check: shift 'a' massively to force CRITICAL feature drift
@@ -344,9 +337,9 @@ def test_full_report_severity_max() -> None:
     )
 
     # Feature 'a' has a massive shift → CRITICAL
-    assert report.overall_severity == DriftSeverity.CRITICAL, (
-        f"Expected CRITICAL from massive feature shift, got {report.overall_severity}"
-    )
+    assert (
+        report.overall_severity == DriftSeverity.CRITICAL
+    ), f"Expected CRITICAL from massive feature shift, got {report.overall_severity}"
     assert report.recommended_action == "retrain_now"
 
 
@@ -417,7 +410,10 @@ def test_to_json_roundtrip() -> None:
     assert isinstance(data["feature_results"], list)
     assert data["overall_severity"] in ("ok", "warning", "critical")
     assert data["recommended_action"] in (
-        "no_action", "monitor", "retrain_scheduled", "retrain_now"
+        "no_action",
+        "monitor",
+        "retrain_scheduled",
+        "retrain_now",
     )
     assert isinstance(data["summary"], str) and len(data["summary"]) > 0
 
@@ -494,7 +490,7 @@ def test_psi_clips_zero_bins() -> None:
 
 def test_psi_identical_constant_reference_returns_zero() -> None:
     """Constant reference distribution should return PSI = 0 (degenerate guard)."""
-    reference = np.ones(100)   # constant — std = 0
+    reference = np.ones(100)  # constant — std = 0
     actual = np.ones(50)
 
     psi = DriftDetector._compute_psi(reference, actual, n_bins=10)
@@ -565,9 +561,9 @@ def test_constant_column_is_skipped() -> None:
     results = detector.check_feature_drift(X_ref, X_chk)
 
     feature_names = [r.feature_name for r in results]
-    assert "constant" not in feature_names, (
-        "Constant column should be skipped by check_feature_drift"
-    )
+    assert (
+        "constant" not in feature_names
+    ), "Constant column should be skipped by check_feature_drift"
     assert "normal" in feature_names
 
 

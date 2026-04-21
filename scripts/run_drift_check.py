@@ -188,9 +188,7 @@ def _read_training_mae(city: str) -> float | None:
             lgbm_mask = df["model"].str.lower().str.contains("lightgbm")
             if lgbm_mask.any():
                 mae = float(df.loc[lgbm_mask, "mae"].iloc[0])
-                logger.info(
-                    "Training MAE read from %s: %.4f kWh", csv_path.name, mae
-                )
+                logger.info("Training MAE read from %s: %.4f kWh", csv_path.name, mae)
                 return mae
         except (pd.errors.ParserError, KeyError, ValueError) as exc:
             logger.debug("Could not parse %s: %s", csv_path, exc)
@@ -400,7 +398,7 @@ def main() -> None:
         y_reference=y_train,
         y_check=y_check,
         training_mae=training_mae,
-        y_pred=None,   # No live predictions available at check time
+        y_pred=None,  # No live predictions available at check time
         reference_period=reference_period,
         check_period=check_period,
     )
@@ -437,9 +435,7 @@ def main() -> None:
     # 8. Exit code
     # ------------------------------------------------------------------
     if report.overall_severity == DriftSeverity.CRITICAL:
-        logger.warning(
-            "CRITICAL drift detected — exit code 1 (CI retrain trigger)."
-        )
+        logger.warning("CRITICAL drift detected — exit code 1 (CI retrain trigger).")
         sys.exit(1)
 
     sys.exit(0)

@@ -19,6 +19,7 @@ from sklearn.ensemble import RandomForestRegressor
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def small_dataset():
     """Return tiny X_train, X_test, y_train with 3 features."""
@@ -46,6 +47,7 @@ def fitted_rf(small_dataset):
         def __init__(self, est, name):
             self.estimator = est
             self.name = name
+
         def predict(self, X):  # noqa: N803
             return self.estimator.predict(X.values)
 
@@ -55,6 +57,7 @@ def fitted_rf(small_dataset):
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestSHAPExplainer:
     """Tests for SHAPExplainer class."""
@@ -74,6 +77,7 @@ class TestSHAPExplainer:
             pytest.skip("shap not installed")
 
         from energy_forecast.evaluation.explainability import SHAPExplainer
+
         X_train, _, _ = small_dataset  # noqa: N806
         explainer = SHAPExplainer(fitted_rf, X_train)
         assert explainer.model_name == "RandomForest"
@@ -87,6 +91,7 @@ class TestSHAPExplainer:
             pytest.skip("shap not installed")
 
         from energy_forecast.evaluation.explainability import SHAPExplainer
+
         X_train, X_test, _ = small_dataset  # noqa: N806
         explainer = SHAPExplainer(fitted_rf, X_train)
         sv = explainer.compute(X_test)
@@ -100,6 +105,7 @@ class TestSHAPExplainer:
             pytest.skip("shap not installed")
 
         from energy_forecast.evaluation.explainability import SHAPExplainer
+
         X_train, X_test, _ = small_dataset  # noqa: N806
         explainer = SHAPExplainer(fitted_rf, X_train)
         explainer.compute(X_test)
@@ -120,6 +126,7 @@ class TestSHAPExplainer:
             pytest.skip("shap not installed")
 
         from energy_forecast.evaluation.explainability import explain_model
+
         X_train, X_test, _ = small_dataset  # noqa: N806
 
         explainer = explain_model(

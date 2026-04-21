@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 # Standard practice in energy forecasting literature: exclude zero-target
 # rows from the MAPE denominator rather than adding an infinitesimally small
 # epsilon, which inflates MAPE to millions of percent.
-_MAPE_MIN_TRUE = 0.1   # kWh — rows below this threshold are excluded from MAPE
+_MAPE_MIN_TRUE = 0.1  # kWh — rows below this threshold are excluded from MAPE
 
 
 def evaluate(
@@ -85,7 +85,7 @@ def evaluate(
         if len(y_true_eval) != len(y_pred_flat):
             # Use the leading n_samples from y_true to build the matrix
             n_samples = y_pred.shape[0]
-            y_true_matrix = np.stack([y_true_eval[i:i + horizon] for i in range(n_samples)])
+            y_true_matrix = np.stack([y_true_eval[i : i + horizon] for i in range(n_samples)])
             y_true_eval = y_true_matrix.flatten()
         # Per-horizon MAE (crucial for paper: shows error growth from H+1 to H+24)
         if y_true.ndim == 2 and y_true.shape == y_pred.shape:
@@ -93,13 +93,13 @@ def evaluate(
         else:
             horizon_mae = None  # shape mismatch — skip per-horizon
         result: dict[str, Any] = {
-            "model":       model_name,
-            "MAE":         _mae(y_true_eval, y_pred_flat),
-            "RMSE":        _rmse(y_true_eval, y_pred_flat),
-            "MAPE":        _mape(y_true_eval, y_pred_flat),
-            "R2":          _r2(y_true_eval, y_pred_flat),
-            "n_samples":   len(y_pred),
-            "horizon":     horizon,
+            "model": model_name,
+            "MAE": _mae(y_true_eval, y_pred_flat),
+            "RMSE": _rmse(y_true_eval, y_pred_flat),
+            "MAPE": _mape(y_true_eval, y_pred_flat),
+            "R2": _r2(y_true_eval, y_pred_flat),
+            "n_samples": len(y_pred),
+            "horizon": horizon,
             "horizon_mae": horizon_mae,
         }
         if city:
@@ -109,11 +109,11 @@ def evaluate(
 
     # ── Standard H+1 evaluation ──────────────────────────────────────────────
     result = {
-        "model":     model_name,
-        "MAE":       _mae(y_true, y_pred),
-        "RMSE":      _rmse(y_true, y_pred),
-        "MAPE":      _mape(y_true, y_pred),
-        "R2":        _r2(y_true, y_pred),
+        "model": model_name,
+        "MAE": _mae(y_true, y_pred),
+        "RMSE": _rmse(y_true, y_pred),
+        "MAPE": _mape(y_true, y_pred),
+        "R2": _r2(y_true, y_pred),
         "n_samples": len(y_true),
     }
     if city:
@@ -122,9 +122,7 @@ def evaluate(
     # ── Daily Peak MAE (MISS-1) ───────────────────────────────────────────────
     if building_ids is not None and timestamps is not None:
         try:
-            result["daily_peak_mae"] = daily_peak_mae(
-                y_true, y_pred, timestamps, building_ids
-            )
+            result["daily_peak_mae"] = daily_peak_mae(y_true, y_pred, timestamps, building_ids)
         except Exception as exc:  # noqa: BLE001
             logger.warning("daily_peak_mae skipped for %s: %s", model_name, exc)
 
@@ -138,10 +136,10 @@ def evaluate(
                 continue
             pb_entry = {
                 "building_id": int(bid),
-                "MAE":       _mae(y_true[mask], y_pred[mask]),
-                "RMSE":      _rmse(y_true[mask], y_pred[mask]),
-                "MAPE":      _mape(y_true[mask], y_pred[mask]),
-                "R2":        _r2(y_true[mask], y_pred[mask]),
+                "MAE": _mae(y_true[mask], y_pred[mask]),
+                "RMSE": _rmse(y_true[mask], y_pred[mask]),
+                "MAPE": _mape(y_true[mask], y_pred[mask]),
+                "R2": _r2(y_true[mask], y_pred[mask]),
                 "n_samples": int(mask.sum()),
             }
             if city:
@@ -179,13 +177,17 @@ def daily_peak_mae(
     -------
     float : MAE between daily max(y_true) and daily max(y_pred), in kWh.
     """
-    ts = pd.DatetimeIndex(timestamps) if not isinstance(timestamps, pd.DatetimeIndex) else timestamps
-    df = pd.DataFrame({
-        "y_true":      np.asarray(y_true, dtype=float),
-        "y_pred":      np.asarray(y_pred, dtype=float),
-        "building_id": np.asarray(building_ids),
-        "date":        ts.normalize(),          # floor to midnight — date bucket
-    })
+    ts = (
+        pd.DatetimeIndex(timestamps) if not isinstance(timestamps, pd.DatetimeIndex) else timestamps
+    )
+    df = pd.DataFrame(
+        {
+            "y_true": np.asarray(y_true, dtype=float),
+            "y_pred": np.asarray(y_pred, dtype=float),
+            "building_id": np.asarray(building_ids),
+            "date": ts.normalize(),  # floor to midnight — date bucket
+        }
+    )
     daily_true = df.groupby(["building_id", "date"])["y_true"].max()
     daily_pred = df.groupby(["building_id", "date"])["y_pred"].max()
     # Inner join ensures both series cover identical (building, date) pairs
@@ -218,13 +220,13 @@ def save_per_building_metrics(
             continue
         for pb in r["per_building"]:
             row_dict = {
-                "model":       r["model"],
+                "model": r["model"],
                 "building_id": pb["building_id"],
-                "MAE":         round(pb["MAE"],  4),
-                "RMSE":        round(pb["RMSE"], 4),
-                "MAPE":        round(pb["MAPE"], 4),
-                "R2":          round(pb["R2"],   4),
-                "n_samples":   pb["n_samples"],
+                "MAE": round(pb["MAE"], 4),
+                "RMSE": round(pb["RMSE"], 4),
+                "MAPE": round(pb["MAPE"], 4),
+                "R2": round(pb["R2"], 4),
+                "n_samples": pb["n_samples"],
             }
             if "city" in pb:
                 row_dict["city"] = pb["city"]
@@ -256,18 +258,18 @@ def compare_models(results: list[dict[str, Any]]) -> pd.DataFrame:
     rows = []
     for r in results:
         row = {
-            "Model":    r["model"],
-            "MAE":      round(r["MAE"],  4),
-            "RMSE":     round(r["RMSE"], 4),
-            "MAPE":     round(r["MAPE"], 4),
-            "R²":       round(r["R2"],   4),
+            "Model": r["model"],
+            "MAE": round(r["MAE"], 4),
+            "RMSE": round(r["RMSE"], 4),
+            "MAPE": round(r["MAPE"], 4),
+            "R²": round(r["R2"], 4),
             "n_samples": r["n_samples"],
         }
         if "daily_peak_mae" in r:
             row["Daily_Peak_MAE"] = round(r["daily_peak_mae"], 4)
         rows.append(row)
     df = pd.DataFrame(rows).sort_values("MAE").reset_index(drop=True)
-    df.index += 1   # 1-indexed ranking
+    df.index += 1  # 1-indexed ranking
     return df
 
 
@@ -279,6 +281,7 @@ def metrics_to_dataframe(results: list[dict[str, Any]]) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Private metric helpers
 # ---------------------------------------------------------------------------
+
 
 def _mae(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return float(mean_absolute_error(y_true, y_pred))
@@ -301,11 +304,13 @@ def _r2(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 
 
 def _log_result(r: dict) -> None:
-    peak_str = (
-        f" | DailyPeak_MAE={r['daily_peak_mae']:7.3f}"
-        if "daily_peak_mae" in r else ""
-    )
+    peak_str = f" | DailyPeak_MAE={r['daily_peak_mae']:7.3f}" if "daily_peak_mae" in r else ""
     logger.info(
         "%-22s | MAE=%7.3f | RMSE=%7.3f | MAPE=%6.2f%% | R²=%6.4f%s",
-        r["model"], r["MAE"], r["RMSE"], r["MAPE"], r["R2"], peak_str,
+        r["model"],
+        r["MAE"],
+        r["RMSE"],
+        r["MAPE"],
+        r["R2"],
+        peak_str,
     )
