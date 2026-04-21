@@ -155,6 +155,9 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | E-30 | FastAPI auth middleware — Supabase JWT → `get_current_user` dependency injection | 🔴 | HIGH | 2026-04-16 | — | Staff Backend Engineer | D-29 | Required before any multi-household API endpoint goes live |
 | E-31 | Redis cache in FastAPI `/predict` — check cache before running model (TTL 23h) | 🟡 | MEDIUM | 2026-04-16 | — | Staff Backend Engineer | D-24 | Key: `predict:{household_id}:{forecast_date}` |
 | E-32 | Resend email notification — morning brief delivery, free tier (3k/month) | 🟡 | MEDIUM | 2026-04-16 | — | Staff Backend Engineer | E-29 | First notification channel before WhatsApp (P-02). resend.com, EU region |
+| E-33 | Grafana alert rules — 5 operational thresholds (night rate, price spike, solar, API health, drift) | 🟡 | MEDIUM | 2026-04-21 | — | Staff Reliability Engineer | DAN-96 | Depends on DB having data. Alert contact point: webhook → email (E-32) or WhatsApp (P-02). Linear: DAN-101 |
+| E-34 | Ops runbook additions — incident procedures, escalation path, MTTR/SLA targets | 🟡 | MEDIUM | 2026-04-21 | — | Staff Reliability Engineer | — | Extend `docs/DEPLOY_RUNBOOK.md`. 3 incident types: API down, data gap, drift alarm. SLA: API detection <5 min, drift-to-rollback <4h. Linear: DAN-102 |
+| E-35 | Stage gate criteria — formal entry/exit conditions for DAN-96 → DAN-97 → DAN-98 | 🟡 | MEDIUM | 2026-04-21 | — | Staff Product Manager | — | Create `docs/governance/STAGE_GATES.md`. Each gate has runnable verification command. BMS transition services pattern. Linear: DAN-103 |
 
 **Notes on outstanding items:**
 
