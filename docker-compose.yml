@@ -125,6 +125,33 @@ services:
     networks:
       - sparc
 
+  # ── n8n (Shared Workflow Automation — Sparc + Greenhouse) ───────────────────
+  # Shared notification & automation hub for both Energy Sparc and Gardening.
+  # Sparc Grafana → webhook → n8n (via Docker network: http://n8n:5678)
+  # Greenhouse Grafana → webhook → n8n (via Mac host: http://host.docker.internal:5678)
+  # WhatsApp delivery via CallMeBot (see docs/infra/services/N8N_WORKFLOWS.md)
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: sparc-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678
+      - GENERIC_TIMEZONE=Europe/Dublin
+      - N8N_BASIC_AUTH_ACTIVE=false
+    env_file: .env
+    volumes:
+      - n8ndata:/home/node/.n8n
+      - ./scripts:/home/node/sparc_scripts:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - sparc
+
   # ── Caddy (Reverse Proxy + Automatic TLS) ──────────────────────────────────
   # Handles HTTPS for all services behind a single port.
   # On Mac: caddy auto-generates a local CA and issues *.sparc.localhost certs.
@@ -158,6 +185,8 @@ volumes:
   caddydata:
     driver: local
   caddyconfig:
+    driver: local
+  n8ndata:
     driver: local
 
 # ── Network ──────────────────────────────────────────────────────────────────
