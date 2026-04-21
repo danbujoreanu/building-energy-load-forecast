@@ -43,8 +43,8 @@ Typical usage::
 
 from energy_forecast.registry.model_registry import (
     ModelMetrics,
-    ModelRegressionError,
     ModelRegistry,
+    ModelRegressionError,
     ModelStatus,
     ModelVersion,
     RegistryError,

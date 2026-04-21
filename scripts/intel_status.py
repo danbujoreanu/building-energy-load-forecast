@@ -19,7 +19,8 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from intel.ingest import get_status, VALID_TIERS, _PROJECT_ROOT as INTEL_ROOT
+from intel.ingest import _PROJECT_ROOT as INTEL_ROOT
+from intel.ingest import VALID_TIERS, get_status
 
 
 def parse_args() -> argparse.Namespace:

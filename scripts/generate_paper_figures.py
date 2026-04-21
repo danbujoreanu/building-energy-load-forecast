@@ -1001,7 +1001,6 @@ def fig7_horizon_sensitivity() -> None:
     - H+1: outputs/results/h1_metrics.csv
     - H+24: outputs/results/final_metrics.csv
     """
-    import ast
 
     h1_path = RESULTS_DIR / "h1_metrics.csv"
     h24_path = RESULTS_DIR / "final_metrics.csv"

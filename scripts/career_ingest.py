@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 scripts/career_ingest.py
 ========================
 CLI for the career intelligence module.
@@ -46,7 +46,7 @@ _DEFAULT_OBSIDIAN_DIR = Path.home() / "Personal Projects" / "Career" / "Applicat
 
 
 def cmd_ingest_all_obsidian(args):
-    from intel.career import ingest_obsidian_jobs, ingest_career_profile
+    from intel.career import ingest_career_profile, ingest_obsidian_jobs
 
     obsidian_dir = Path(args.obsidian_dir) if args.obsidian_dir else _DEFAULT_OBSIDIAN_DIR
 

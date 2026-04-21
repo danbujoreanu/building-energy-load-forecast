@@ -34,7 +34,8 @@ logger = logging.getLogger(__name__)
 _ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_ROOT / "src"))
 
-from energy_forecast.tariff import BGE as BGE_TARIFF, rate_for_slot  # noqa: E402
+from energy_forecast.tariff import BGE as BGE_TARIFF  # noqa: E402
+from energy_forecast.tariff import rate_for_slot
 
 MAYNOOTH_COORDS = {"lat": 53.382, "lon": -6.593}  # Co Kildare
 
@@ -228,25 +229,25 @@ def build_schedule(forecast_df: pd.DataFrame) -> list[dict]:
 
         if rate_name == "free":
             action = "RUN_NOW"
-            reason = "Free Saturday window — run all shiftable loads now (0 c/kWh)"
+            _reason = "Free Saturday window — run all shiftable loads now (0 c/kWh)"
             saving = kwh * BGE_TARIFF["day"]  # vs day rate counterfactual
         elif rate_name == "night":
             action = "RUN_NOW"
-            reason = f"Night rate {BGE_TARIFF['night']*100:.1f} c/kWh — cheapest grid window"
+            _reason = f"Night rate {BGE_TARIFF['night']*100:.1f} c/kWh — cheapest grid window"
             saving = kwh * (BGE_TARIFF["day"] - BGE_TARIFF["night"])
         elif rate_name == "peak":
             action = "DEFER"
-            reason = (
+            _reason = (
                 f"Peak rate {BGE_TARIFF['peak']*100:.1f} c/kWh — defer to night or next Saturday"
             )
             saving = kwh * (BGE_TARIFF["peak"] - BGE_TARIFF["night"])
         elif solar > 150:
             action = "RUN_NOW"
-            reason = f"Solar {solar:.0f} W/m² — self-generation covers likely load"
+            _reason = f"Solar {solar:.0f} W/m² — self-generation covers likely load"
             saving = kwh * BGE_TARIFF["export"]  # avoid export, use self-gen
         else:
             action = "NORMAL"
-            reason = f"Day rate {BGE_TARIFF['day']*100:.1f} c/kWh — standard window"
+            _reason = f"Day rate {BGE_TARIFF['day']*100:.1f} c/kWh — standard window"
             saving = 0.0
 
         decisions.append(
@@ -266,7 +267,8 @@ def build_schedule(forecast_df: pd.DataFrame) -> list[dict]:
 
 def fetch_eddi_status() -> dict | None:
     """Fetch live Eddi status if credentials are available (non-fatal)."""
-    import os, sys
+    import os
+    import sys
 
     serial = os.environ.get("MYENERGI_SERIAL", "")
     api_key = os.environ.get("MYENERGI_API_KEY", "")
@@ -369,7 +371,6 @@ def main():
     # ── 4. Forecast next 24h ────────────────────────────────────
     # Always forecast from the current hour, not from last data point.
     # Lag features are filled from historical data regardless of when it ends.
-    import pytz
 
     now_dublin = pd.Timestamp.now(tz="Europe/Dublin").floor("1h")
     fc_index = pd.date_range(now_dublin, periods=args.horizon, freq="1h", tz="Europe/Dublin")

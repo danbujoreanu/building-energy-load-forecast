@@ -290,7 +290,7 @@ class TestEndToEndLightGBM:
         featured = build_temporal_features(synthetic_df, cfg)
         splits = make_splits(featured, cfg)
 
-        scaler = splits["scaler"]
+        _scaler = splits["scaler"]
         # Scaler was fit on X_train; its mean should be close to X_train unscaled mean
         # After scaling, X_train should have mean ≈ 0 and std ≈ 1
         x_train_scaled = splits["X_train"]

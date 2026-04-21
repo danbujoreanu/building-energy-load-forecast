@@ -370,7 +370,7 @@ def print_report(result: dict) -> None:
     )
 
     sa = result["saturday_analysis"]
-    print(f"\n  Saturday free window:")
+    print("\n  Saturday free window:")
     print(f"    Avg per Saturday:  {sa['avg_saturday_kwh']:.1f} kWh  (grid import only)")
     print(
         f"    Monthly avg:       {sa['monthly_free_avg_kwh']:.1f} kWh  (cap: {FREE_CAP_KWH:.0f} kWh)"
@@ -382,16 +382,16 @@ def print_report(result: dict) -> None:
             f"    Avg Saturday solar export: {sa['avg_sat_export_kwh']:.1f} kWh/month  "
             f"({n_solar} Saturdays with active solar generation)"
         )
-        print(f"    Note: Eddi solar diversion not in grid data — summer score is conservative.")
+        print("    Note: Eddi solar diversion not in grid data — summer score is conservative.")
 
     mot = result["money_on_table"]
-    print(f"\n  Savings opportunity:")
+    print("\n  Savings opportunity:")
     print(f"    Unused free allowance:   {mot['unused_free_kwh_monthly_avg']:.1f} kWh/month")
     print(f"    Monthly saving potential: EUR {mot['monthly_saving_potential_eur']:.2f}")
     print(f"    Annual saving potential:  EUR {mot['annual_saving_potential_eur']:.2f}")
     print(f"    Peak-rate overpay (total): EUR {mot['peak_overpay_total_eur']:.2f}")
 
-    print(f"\n  Recommendations:")
+    print("\n  Recommendations:")
     for i, rec in enumerate(result["recommendations"], 1):
         # wrap at ~70 chars
         words = rec.split()
@@ -405,8 +405,8 @@ def print_report(result: dict) -> None:
         if line:
             lines.append(" ".join(line))
         print(f"  {i}. {lines[0]}")
-        for l in lines[1:]:
-            print(f"     {l}")
+        for line_part in lines[1:]:
+            print(f"     {line_part}")
 
     print(f"\n{sep}\n")
 

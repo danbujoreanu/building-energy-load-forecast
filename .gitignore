@@ -112,3 +112,4 @@ HDF_kW*.csv
 
 # ChromaDB vector store (large binaries, machine-specific)
 data/chromadb/
+!outputs/models/.gitkeep

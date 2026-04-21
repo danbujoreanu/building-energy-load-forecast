@@ -30,12 +30,14 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from intel.ingest import (
+    _PROJECT_ROOT as INTEL_ROOT,
+)
+from intel.ingest import (
     VALID_TIERS,
+    get_status,
     ingest_all,
     ingest_file,
     ingest_tier,
-    get_status,
-    _PROJECT_ROOT as INTEL_ROOT,
 )
 
 logging.basicConfig(

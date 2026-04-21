@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
@@ -242,7 +242,7 @@ class DriftReport:
 
         lines: list[str] = [
             f"## Drift Report — {self.city} / {self.model_name}",
-            f"",
+            "",
             f"**Checked at:** {self.checked_at}",
             f"**Reference:** {self.reference_period[0]} → {self.reference_period[1]}"
             f" ({self.n_reference_samples:,} samples)",
@@ -250,10 +250,10 @@ class DriftReport:
             f" ({self.n_check_samples:,} samples)",
             f"**Overall status:** {sev_icon[self.overall_severity]}",
             f"**Recommended action:** `{self.recommended_action}`",
-            f"",
-            f"### Summary",
+            "",
+            "### Summary",
             self.summary,
-            f"",
+            "",
         ]
 
         # Rolling MAE
@@ -261,31 +261,31 @@ class DriftReport:
             r = self.rolling_mae_result
             lines += [
                 f"### Rolling MAE ({r.window_days}-day window)",
-                f"",
-                f"| Metric | Value |",
-                f"|--------|-------|",
+                "",
+                "| Metric | Value |",
+                "|--------|-------|",
                 f"| Rolling MAE | {r.rolling_mae:.4f} kWh |",
                 f"| Training MAE | {r.training_mae:.4f} kWh |",
                 f"| Ratio | {r.ratio:.3f}× (threshold: {r.threshold}×) |",
                 f"| Triggered | {'YES' if r.is_triggered else 'no'} |",
                 f"| Severity | {sev_icon[r.severity]} |",
-                f"",
+                "",
             ]
 
         # Target drift
         if self.target_result is not None:
             t = self.target_result
             lines += [
-                f"### Target (y) Distribution",
-                f"",
-                f"| Metric | Value |",
-                f"|--------|-------|",
+                "### Target (y) Distribution",
+                "",
+                "| Metric | Value |",
+                "|--------|-------|",
                 f"| KS statistic | {t.ks_statistic:.4f} |",
                 f"| KS p-value | {t.ks_pvalue:.4f} |",
                 f"| Mean shift | {t.mean_shift_pct:+.1f}% |",
                 f"| Std shift | {t.std_shift_pct:+.1f}% |",
                 f"| Drifted | {'YES' if t.is_drifted else 'no'} |",
-                f"",
+                "",
             ]
 
         # Feature drift table — top 10 by PSI
@@ -293,9 +293,9 @@ class DriftReport:
             top_n = self.feature_results[:10]
             lines += [
                 f"### Feature Drift (top {len(top_n)} by PSI)",
-                f"",
-                f"| Feature | PSI | KS p-value | Drifted | Severity |",
-                f"|---------|-----|-----------|---------|----------|",
+                "",
+                "| Feature | PSI | KS p-value | Drifted | Severity |",
+                "|---------|-----|-----------|---------|----------|",
             ]
             for fr in top_n:
                 drifted_str = "YES" if fr.is_drifted else "no"

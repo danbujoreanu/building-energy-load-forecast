@@ -164,8 +164,9 @@ def _run_sklearn_model(
     name: str, cfg: dict, horizon: int, X_train, y_train, X_val, y_val, X_test, y_test
 ) -> dict:
     """Train and evaluate one sklearn model at a given horizon."""
-    from energy_forecast.models.sklearn_models import build_sklearn_models
     import sklearn.metrics as skm
+
+    from energy_forecast.models.sklearn_models import build_sklearn_models
 
     models = build_sklearn_models(cfg)
     if name not in models:
@@ -229,6 +230,7 @@ def _run_lstm_model(
     16 GB unified memory.  Test set is kept full for fair evaluation.
     """
     import copy
+
     from energy_forecast.models.deep_learning import LSTMForecaster
 
     cfg_h = copy.deepcopy(cfg)

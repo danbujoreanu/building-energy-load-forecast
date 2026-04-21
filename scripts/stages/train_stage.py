@@ -315,8 +315,8 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
     # ── Model Registry: register + promote each trained model ─────────────────
     from energy_forecast.registry import (  # noqa: PLC0415
         ModelMetrics,
-        ModelRegressionError,
         ModelRegistry,
+        ModelRegressionError,
         ModelStatus,
         ModelVersion,
     )
@@ -410,8 +410,8 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
     # ── Post-training drift check ──────────────────────────────────────────────
     logger.info("Stage 3b: Running post-training drift check …")
     try:
+
         from energy_forecast.monitoring.drift_detector import DriftDetector
-        import json as _json
 
         # Load reference (training) and current (val) features for drift check
         # X_train / y_train / X_val / y_val are all in scope from the splits loaded above
@@ -473,7 +473,6 @@ def _write_metrics_atomic(path: "Path", df: "pd.DataFrame") -> None:  # noqa: F8
     Acquires an exclusive fcntl lock to prevent concurrent pipeline runs
     from interleaving writes.
     """
-    import pandas as pd  # noqa: PLC0415
 
     tmp_path = path.with_suffix(".csv.tmp")
     lock_path = path.with_suffix(".csv.lock")
@@ -655,8 +654,8 @@ def _train_dl_model(
 
 
 def _save_error_array(
-    preds_dir: "Path", model_name: str, errors: "np.ndarray"
-) -> None:  # noqa: F821
+    preds_dir: "Path", model_name: str, errors: "np.ndarray"  # noqa: F821
+) -> None:
     """Save a 1-D test error array (y_true - y_pred) for the Diebold-Mariano test.
 
     File name: {model_name}_h24_test_errors.npy  (errors are signed: positive = over-prediction)

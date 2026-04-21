@@ -38,9 +38,7 @@ import hashlib
 import logging
 import sys
 import textwrap
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterator
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -142,7 +140,8 @@ def ingest_feeds(tier_filter: str | None = None, max_items: int = _DEFAULT_MAX_I
     dict: {tier: {feed_name: {ingested: int, skipped: int, errors: int}}}
     """
     import chromadb
-    from intel.ingest import CHROMA_PATH, VALID_TIERS
+
+    from intel.ingest import CHROMA_PATH
 
     cfg = _load_config()
     feed_config: dict = cfg.get("intel_feeds", {})
@@ -226,6 +225,7 @@ def ingest_feeds(tier_filter: str | None = None, max_items: int = _DEFAULT_MAX_I
 def show_status() -> None:
     """Show item counts per tier from ChromaDB."""
     import chromadb
+
     from intel.ingest import CHROMA_PATH
 
     cfg = _load_config()
@@ -272,7 +272,7 @@ def main():
 
     if args.ingest:
         print(
-            f"\n🌐 Ingesting intel feeds" + (f" (tier: {args.tier})" if args.tier else "") + "...\n"
+            "\n🌐 Ingesting intel feeds" + (f" (tier: {args.tier})" if args.tier else "") + "...\n"
         )
         results = ingest_feeds(tier_filter=args.tier, max_items=args.max_items)
         total_new = sum(v["ingested"] for tier in results.values() for v in tier.values())

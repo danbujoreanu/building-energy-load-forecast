@@ -36,7 +36,7 @@ _SKIP_NAMES = {"readme", "index", "_index", "template", "00_template"}
 
 
 def _ingest_file(fp: Path) -> None:
-    from intel.career import ingest_job_spec, _enrich_with_inferred_metadata
+    from intel.career import _enrich_with_inferred_metadata, ingest_job_spec
 
     try:
         _enrich_with_inferred_metadata(fp)

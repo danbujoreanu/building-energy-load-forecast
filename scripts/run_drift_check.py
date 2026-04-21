@@ -38,7 +38,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import pickle
 import sys
 from pathlib import Path
 
@@ -424,7 +423,8 @@ def main() -> None:
     # Default JSON output to the monitoring directory
     default_dir = REPO_ROOT / "outputs" / "results" / "drift_reports"
     default_dir.mkdir(parents=True, exist_ok=True)
-    from datetime import datetime, timezone as _tz
+    from datetime import datetime
+    from datetime import timezone as _tz
 
     ts = datetime.now(tz=_tz.utc).strftime("%Y-%m-%d")
     default_json = default_dir / f"drift_{args.city}_{ts}.json"

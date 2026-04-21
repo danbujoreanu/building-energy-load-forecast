@@ -195,7 +195,7 @@ def print_table(df: pd.DataFrame) -> None:
     tree_mask = df["setup"] == "A"
     dl_mask = df["setup"] == "B"
     tree_dg = df.loc[tree_mask & df["degradation_factor"].notna(), "degradation_factor"]
-    dl_dg = df.loc[dl_mask & df["degradation_factor"].notna(), "degradation_factor"]
+    _dl_dg = df.loc[dl_mask & df["degradation_factor"].notna(), "degradation_factor"]
     # Exclude LSTM convergence failure from DL stats
     dl_dg_sane = df.loc[
         dl_mask & df["degradation_factor"].notna() & (df["degradation_factor"] < 5),
