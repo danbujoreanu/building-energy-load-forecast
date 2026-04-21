@@ -228,6 +228,14 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | P-20 | **Geographic demand heatmap** — household consumption density map for ESCO reporting | 🔵 | LOW | 2026-04-16 | — | Staff Data Scientist | D-25 + P-12 | GeoJSON + Leaflet.js (or Grafana Geomap panel). Shows aggregate anonymised consumption by postcode. Use case: ESCO reporting to ESB Networks, investor demo, heat pump adoption hotspot identification for SEAI partnership |
 | P-21 | **Google Stitch UI prototyping sprint** — generate key screens before building Next.js | 🟡 | MEDIUM | 2026-04-16 | — | Rory + Dan | D-23 | Screens: morning brief, 24h forecast chart, device control, home plan score, settings. Use Stitch (Gemini Pro, 550 free generations/month) → export to Figma → hand-code in Next.js + Tailwind + shadcn/ui + Tremor. Do this BEFORE writing frontend code. |
 
+### P-22: Household Energy Intelligence Dashboard (Grafana — operator view)
+
+| ID | Item | Status | Priority | Added | Owner | Depends On | Notes |
+|----|------|--------|----------|-------|-------|-----------|-------|
+| P-22 | **Household Grafana dashboard** — consumption fingerprint, tariff breakdown, BTM signatures, savings gap | 🔴 | HIGH | 2026-04-21 | Staff Backend Engineer | DAN-96 | Second Grafana dashboard with `$household_id` template variable. 4 panels: (1) hourly heatmap, (2) tariff slot breakdown vs bill, (3) BTM asset signatures (post P-01), (4) savings gap. Zero new code — Grafana provisioning only. Blocks D-23 (consumer app needs validated UX before Next.js build). Linear: DAN-107. Streamlit NOT used here — Grafana handles the operator/dev view. |
+
+---
+
 ### P-15: Rory Design Principle (Cross-Cutting)
 
 | ID | Item | Status | Priority | Added | Owner | Notes |
@@ -270,11 +278,11 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | D-21 | `MQTTConnector` — industrial sensor feeds | 🔵 | LOW | 2026-03 | Staff Data Engineer | MQTT broker | B2B use case |
 | D-22 | `P1Connector` — real-time ESB smart meter via P1 port | 🔵 | LOW | 2026-03 | Staff Data Engineer | D-16 + ESB P1 activation | Same DSMR P1 standard as NL/BE/LU/ES |
 | D-23 | **Full consumer app tech stack** — Next.js PWA + FastAPI + PostgreSQL/Supabase + Redis | 🔴 | HIGH | 2026-04-16 | Staff Backend Engineer | — | See `docs/TECH_STACK.md`. Handles auth, multi-tenancy, notification delivery, account management |
-| D-24 | **Docker Compose local stack + Cloudflare Tunnel** — Mac Mini M5 beta hosting | 🔄 | HIGH | 2026-04-16 | 2026-04-16 | Staff Backend Engineer | D-23 | `docker-compose.yml` + Caddy + Grafana provisioning + `infra/db/init.sql` + `.env.example`. Run: `docker compose up -d`. ADR-011 |
+| D-24 | **Docker Compose local stack + Cloudflare Tunnel** — Mac Mini M5 beta hosting | ✅ | HIGH | 2026-04-16 | 2026-04-21 | Staff Backend Engineer | D-23 | Full stack running: FastAPI + TimescaleDB + Redis + Grafana + Caddy + n8n. `docker compose up -d`. ADR-011 |
 | D-25 | **Multi-household database schema** — households, predictions, recommendations, outcomes, tariff_changes | ✅ | HIGH | 2026-04-16 | 2026-04-16 | Staff Data Engineer | D-23 | Schema in `infra/db/init.sql`. Views: `customer_tiers`, `savings_gap`. TimescaleDB hypertables on `meter_readings` + `predictions`. |
 | D-26 | **APScheduler batch prediction pipeline** — daily 16:00 per registered household | 🟡 | MEDIUM | 2026-04-16 | — | Staff ML Engineer | D-23 + D-25 | Single shared LightGBM model per city; per-household: tariff config + consumption history only. Redis cache (TTL 23h) |
 | D-27 | **Vega-Lite custom panels in Grafana** — energy-native operator chart specs | 🔵 | LOW | 2026-04-16 | — | Staff Backend Engineer | D-24 | Use Grafana's Vega-Lite panel plugin for: P10/P50/P90 forecast bands, drift severity heatmap, household consumption fingerprint. More expressive than default Grafana charts. |
-| D-28 | **n8n workflow orchestrator** — replace APScheduler + notification code (Phase 2) | 🔵 | LOW | 2026-04-16 | — | Staff Backend Engineer | D-23 | Self-hosted, open-source (runs in Docker). Handles: CSV upload → process → notify; WhatsApp/email dispatch; P1 port webhook triggers. Add to docker-compose.yml alongside API. Eliminates custom notification code. |
+| D-28 | **n8n workflow orchestrator** — 6 workflows live, Pushover notifications | ✅ | LOW | 2026-04-16 | 2026-04-21 | Staff Backend Engineer | D-23 | Running at localhost:5678. Workflows: Sparc/GH alert relay, morning brief (08:00), GH evening summary (20:00), weekly drift check (Mon 09:00), DAN-89 deadline (Apr 24). Pushover primary + CallMeBot backup. Linear: DAN-94 Done. |
 | D-29 | **Supabase project setup** — create project, run `infra/db/init.sql`, store connection strings in `env` | 🔴 | HIGH | 2026-04-16 | — | Dan | D-25 | Free tier: 500MB/50k rows. EU region (Frankfurt). Once done: update `DATABASE_URL` in `.env`, run `psql $DATABASE_URL < infra/db/init.sql` |
 
 ---
