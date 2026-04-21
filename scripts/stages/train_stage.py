@@ -29,9 +29,9 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
     from energy_forecast.models.sklearn_models import build_sklearn_models
     from energy_forecast.visualization import plot_model_comparison
 
-    proc_dir  = Path(cfg["paths"]["processed"]) / cfg["city"] / "splits"
-    res_dir   = Path(cfg["paths"]["outputs"]["results"])
-    fig_dir   = Path(cfg["paths"]["outputs"]["figures"])
+    proc_dir = Path(cfg["paths"]["processed"]) / cfg["city"] / "splits"
+    res_dir = Path(cfg["paths"]["outputs"]["results"])
+    fig_dir = Path(cfg["paths"]["outputs"]["figures"])
     preds_dir = Path(cfg["paths"]["outputs"].get("predictions", "outputs/predictions"))
     res_dir.mkdir(parents=True, exist_ok=True)
     if save_preds:
@@ -42,20 +42,20 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
 
     X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")  # noqa: N806
     y_train = pd.read_parquet(proc_dir / "y_train.parquet").squeeze()
-    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
-    y_val   = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
-    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
-    y_test  = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
+    X_val = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
+    y_val = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
+    X_test = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
+    y_test = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
 
     # Extract building_ids and timestamps for daily-peak and per-building metrics.
     # y_test has a MultiIndex (building_id, timestamp); both levels are needed by
     # evaluate() to compute daily_peak_mae and per-building breakdowns.
     test_bids = y_test.index.get_level_values("building_id")
-    test_ts   = y_test.index.get_level_values("timestamp")
+    test_ts = y_test.index.get_level_values("timestamp")
 
     results = []
     fitted_models: dict = {}
-    train_times: dict = {}   # {model_name: training_seconds}
+    train_times: dict = {}  # {model_name: training_seconds}
 
     # ── Baselines ─────────────────────────────────────────────────────────────
     for model in [NaiveModel(), SeasonalNaiveModel(), MeanModel()]:
@@ -63,8 +63,9 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
         model.fit(X_train, y_train)
         train_times[model.name] = round(time.time() - t0, 1)
         preds = model.predict(X_test)
-        results.append(evaluate(y_test, preds, model.name,
-                                building_ids=test_bids, timestamps=test_ts))
+        results.append(
+            evaluate(y_test, preds, model.name, building_ids=test_bids, timestamps=test_ts)
+        )
         fitted_models[model.name] = model
         if save_preds:
             _save_error_array(preds_dir, model.name, y_test.values - preds)
@@ -75,8 +76,9 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
         model.fit(X_train, y_train, X_val, y_val)
         train_times[model.name] = round(time.time() - t0, 1)
         preds = model.predict(X_test)
-        results.append(evaluate(y_test, preds, model.name,
-                                building_ids=test_bids, timestamps=test_ts))
+        results.append(
+            evaluate(y_test, preds, model.name, building_ids=test_bids, timestamps=test_ts)
+        )
         fitted_models[model.name] = model
         if save_preds:
             _save_error_array(preds_dir, model.name, y_test.values - preds)
@@ -84,19 +86,59 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
     # ── Deep learning (optional, slow) ────────────────────────────────────────
     slow_models = cfg.get("slow_models", ["cnn_lstm", "tft"])
     if not skip_slow or "lstm" not in slow_models:
-        _train_dl_model("lstm", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models, train_times,
-                        save_preds=save_preds, preds_dir=preds_dir)
+        _train_dl_model(
+            "lstm",
+            cfg,
+            X_train,
+            y_train,
+            X_val,
+            y_val,
+            X_test,
+            y_test,
+            results,
+            fitted_models,
+            train_times,
+            save_preds=save_preds,
+            preds_dir=preds_dir,
+        )
     if not skip_slow:
-        _train_dl_model("cnn_lstm", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models, train_times,
-                        save_preds=save_preds, preds_dir=preds_dir)
-        _train_dl_model("gru", cfg, X_train, y_train, X_val, y_val, X_test, y_test, results, fitted_models, train_times,
-                        save_preds=save_preds, preds_dir=preds_dir)
+        _train_dl_model(
+            "cnn_lstm",
+            cfg,
+            X_train,
+            y_train,
+            X_val,
+            y_val,
+            X_test,
+            y_test,
+            results,
+            fitted_models,
+            train_times,
+            save_preds=save_preds,
+            preds_dir=preds_dir,
+        )
+        _train_dl_model(
+            "gru",
+            cfg,
+            X_train,
+            y_train,
+            X_val,
+            y_val,
+            X_test,
+            y_test,
+            results,
+            fitted_models,
+            train_times,
+            save_preds=save_preds,
+            preds_dir=preds_dir,
+        )
 
     # ── TFT (very slow) ───────────────────────────────────────────────────────
     # Condition simplifies to: run TFT when not skip_slow
     if not skip_slow:
         try:
             from energy_forecast.models.tft import TFTForecaster
+
             tft = TFTForecaster(cfg)
             t0 = time.time()
             tft.fit(X_train, y_train, X_val, y_val)
@@ -118,9 +160,8 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
                     )
 
             tft_bids = y_tft.index.get_level_values("building_id")
-            tft_ts   = y_tft.index.get_level_values("timestamp")
-            results.append(evaluate(y_tft, preds, "TFT",
-                                    building_ids=tft_bids, timestamps=tft_ts))
+            tft_ts = y_tft.index.get_level_values("timestamp")
+            results.append(evaluate(y_tft, preds, "TFT", building_ids=tft_bids, timestamps=tft_ts))
             fitted_models["TFT"] = tft
             logger.info("TFT  n_eval=%d", len(y_tft))
         except Exception as exc:
@@ -138,7 +179,8 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
     _BASELINE_NAMES = {"Naive", "Seasonal Naive (24 h)", "Mean Baseline"}  # noqa: N806
     _UNSUPPORTED_STACKING = {"LightGBM_Quantile"}  # noqa: N806
     ensemble_base = {
-        k: v for k, v in fitted_models.items()
+        k: v
+        for k, v in fitted_models.items()
         if k not in _BASELINE_NAMES and k not in _DL_NAMES and k not in _UNSUPPORTED_STACKING
     }
     if len(ensemble_base) >= 2:
@@ -148,8 +190,9 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
             ensemble.fit(X_train, y_train, X_val, y_val)
             train_times[ensemble.name] = round(time.time() - t0, 1)
             preds = ensemble.predict(X_test)
-            results.append(evaluate(y_test, preds, ensemble.name,
-                                    building_ids=test_bids, timestamps=test_ts))
+            results.append(
+                evaluate(y_test, preds, ensemble.name, building_ids=test_bids, timestamps=test_ts)
+            )
         except Exception as exc:
             logger.error("Stacking ensemble training failed: %s", exc, exc_info=True)
 
@@ -184,7 +227,9 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
             # Use combined for plot/log below
             comparison_final = combined
         except (pd.errors.ParserError, OSError, KeyError) as e:
-            logger.error("Failed to merge with existing metrics: %s. Overwriting.", e, exc_info=True)
+            logger.error(
+                "Failed to merge with existing metrics: %s. Overwriting.", e, exc_info=True
+            )
             _write_metrics_atomic(metrics_path, comparison_to_save)
             comparison_final = comparison_to_save
     else:
@@ -198,7 +243,9 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
 
     # ── Plots ─────────────────────────────────────────────────────────────────
     plot_model_comparison(comparison, metric="MAE", save_path=fig_dir / "model_comparison_mae.png")
-    plot_model_comparison(comparison, metric="RMSE", save_path=fig_dir / "model_comparison_rmse.png")
+    plot_model_comparison(
+        comparison, metric="RMSE", save_path=fig_dir / "model_comparison_rmse.png"
+    )
 
     # ── Save fitted models (MISS-9) ───────────────────────────────────────────
     # Persist model artefacts so predictions can be regenerated without
@@ -254,7 +301,8 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
                 # re-fittable and have no persisted state worth saving.
                 logger.debug(
                     "No save handler for '%s' (type=%s) — skipping.",
-                    mname, type(model).__name__,
+                    mname,
+                    type(model).__name__,
                 )
 
         except OSError as exc:
@@ -302,9 +350,11 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
             continue  # Baselines — not registered
 
         # Determine registry model_name: quantile forecaster uses a canonical name
-        registry_model_name = "lightgbm_quantile" if (
-            hasattr(model, "models") and isinstance(getattr(model, "models", None), dict)
-        ) else mname
+        registry_model_name = (
+            "lightgbm_quantile"
+            if (hasattr(model, "models") and isinstance(getattr(model, "models", None), dict))
+            else mname
+        )
 
         test_mae_val = float(result.get("MAE", 0.0))
         test_rmse_val = float(result.get("RMSE", 0.0))
@@ -338,16 +388,22 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
             try:
                 registry.promote_to_active(registered.version_id)
                 logger.info(
-                    "Registry: promoted %s → ACTIVE (%s)", registry_model_name, registered.version_id
+                    "Registry: promoted %s → ACTIVE (%s)",
+                    registry_model_name,
+                    registered.version_id,
                 )
             except ModelRegressionError as exc:
                 logger.error(
                     "Registry: %s FAILED quality gate — new MAE (%.3f) > threshold × previous. "
                     "Previous ACTIVE version retained. Run with force=True to override. Error: %s",
-                    registry_model_name, test_mae_val, exc,
+                    registry_model_name,
+                    test_mae_val,
+                    exc,
                 )
         except Exception as exc:
-            logger.error("Registry: failed to register %s: %s", registry_model_name, exc, exc_info=True)
+            logger.error(
+                "Registry: failed to register %s: %s", registry_model_name, exc, exc_info=True
+            )
 
     logger.info("Registry summary:\n%s", registry.summary())
 
@@ -367,6 +423,7 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
         _metrics_path = res_dir / "final_metrics.csv"
         if _metrics_path.exists():
             import pandas as _pd_drift
+
             _mdf = _pd_drift.read_csv(_metrics_path)
             if "model" in _mdf.columns and "MAE" in _mdf.columns:
                 _lgb_row = _mdf[_mdf["model"].str.lower().str.contains("lightgbm", na=False)]
@@ -386,20 +443,20 @@ def run(cfg: dict, skip_slow: bool = False, save_preds: bool = False) -> None:
         _today = datetime.date.today().isoformat()
         _report_path = _drift_dir / f"drift_{city}_{_today}.json"
         _report_path.write_text(_report.to_json(), encoding="utf-8")
-        _sev = _report.overall_severity.value if hasattr(_report.overall_severity, "value") else str(_report.overall_severity)
+        _sev = (
+            _report.overall_severity.value
+            if hasattr(_report.overall_severity, "value")
+            else str(_report.overall_severity)
+        )
         if _sev == "critical":
             logger.error(
                 "Post-training drift check: CRITICAL — %s. Investigate before deploying.",
                 _report.recommended_action,
             )
         elif _sev == "warning":
-            logger.warning(
-                "Post-training drift check: WARNING — %s.", _report.recommended_action
-            )
+            logger.warning("Post-training drift check: WARNING — %s.", _report.recommended_action)
         else:
-            logger.info(
-                "Post-training drift check: %s — %s", _sev, _report.recommended_action
-            )
+            logger.info("Post-training drift check: %s — %s", _sev, _report.recommended_action)
         logger.info("Drift report written to %s", _report_path)
     except Exception as _drift_exc:
         logger.error(
@@ -474,18 +531,32 @@ def _build_y_true_matrix(y, lookback: int, horizon: int) -> "np.ndarray":  # noq
     horizon  : Number of future steps predicted per window
     """
     import numpy as np  # noqa: PLC0415
+
     parts = []
     for bid in y.index.get_level_values("building_id").unique():
         y_b = y.xs(bid, level="building_id").values
         n = len(y_b)
         # Valid window starts: i = lookback .. n - horizon (inclusive)
         for i in range(lookback, n - horizon + 1):
-            parts.append(y_b[i: i + horizon])
+            parts.append(y_b[i : i + horizon])
     return np.array(parts, dtype=np.float32)  # (n_samples, horizon)
 
 
-def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted_models,  # noqa: N803
-                    train_times=None, save_preds: bool = False, preds_dir: "Path | None" = None):
+def _train_dl_model(
+    arch,
+    cfg,
+    X_tr,
+    y_tr,
+    X_v,
+    y_v,
+    X_te,
+    y_te,
+    results,
+    fitted_models,  # noqa: N803
+    train_times=None,
+    save_preds: bool = False,
+    preds_dir: "Path | None" = None,
+):
     """Helper to train a single DL architecture with error handling.
 
     DL models use a sliding-window approach (see build_sequences) and cannot
@@ -517,7 +588,7 @@ def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted
         preds = model.predict(X_te)
 
         lookback = cfg.get("sequence", {}).get("lookback", 72)
-        horizon  = cfg.get("sequence", {}).get("horizon",  1)
+        horizon = cfg.get("sequence", {}).get("horizon", 1)
 
         if horizon > 1:
             # H+24 multi-step: build a 2-D y_true matrix (n_samples, horizon)
@@ -527,7 +598,9 @@ def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted
             if y_true_2d.shape != preds.shape:
                 logger.warning(
                     "%s shape mismatch: y_true=%s, preds=%s — skipping.",
-                    arch.upper(), y_true_2d.shape, preds.shape,
+                    arch.upper(),
+                    y_true_2d.shape,
+                    preds.shape,
                 )
                 return
             # building_ids/timestamps cannot be trivially aligned to the 2-D
@@ -537,7 +610,9 @@ def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted
             fitted_models[model.name] = model
             logger.info(
                 "%s  n_windows=%d  horizon=%d  (2-D evaluation, building boundaries respected)",
-                model.name, len(preds), horizon,
+                model.name,
+                len(preds),
+                horizon,
             )
             if save_preds and preds_dir is not None:
                 # Use the H+24 (last) horizon step for the DM test error series
@@ -549,36 +624,47 @@ def _train_dl_model(arch, cfg, X_tr, y_tr, X_v, y_v, X_te, y_te, results, fitted
             if len(y_te_aligned) != len(preds):
                 logger.warning(
                     "%s prediction length mismatch: y=%d, preds=%d — skipping.",
-                    arch.upper(), len(y_te_aligned), len(preds),
+                    arch.upper(),
+                    len(y_te_aligned),
+                    len(preds),
                 )
                 return
             dl_bids = y_te_aligned.index.get_level_values("building_id")
-            dl_ts   = y_te_aligned.index.get_level_values("timestamp")
-            results.append(evaluate(y_te_aligned, preds, model.name,
-                                    building_ids=dl_bids, timestamps=dl_ts))
+            dl_ts = y_te_aligned.index.get_level_values("timestamp")
+            results.append(
+                evaluate(y_te_aligned, preds, model.name, building_ids=dl_bids, timestamps=dl_ts)
+            )
             fitted_models[model.name] = model
-            logger.info("%s  n_eval=%d (trimmed %d lookback rows per building)",
-                        model.name, len(y_te_aligned), lookback)
+            logger.info(
+                "%s  n_eval=%d (trimmed %d lookback rows per building)",
+                model.name,
+                len(y_te_aligned),
+                lookback,
+            )
             if save_preds and preds_dir is not None:
                 errors = y_te_aligned.values - preds
                 _save_error_array(preds_dir, model.name, errors)
     except MemoryError as exc:
         logger.error(
             "%s training failed with OOM — try reducing batch_size in config.yaml. Error: %s",
-            arch.upper(), exc,
+            arch.upper(),
+            exc,
         )
     except Exception as exc:
         logger.error("%s training failed: %s", arch.upper(), exc, exc_info=True)
 
 
-def _save_error_array(preds_dir: "Path", model_name: str, errors: "np.ndarray") -> None:  # noqa: F821
+def _save_error_array(
+    preds_dir: "Path", model_name: str, errors: "np.ndarray"
+) -> None:  # noqa: F821
     """Save a 1-D test error array (y_true - y_pred) for the Diebold-Mariano test.
 
     File name: {model_name}_h24_test_errors.npy  (errors are signed: positive = over-prediction)
     These files are consumed by: python scripts/significance_test.py --mode dm
     """
     import numpy as np  # noqa: PLC0415
+
     safe_name = model_name.replace(" ", "_").replace("/", "-")
-    out_path  = preds_dir / f"{safe_name}_h24_test_errors.npy"
+    out_path = preds_dir / f"{safe_name}_h24_test_errors.npy"
     np.save(out_path, errors.astype(np.float32))
     logger.info("Saved prediction errors → %s  (n=%d)", out_path, len(errors))

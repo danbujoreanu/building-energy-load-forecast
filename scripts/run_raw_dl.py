@@ -3,7 +3,7 @@
 run_raw_dl.py
 =============
 Executes Setup C (Paradigm Parity) experiment.
-Runs Deep Learning models (LSTM, CNN-LSTM, GRU, PatchTST placeholder) on 
+Runs Deep Learning models (LSTM, CNN-LSTM, GRU, PatchTST placeholder) on
 raw sequence data (ignoring tabular feature engineering) to ensure a fair
 benchmarking against sklearn trees natively processing tabular data.
 
@@ -36,84 +36,119 @@ def setup_local_logging(log_level: str):
         level=getattr(logging, log_level.upper()),
         format="%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            logging.FileHandler(str(log_file), mode="w"),
-            logging.StreamHandler()
-        ]
+        handlers=[logging.FileHandler(str(log_file), mode="w"), logging.StreamHandler()],
     )
 
+
 logger = logging.getLogger(__name__)
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run Setup C DL models")
     parser.add_argument("--city", default="drammen", choices=["drammen", "oslo"])
     parser.add_argument("--config", default="config/config.yaml", help="Config file path")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING"])
-    parser.add_argument("--save-predictions", action="store_true",
-                        help="Save H+24 error arrays for Diebold-Mariano tests")
+    parser.add_argument(
+        "--save-predictions",
+        action="store_true",
+        help="Save H+24 error arrays for Diebold-Mariano tests",
+    )
     return parser.parse_args()
+
 
 def get_keras_model(name, input_shape, horizon, cfg):
     """Wrapper to build keras models dynamically from deep_learning configurations.
     Since deep_learning.py expects df in .fit(), we build raw models here for 3D numpy arrays.
     """
     import tensorflow as tf
+
     dl_cfg = cfg["training"]["deep_learning"]
     tf.keras.backend.clear_session()
 
     if name == "LSTM":
-        model = tf.keras.Sequential([
-            tf.keras.layers.LSTM(dl_cfg["lstm"]["units"][0], return_sequences=True, input_shape=input_shape),
-            tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
-            tf.keras.layers.LSTM(dl_cfg["lstm"]["units"][1]),
-            tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
-            tf.keras.layers.Dense(dl_cfg["lstm"]["dense_units"], activation="relu"),
-            tf.keras.layers.Dense(horizon)
-        ], name="LSTM_Raw")
+        model = tf.keras.Sequential(
+            [
+                tf.keras.layers.LSTM(
+                    dl_cfg["lstm"]["units"][0], return_sequences=True, input_shape=input_shape
+                ),
+                tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
+                tf.keras.layers.LSTM(dl_cfg["lstm"]["units"][1]),
+                tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
+                tf.keras.layers.Dense(dl_cfg["lstm"]["dense_units"], activation="relu"),
+                tf.keras.layers.Dense(horizon),
+            ],
+            name="LSTM_Raw",
+        )
 
     elif name == "CNN-LSTM":
         cnn_cfg = dl_cfg["cnn_lstm"]
-        model = tf.keras.Sequential([
-            tf.keras.layers.Conv1D(cnn_cfg["conv_filters"][0], cnn_cfg["kernel_size"], activation="relu", input_shape=input_shape),
-            tf.keras.layers.MaxPooling1D(pool_size=2),
-            tf.keras.layers.Conv1D(cnn_cfg["conv_filters"][1], cnn_cfg["kernel_size"], activation="relu"),
-            tf.keras.layers.LSTM(cnn_cfg["lstm_units"]),
-            tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
-            tf.keras.layers.Dense(cnn_cfg["dense_units"], activation="relu"),
-            tf.keras.layers.Dense(horizon)
-        ], name="CNN_LSTM_Raw")
+        model = tf.keras.Sequential(
+            [
+                tf.keras.layers.Conv1D(
+                    cnn_cfg["conv_filters"][0],
+                    cnn_cfg["kernel_size"],
+                    activation="relu",
+                    input_shape=input_shape,
+                ),
+                tf.keras.layers.MaxPooling1D(pool_size=2),
+                tf.keras.layers.Conv1D(
+                    cnn_cfg["conv_filters"][1], cnn_cfg["kernel_size"], activation="relu"
+                ),
+                tf.keras.layers.LSTM(cnn_cfg["lstm_units"]),
+                tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
+                tf.keras.layers.Dense(cnn_cfg["dense_units"], activation="relu"),
+                tf.keras.layers.Dense(horizon),
+            ],
+            name="CNN_LSTM_Raw",
+        )
 
     elif name == "GRU":
-        model = tf.keras.Sequential([
-            tf.keras.layers.GRU(dl_cfg["gru"]["units"][0], return_sequences=True, input_shape=input_shape),
-            tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
-            tf.keras.layers.GRU(dl_cfg["gru"]["units"][1]),
-            tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
-            tf.keras.layers.Dense(dl_cfg["gru"]["dense_units"], activation="relu"),
-            tf.keras.layers.Dense(horizon)
-        ], name="GRU_Raw")
+        model = tf.keras.Sequential(
+            [
+                tf.keras.layers.GRU(
+                    dl_cfg["gru"]["units"][0], return_sequences=True, input_shape=input_shape
+                ),
+                tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
+                tf.keras.layers.GRU(dl_cfg["gru"]["units"][1]),
+                tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
+                tf.keras.layers.Dense(dl_cfg["gru"]["dense_units"], activation="relu"),
+                tf.keras.layers.Dense(horizon),
+            ],
+            name="GRU_Raw",
+        )
     else:
         raise ValueError(f"Unknown deep learning model mode: {name}")
 
     model.compile(optimizer="adam", loss="mse", metrics=["mae"])
     return model
 
+
 def create_callbacks(dl_cfg):
     import tensorflow as tf
+
     return [
         tf.keras.callbacks.EarlyStopping(
-            monitor="val_loss", patience=dl_cfg["early_stopping_patience"],
+            monitor="val_loss",
+            patience=dl_cfg["early_stopping_patience"],
             min_delta=dl_cfg.get("early_stopping_min_delta", 0.0),
-            restore_best_weights=True, verbose=1
+            restore_best_weights=True,
+            verbose=1,
         ),
         tf.keras.callbacks.ReduceLROnPlateau(
-            monitor="val_loss", factor=dl_cfg["reduce_lr_factor"],
-            patience=dl_cfg["reduce_lr_patience"], min_lr=dl_cfg["min_lr"], verbose=0
-        )
+            monitor="val_loss",
+            factor=dl_cfg["reduce_lr_factor"],
+            patience=dl_cfg["reduce_lr_patience"],
+            min_lr=dl_cfg["min_lr"],
+            verbose=0,
+        ),
     ]
 
-def run_patchtst_eval(cfg, df_train, df_test, target_col, feature_cols, scaler_X, scaler_y, horizon):  # noqa: N803
+
+def run_patchtst_eval(
+    cfg, df_train, df_test, target_col, feature_cols, scaler_X, scaler_y, horizon
+):  # noqa: N803
     import time
+
     try:
         from neuralforecast import NeuralForecast
         from neuralforecast.models import PatchTST
@@ -127,7 +162,9 @@ def run_patchtst_eval(cfg, df_train, df_test, target_col, feature_cols, scaler_X
         df_scaled = df.copy()
         df_scaled[feature_cols] = scaler_X.transform(df_scaled[feature_cols].values)
         df_nf = df_scaled.reset_index()
-        df_nf = df_nf.rename(columns={"building_id": "unique_id", "timestamp": "ds", target_col: "y"})
+        df_nf = df_nf.rename(
+            columns={"building_id": "unique_id", "timestamp": "ds", target_col: "y"}
+        )
         # We also need to sort it, just in case
         cols_to_keep = ["unique_id", "ds", "y"] + [c for c in feature_cols if c != target_col]
         return df_nf[cols_to_keep].sort_values(by=["unique_id", "ds"]).reset_index(drop=True)
@@ -141,7 +178,7 @@ def run_patchtst_eval(cfg, df_train, df_test, target_col, feature_cols, scaler_X
     lookback = cfg["sequence"]["lookback"]
     dl_cfg = cfg.get("training", {}).get("deep_learning", {})
 
-    max_steps = 500 # Explicitly capping this for a relatively fast demonstration
+    max_steps = 500  # Explicitly capping this for a relatively fast demonstration
 
     # Define NeuralForecast PatchTST
     # Note: NeuralForecast handles scaling; we inject pre-scaled data and pass identity.
@@ -192,6 +229,7 @@ def run_patchtst_eval(cfg, df_train, df_test, target_col, feature_cols, scaler_X
     # Return prediction arrays alongside metrics so caller can save error arrays
     return res_metrics, preds_inv, y_inv
 
+
 def main():
     args = parse_args()
     setup_local_logging(args.log_level)
@@ -209,10 +247,7 @@ def main():
     target_col = cfg["data"]["target_column"]
 
     # Define raw features for Setup C
-    feature_cols = [
-        "Temperature_Outdoor_C",
-        "Global_Solar_Horizontal_Radiation_W_m2"
-    ]
+    feature_cols = ["Temperature_Outdoor_C", "Global_Solar_Horizontal_Radiation_W_m2"]
     # In some DL literature, the target is ALSO included in the raw sequence as input
     # (autoregressive feature). We must explicitly pass both.
     feature_cols = [target_col] + feature_cols
@@ -227,25 +262,23 @@ def main():
 
     # Replicate train/val/test splits (from src/energy_forecast/data/splits.py logic)
     train_end = pd.Timestamp(cfg["splits"]["train_end"], tz="Europe/Oslo")
-    val_end   = pd.Timestamp(cfg["splits"]["val_end"],   tz="Europe/Oslo")
+    val_end = pd.Timestamp(cfg["splits"]["val_end"], tz="Europe/Oslo")
     ts = df.index.get_level_values("timestamp")
 
     df_train = df[ts <= train_end].copy()
-    df_val   = df[(ts > train_end) & (ts <= val_end)].copy()
-    df_test  = df[ts > val_end].copy()
+    df_val = df[(ts > train_end) & (ts <= val_end)].copy()
+    df_test = df[ts > val_end].copy()
 
     # Impute missing weather values using Train Median (no leakage)
     for col in feature_cols:
         med = df_train[col].median()
         df_train[col] = df_train[col].fillna(med)
-        df_val[col]   = df_val[col].fillna(med)
-        df_test[col]  = df_test[col].fillna(med)
+        df_val[col] = df_val[col].fillna(med)
+        df_test[col] = df_test[col].fillna(med)
 
     # Generate 3D sequences and scaled Targets
     res = build_raw_sequences(
-        df_train, df_val, df_test,
-        target_col, feature_cols,
-        lookback, horizon
+        df_train, df_val, df_test, target_col, feature_cols, lookback, horizon
     )
     X_tr, y_tr, X_v, y_v, X_te, y_te, scaler_X, scaler_y = res  # noqa: N806
 
@@ -264,12 +297,13 @@ def main():
 
             t0 = time.time()
             model.fit(
-                X_tr, y_tr,
+                X_tr,
+                y_tr,
                 epochs=dl_cfg["epochs"],
                 batch_size=dl_cfg["batch_size"],
                 validation_data=(X_v, y_v),
                 callbacks=callbacks,
-                verbose=2
+                verbose=2,
             )
             logger.info(f"{name} Setup C trained in {time.time() - t0:.1f}s")
 
@@ -294,7 +328,11 @@ def main():
             metrics_file = Path(cfg["paths"]["outputs"]["results"]) / "final_metrics.csv"
 
             if metrics_file.exists():
-                existing = pd.read_csv(metrics_file, index_col=0) if metrics_file.stat().st_size > 0 else pd.DataFrame()
+                existing = (
+                    pd.read_csv(metrics_file, index_col=0)
+                    if metrics_file.stat().st_size > 0
+                    else pd.DataFrame()
+                )
                 if not existing.empty:
                     existing = existing[existing["model"] != f"{name}_SetupC"]
                 combined = pd.concat([existing, df_res], ignore_index=True)
@@ -308,9 +346,10 @@ def main():
     # PatchTST Model Implementation
     logger.info("--- Training Raw PatchTST (Setup C) ---")
     save_preds = args.save_predictions
-    preds_dir  = Path(cfg["paths"]["outputs"].get("predictions", "outputs/predictions"))
+    preds_dir = Path(cfg["paths"]["outputs"].get("predictions", "outputs/predictions"))
     if save_preds:
         import numpy as np
+
         preds_dir.mkdir(parents=True, exist_ok=True)
         logger.info("Prediction error arrays will be saved to %s", preds_dir)
 
@@ -324,7 +363,11 @@ def main():
             metrics_file = Path(cfg["paths"]["outputs"]["results"]) / "final_metrics.csv"
 
             if metrics_file.exists():
-                existing = pd.read_csv(metrics_file, index_col=0) if metrics_file.stat().st_size > 0 else pd.DataFrame()
+                existing = (
+                    pd.read_csv(metrics_file, index_col=0)
+                    if metrics_file.stat().st_size > 0
+                    else pd.DataFrame()
+                )
                 if not existing.empty:
                     existing = existing[existing["model"] != "PatchTST"]
                 combined = pd.concat([existing, df_res], ignore_index=True)
@@ -340,6 +383,7 @@ def main():
         logger.error(f"Failed to process PatchTST: {e}")
 
     logger.info("Setup C Evaluation complete! Check outputs/results/final_metrics.csv")
+
 
 if __name__ == "__main__":
     main()

@@ -9,7 +9,7 @@ import pandas as pd
 import tensorflow as tf
 
 # Disable Apple MPS for stability on M-series during re-loads
-tf.config.set_visible_devices([], 'GPU')
+tf.config.set_visible_devices([], "GPU")
 
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 sys.path.append(str(PROJECT_ROOT / "src"))
@@ -23,13 +23,15 @@ from energy_forecast.utils import load_config  # noqa: E402
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
 logger = logging.getLogger("mighty_rebuilder")
 
+
 def _build_y_true_matrix(y, lookback: int, horizon: int) -> np.ndarray:
     parts = []
     for bid in y.index.get_level_values("building_id").unique():
         y_b = y.xs(bid, level="building_id").values
         for i in range(lookback, len(y_b) - horizon + 1):
-            parts.append(y_b[i: i + horizon])
+            parts.append(y_b[i : i + horizon])
     return np.array(parts, dtype=np.float32)
+
 
 def _trim_dl_targets(y, lookback: int):
     parts = []
@@ -37,6 +39,7 @@ def _trim_dl_targets(y, lookback: int):
         y_b = y.xs(bid, level="building_id")
         parts.append(y_b.iloc[lookback:])
     return pd.concat(parts)
+
 
 def main():
     base_cfg = load_config(PROJECT_ROOT / "config/config.yaml")
@@ -50,7 +53,7 @@ def main():
     # "Golden" results from March 5th/6th as fallback if models are missing
     golden_truth = {
         "drammen": {"PatchTST_SetupC": 6.955},
-        "oslo": {"PatchTST_SetupC": 7.4} # Estimated
+        "oslo": {"PatchTST_SetupC": 7.4},  # Estimated
     }
 
     for city in cities:
@@ -67,7 +70,22 @@ def main():
         if not split_check.exists():
             logger.info(f"Splits for {city} not found. Regenerating (Stages 1-2)...")
             import subprocess
-            subprocess.run([sys.executable, str(PROJECT_ROOT / "scripts/run_pipeline.py"), "--city", city, "--stages", "eda", "features", "--config", str(PROJECT_ROOT / "config/config.yaml")], check=True, cwd=str(PROJECT_ROOT))
+
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(PROJECT_ROOT / "scripts/run_pipeline.py"),
+                    "--city",
+                    city,
+                    "--stages",
+                    "eda",
+                    "features",
+                    "--config",
+                    str(PROJECT_ROOT / "config/config.yaml"),
+                ],
+                check=True,
+                cwd=str(PROJECT_ROOT),
+            )
 
         # Load Splits
         try:
@@ -82,7 +100,7 @@ def main():
             continue
 
         test_bids = y_test.index.get_level_values("building_id")
-        test_ts   = y_test.index.get_level_values("timestamp")
+        test_ts = y_test.index.get_level_values("timestamp")
 
         results = []
         fitted_models = {}
@@ -92,9 +110,11 @@ def main():
         for model in [NaiveModel(), SeasonalNaiveModel(), MeanModel()]:
             model.fit(X_train, y_train)
             preds = model.predict(X_test)
-            res = evaluate(y_test, preds, model.name, building_ids=test_bids, timestamps=test_ts, city=city)
+            res = evaluate(
+                y_test, preds, model.name, building_ids=test_bids, timestamps=test_ts, city=city
+            )
             results.append(res)
-            model_key = model.name.split(' (')[0].split(' Baseline')[0]
+            model_key = model.name.split(" (")[0].split(" Baseline")[0]
             fitted_models[model_key] = model
             logger.info(f" ✅ {model.name:24} | MAE: {res['MAE']:.3f} | n={res['n_samples']}")
 
@@ -103,14 +123,18 @@ def main():
         sklearn_paths = glob.glob(str(models_dir / f"{city}_*.joblib"))
         for m_path in sklearn_paths:
             fname = Path(m_path).name
-            if "_meta" in fname or "Quantile" in fname or "scaler" in fname: continue  # noqa: E701
+            if "_meta" in fname or "Quantile" in fname or "scaler" in fname:
+                continue  # noqa: E701
             mname = fname.replace(f"{city}_", "").split("_")[0]
-            if any(r["model"] == mname for r in results): continue  # noqa: E701
+            if any(r["model"] == mname for r in results):
+                continue  # noqa: E701
             try:
                 est = joblib.load(m_path)
                 model = SklearnForecaster(est, name=mname)
                 preds = model.predict(X_test)
-                res = evaluate(y_test, preds, mname, building_ids=test_bids, timestamps=test_ts, city=city)
+                res = evaluate(
+                    y_test, preds, mname, building_ids=test_bids, timestamps=test_ts, city=city
+                )
                 results.append(res)
                 fitted_models[mname] = model
                 logger.info(f" ✅ {mname:24} | MAE: {res['MAE']:.3f} | n={res['n_samples']}")
@@ -127,8 +151,12 @@ def main():
         dl_targets = ["LSTM_SetupB", "GRU_SetupB", "CNN-LSTM_SetupB", "TFT_SetupB"]
         for mname in dl_targets:
             match = [p for p in keras_paths if f"{city}_{mname}" in Path(p).name]
-            if not match: match = [p for p in keras_paths if mname in Path(p).name and city not in Path(p).name]  # noqa: E701
-            if not match: continue  # noqa: E701
+            if not match:
+                match = [
+                    p for p in keras_paths if mname in Path(p).name and city not in Path(p).name
+                ]  # noqa: E701
+            if not match:
+                continue  # noqa: E701
 
             try:
                 model = tf.keras.models.load_model(match[0], compile=False)
@@ -149,12 +177,20 @@ def main():
         logger.info("🏗️  Phase 4: Setup C (Raw Sequences)...")
         p_mae = golden_truth[city].get("PatchTST_SetupC")
         if p_mae:
-            results.append({"city": city, "model": "PatchTST_SetupC", "MAE": p_mae, "n_samples": 241393})
-            logger.info(f" ✅ PatchTST_SetupC         | MAE: {p_mae:.3f} (Recovered from March 5th Journal)")
+            results.append(
+                {"city": city, "model": "PatchTST_SetupC", "MAE": p_mae, "n_samples": 241393}
+            )
+            logger.info(
+                f" ✅ PatchTST_SetupC         | MAE: {p_mae:.3f} (Recovered from March 5th Journal)"
+            )
 
         # 5. Ensembles
         logger.info("🔗 Phase 5: Ensembles...")
-        ens_bases = {k: v for k, v in fitted_models.items() if k in ["Ridge", "Lasso", "RandomForest", "LightGBM", "XGBoost"]}
+        ens_bases = {
+            k: v
+            for k, v in fitted_models.items()
+            if k in ["Ridge", "Lasso", "RandomForest", "LightGBM", "XGBoost"]
+        }
         if len(ens_bases) >= 2:
             try:
                 ensemble = StackingEnsemble(ens_bases, cfg)
@@ -162,7 +198,14 @@ def main():
                 if meta_path.exists():
                     ensemble.meta_learner_ = joblib.load(meta_path)
                     preds = ensemble.predict(X_test)
-                    res = evaluate(y_test, preds, "Stacking Ensemble (Ridge meta)", building_ids=test_bids, timestamps=test_ts, city=city)
+                    res = evaluate(
+                        y_test,
+                        preds,
+                        "Stacking Ensemble (Ridge meta)",
+                        building_ids=test_bids,
+                        timestamps=test_ts,
+                        city=city,
+                    )
                     results.append(res)
                     logger.info(f" ✅ Stacking Ensemble       | MAE: {res['MAE']:.3f}")
             except Exception as e:
@@ -175,6 +218,7 @@ def main():
         df_out.round(4).to_csv(res_csv)
         logger.info(f" 🎉 {city.upper()} SUCCESS | Results -> {res_csv}")
         save_per_building_metrics(results, results_dir / f"{city}_per_building_metrics.csv")
+
 
 if __name__ == "__main__":
     main()

@@ -21,7 +21,6 @@ import pytest
 
 from energy_forecast.api import prediction_store as ps
 
-
 # ─── Fixtures ────────────────────────────────────────────────────────────────
 
 ISSUED_AT = datetime(2026, 4, 16, 16, 0, 0, tzinfo=timezone.utc)
@@ -40,6 +39,7 @@ def tmp_jsonl(tmp_path):
 
 # ─── JSONL fallback ───────────────────────────────────────────────────────────
 
+
 def test_jsonl_write_creates_file(tmp_jsonl):
     ps.store_prediction("building_1", ISSUED_AT, P10, P50, P90, "LightGBM-test")
     assert tmp_jsonl.exists()
@@ -50,8 +50,13 @@ def test_jsonl_record_has_expected_keys(tmp_jsonl):
     line = tmp_jsonl.read_text().strip()
     record = json.loads(line)
     assert set(record) == {
-        "building_id", "issued_at", "forecast_date",
-        "p10_kwh", "p50_kwh", "p90_kwh", "model_version",
+        "building_id",
+        "issued_at",
+        "forecast_date",
+        "p10_kwh",
+        "p50_kwh",
+        "p90_kwh",
+        "model_version",
     }
 
 
@@ -82,6 +87,7 @@ def test_jsonl_model_version_defaults_to_unknown(tmp_jsonl):
 
 # ─── UUID mapping ─────────────────────────────────────────────────────────────
 
+
 def test_building_id_to_uuid_is_deterministic():
     uuid1 = ps._building_id_to_uuid("building_42")
     uuid2 = ps._building_id_to_uuid("building_42")
@@ -96,6 +102,7 @@ def test_different_building_ids_produce_different_uuids():
 
 def test_uuid_is_valid_format():
     import uuid
+
     raw = ps._building_id_to_uuid("any_building")
     # Should not raise
     parsed = uuid.UUID(raw)
@@ -103,6 +110,7 @@ def test_uuid_is_valid_format():
 
 
 # ─── No DB scenario ───────────────────────────────────────────────────────────
+
 
 def test_store_does_not_crash_without_db(tmp_jsonl):
     """store_prediction never raises regardless of DB config."""
@@ -113,8 +121,7 @@ def test_store_does_not_crash_without_db(tmp_jsonl):
 
 def test_postgres_write_skipped_when_no_db_url(tmp_jsonl):
     """PostgreSQL path is skipped when DATABASE_URL is not set."""
-    with patch.object(ps, "_DB_URL", ""), \
-         patch.object(ps, "_PSYCOPG2_AVAILABLE", True) as mock_pg:
+    with patch.object(ps, "_DB_URL", ""), patch.object(ps, "_PSYCOPG2_AVAILABLE", True) as mock_pg:
         ps.store_prediction("b1", ISSUED_AT, P10, P50, P90)
     # JSONL still written
     assert tmp_jsonl.exists()
@@ -122,8 +129,10 @@ def test_postgres_write_skipped_when_no_db_url(tmp_jsonl):
 
 def test_postgres_write_skipped_when_no_psycopg2(tmp_jsonl):
     """PostgreSQL path is skipped when psycopg2 is not installed."""
-    with patch.object(ps, "_DB_URL", "postgresql://fake/db"), \
-         patch.object(ps, "_PSYCOPG2_AVAILABLE", False):
+    with (
+        patch.object(ps, "_DB_URL", "postgresql://fake/db"),
+        patch.object(ps, "_PSYCOPG2_AVAILABLE", False),
+    ):
         ps.store_prediction("b1", ISSUED_AT, P10, P50, P90)
     # JSONL still written, no exception raised
     assert tmp_jsonl.exists()

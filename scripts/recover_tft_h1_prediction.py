@@ -65,19 +65,19 @@ def main() -> None:
     from pytorch_forecasting.data import GroupNormalizer
 
     proc_dir = ROOT / "data" / "processed" / "splits"
-    res_dir  = ROOT / "outputs" / "results"
+    res_dir = ROOT / "outputs" / "results"
     res_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("Loading feature-selected splits …")
     X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")  # noqa: N806
     y_train = pd.read_parquet(proc_dir / "y_train.parquet").squeeze()
-    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
-    y_val   = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
-    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
-    y_test  = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
+    X_val = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
+    y_val = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
+    X_test = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
+    y_test = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
 
-    tft_cfg    = cfg["training"]["tft"]
-    seq_cfg    = cfg["sequence"]
+    tft_cfg = cfg["training"]["tft"]
+    seq_cfg = cfg["sequence"]
     target_col = cfg["data"]["target_column"]
 
     # ── Rebuild the same TimeSeriesDataSet used in the original fit() ─────────
@@ -92,8 +92,8 @@ def main() -> None:
         return df.reset_index()
 
     df_train = _prepare_df(X_train, y_train, "train")
-    df_val   = _prepare_df(X_val,   y_val,   "val")
-    df_full  = (
+    df_val = _prepare_df(X_val, y_val, "val")
+    df_full = (
         pd.concat([df_train, df_val])
         .sort_values(["building_id", "timestamp"])
         .reset_index(drop=True)
@@ -146,9 +146,7 @@ def main() -> None:
         offset = int(max_time_idx.get(bid, -1)) + 1
         return pd.Series(range(offset, offset + len(g)), index=g.index)
 
-    df_test["time_idx"] = (
-        df_test.groupby("building_id", group_keys=False).apply(_continuing_idx)
-    )
+    df_test["time_idx"] = df_test.groupby("building_id", group_keys=False).apply(_continuing_idx)
 
     # predict=False (training-style windows) — creates ALL valid encoder/decoder
     # windows by sliding through the test set.  With H+1 this yields
@@ -157,10 +155,15 @@ def main() -> None:
     # predict=True returns only ONE window per building (the last), giving 44
     # predictions total — wrong for evaluation.
     test_dataset = TimeSeriesDataSet.from_dataset(
-        training_dataset, df_test, predict=False, stop_randomization=True,
+        training_dataset,
+        df_test,
+        predict=False,
+        stop_randomization=True,
     )
     test_loader = test_dataset.to_dataloader(
-        train=False, batch_size=tft_cfg["batch_size"] * 2, num_workers=0,
+        train=False,
+        batch_size=tft_cfg["batch_size"] * 2,
+        num_workers=0,
     )
     logger.info("Test dataloader ready — %d batches", len(test_loader))
 
@@ -206,13 +209,18 @@ def main() -> None:
 
     # ── Evaluate ──────────────────────────────────────────────────────────────
     from energy_forecast.evaluation import evaluate
+
     tft_bids = y_tft.index.get_level_values("building_id")
-    tft_ts   = y_tft.index.get_level_values("timestamp")
+    tft_ts = y_tft.index.get_level_values("timestamp")
     result = evaluate(y_tft, preds, "TFT", building_ids=tft_bids, timestamps=tft_ts)
 
     logger.info(
         "TFT H+1 | MAE=%.4f kWh | RMSE=%.4f | MAPE=%.2f%% | R²=%.4f | n=%d",
-        result["MAE"], result["RMSE"], result["MAPE"], result["R2"], len(y_tft),
+        result["MAE"],
+        result["RMSE"],
+        result["MAPE"],
+        result["R2"],
+        len(y_tft),
     )
     logger.info(
         "NOTE: Checkpoint is epoch=19 (last epoch, val_MAE=0.5905 normalised). "
@@ -222,16 +230,22 @@ def main() -> None:
 
     # ── Append to final_metrics.csv ───────────────────────────────────────────
     csv_path = res_dir / "final_metrics.csv"
-    train_time_s = 39648.6   # from run_tft_only log: "660.8 min"
+    train_time_s = 39648.6  # from run_tft_only log: "660.8 min"
 
     if csv_path.exists():
         existing = pd.read_csv(csv_path, index_col=0)
         existing = existing[existing["Model"] != "TFT"]
-        tft_row  = pd.DataFrame([{**result, "n_samples": len(y_tft), "train_time_s": train_time_s}])
-        updated  = pd.concat([existing, tft_row], ignore_index=True).sort_values("MAE").reset_index(drop=True)
+        tft_row = pd.DataFrame([{**result, "n_samples": len(y_tft), "train_time_s": train_time_s}])
+        updated = (
+            pd.concat([existing, tft_row], ignore_index=True)
+            .sort_values("MAE")
+            .reset_index(drop=True)
+        )
         updated.to_csv(csv_path)
         logger.info("TFT result appended → %s", csv_path)
-        logger.info("\n%s", updated[["Model", "MAE", "RMSE", "MAPE", "R²", "n_samples"]].to_string())
+        logger.info(
+            "\n%s", updated[["Model", "MAE", "RMSE", "MAPE", "R²", "n_samples"]].to_string()
+        )
     else:
         tft_row = pd.DataFrame([{**result, "n_samples": len(y_tft), "train_time_s": train_time_s}])
         tft_row.to_csv(csv_path)
@@ -240,6 +254,7 @@ def main() -> None:
     # ── Save checkpoint copy to outputs/models/ ───────────────────────────────
     import datetime
     import shutil
+
     model_dir = ROOT / "outputs" / "models"
     model_dir.mkdir(parents=True, exist_ok=True)
     dest = model_dir / f"drammen_TFT_h1_{datetime.date.today().isoformat()}_epoch19.ckpt"

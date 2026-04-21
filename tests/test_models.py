@@ -14,7 +14,7 @@ def tabular_splits() -> dict:
     n = 100
     rng = pd.date_range("2022-01-01", periods=n, freq="h", tz="Europe/Oslo")
     idx = pd.MultiIndex.from_arrays(
-        [np.repeat([1, 2], n // 2), np.tile(rng[:n // 2], 2)],
+        [np.repeat([1, 2], n // 2), np.tile(rng[: n // 2], 2)],
         names=["building_id", "timestamp"],
     )
     X = pd.DataFrame(  # noqa: N806
@@ -23,14 +23,20 @@ def tabular_splits() -> dict:
         columns=["f1", "f2", "f3", "f4", "f5"],
     )
     y = pd.Series(np.random.rand(n) * 50 + 10, index=idx, name="target")
-    return {"X_train": X[:60], "y_train": y[:60],
-            "X_val": X[60:80], "y_val": y[60:80],
-            "X_test": X[80:], "y_test": y[80:]}
+    return {
+        "X_train": X[:60],
+        "y_train": y[:60],
+        "X_val": X[60:80],
+        "y_val": y[60:80],
+        "X_test": X[80:],
+        "y_test": y[80:],
+    }
 
 
 class TestBaselines:
     def test_naive_predict_shape(self, tabular_splits):
         from energy_forecast.models.baselines import NaiveModel
+
         model = NaiveModel()
         model.fit(tabular_splits["X_train"], tabular_splits["y_train"])
         preds = model.predict(tabular_splits["X_test"])
@@ -38,6 +44,7 @@ class TestBaselines:
 
     def test_seasonal_naive_constant(self, tabular_splits):
         from energy_forecast.models.baselines import SeasonalNaiveModel
+
         model = SeasonalNaiveModel(season_length=24)
         model.fit(tabular_splits["X_train"], tabular_splits["y_train"])
         preds = model.predict(tabular_splits["X_test"])
@@ -45,6 +52,7 @@ class TestBaselines:
 
     def test_mean_baseline(self, tabular_splits):
         from energy_forecast.models.baselines import MeanModel
+
         model = MeanModel()
         model.fit(tabular_splits["X_train"], tabular_splits["y_train"])
         preds = model.predict(tabular_splits["X_test"])
@@ -76,19 +84,31 @@ class TestSklearnModels:
                 "ridge": {"alpha": 1.0},
                 "lasso": {"alpha": 0.01, "max_iter": 1000},
                 "random_forest": {
-                    "n_estimators": 10, "max_depth": 3,
-                    "min_samples_leaf": 1, "n_jobs": 1
+                    "n_estimators": 10,
+                    "max_depth": 3,
+                    "min_samples_leaf": 1,
+                    "n_jobs": 1,
                 },
                 "lightgbm": {
-                    "n_estimators": 50, "learning_rate": 0.1, "max_depth": 3,
-                    "num_leaves": 15, "min_child_samples": 5,
-                    "subsample": 0.8, "colsample_bytree": 0.8, "n_jobs": 1,
+                    "n_estimators": 50,
+                    "learning_rate": 0.1,
+                    "max_depth": 3,
+                    "num_leaves": 15,
+                    "min_child_samples": 5,
+                    "subsample": 0.8,
+                    "colsample_bytree": 0.8,
+                    "n_jobs": 1,
                 },
                 "xgboost": {
-                    "n_estimators": 50, "learning_rate": 0.1, "max_depth": 3,
-                    "min_child_weight": 1, "subsample": 0.8,
-                    "colsample_bytree": 0.8, "reg_alpha": 0.0,
-                    "reg_lambda": 1.0, "n_jobs": 1,
+                    "n_estimators": 50,
+                    "learning_rate": 0.1,
+                    "max_depth": 3,
+                    "min_child_weight": 1,
+                    "subsample": 0.8,
+                    "colsample_bytree": 0.8,
+                    "reg_alpha": 0.0,
+                    "reg_lambda": 1.0,
+                    "n_jobs": 1,
                 },
             },
         }
@@ -124,4 +144,4 @@ class TestMetrics:
             evaluate(np.ones(10) * 10, np.ones(10) * 11, "ModelB"),
         ]
         df = compare_models(results)
-        assert df.iloc[0]["Model"] == "ModelB"   # lower MAE first
+        assert df.iloc[0]["Model"] == "ModelB"  # lower MAE first

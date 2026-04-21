@@ -11,6 +11,7 @@ Usage
     from energy_forecast.validation import DataValidator
     DataValidator.validate_training_data(X_train, y_train, split_name="train")
 """
+
 from __future__ import annotations
 
 import logging
@@ -58,14 +59,11 @@ class DataValidator:
         """
         if X.empty:
             raise DataValidationError(
-                f"{name} is empty (shape={X.shape}). "
-                "Check split date boundaries in config.yaml."
+                f"{name} is empty (shape={X.shape}). " "Check split date boundaries in config.yaml."
             )
 
         if X.shape[1] == 0:
-            raise DataValidationError(
-                f"{name} has no feature columns (shape={X.shape})."
-            )
+            raise DataValidationError(f"{name} has no feature columns (shape={X.shape}).")
 
         nan_cols = X.columns[X.isna().any()].tolist()
         if nan_cols and not allow_nan:
@@ -114,8 +112,7 @@ class DataValidator:
 
         if arr.size == 0:
             raise DataValidationError(
-                f"{name} is empty (size=0). "
-                "Check split date boundaries in config.yaml."
+                f"{name} is empty (size=0). " "Check split date boundaries in config.yaml."
             )
 
         nan_count = np.isnan(arr).sum()
@@ -127,9 +124,7 @@ class DataValidator:
 
         inf_count = np.isinf(arr).sum()
         if inf_count > 0:
-            raise DataValidationError(
-                f"{name} contains {inf_count} infinite value(s)."
-            )
+            raise DataValidationError(f"{name} contains {inf_count} infinite value(s).")
 
         if not allow_negative:
             neg_count = (arr < 0).sum()
@@ -138,7 +133,11 @@ class DataValidator:
                 logger.warning(
                     "%s contains %d negative %s values (%.1f%% of %d samples). "
                     "Solar export can cause brief negatives — verify this is expected.",
-                    name, neg_count, target_unit, neg_frac * 100, arr.size,
+                    name,
+                    neg_count,
+                    target_unit,
+                    neg_frac * 100,
+                    arr.size,
                 )
 
     @staticmethod

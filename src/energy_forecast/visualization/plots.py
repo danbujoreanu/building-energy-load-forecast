@@ -16,7 +16,7 @@ from typing import Any
 
 import matplotlib
 
-matplotlib.use("Agg")   # non-interactive backend — safe for scripts & CI
+matplotlib.use("Agg")  # non-interactive backend — safe for scripts & CI
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
@@ -47,6 +47,7 @@ def _save_or_show(fig: plt.Figure, save_path: str | Path | None, tight: bool = T
 # EDA plots
 # ---------------------------------------------------------------------------
 
+
 def plot_building_profiles(
     timeseries: pd.DataFrame,
     building_ids: list[int] | None = None,
@@ -59,7 +60,8 @@ def plot_building_profiles(
         timeseries.index.get_level_values("building_id").unique()[:6].tolist()
     )
     fig, axes = plt.subplots(
-        len(building_ids), 1,
+        len(building_ids),
+        1,
         figsize=(FIGURE_SIZE[0], 3 * len(building_ids)),
         sharex=True,
     )
@@ -112,7 +114,7 @@ def plot_seasonal_patterns(
     """Box plots of electricity by month and hour-of-day."""
     df = timeseries[[target]].copy().dropna()
     ts_idx = df.index.get_level_values("timestamp")
-    df["month"]       = ts_idx.month
+    df["month"] = ts_idx.month
     df["hour_of_day"] = ts_idx.hour
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 5))
@@ -155,6 +157,7 @@ def plot_missing_data(
 # Feature importance
 # ---------------------------------------------------------------------------
 
+
 def plot_feature_importance(
     feature_names: list[str],
     importances: np.ndarray,
@@ -175,6 +178,7 @@ def plot_feature_importance(
 # Training history (deep learning)
 # ---------------------------------------------------------------------------
 
+
 def plot_training_history(
     history: Any,
     model_name: str = "Model",
@@ -183,8 +187,8 @@ def plot_training_history(
     """Training and validation loss curves from a Keras History object."""
     fig, ax = plt.subplots(figsize=(10, 4))
     epochs = range(1, len(history.history["loss"]) + 1)
-    ax.plot(epochs, history.history["loss"],     label="Train loss",      linewidth=2)
-    ax.plot(epochs, history.history["val_loss"], label="Val loss",        linewidth=2, linestyle="--")
+    ax.plot(epochs, history.history["loss"], label="Train loss", linewidth=2)
+    ax.plot(epochs, history.history["val_loss"], label="Val loss", linewidth=2, linestyle="--")
     ax.set_xlabel("Epoch")
     ax.set_ylabel("MSE Loss")
     ax.set_title(f"{model_name} — Training History")
@@ -195,6 +199,7 @@ def plot_training_history(
 # ---------------------------------------------------------------------------
 # Prediction quality
 # ---------------------------------------------------------------------------
+
 
 def plot_predictions_vs_actual(
     y_true: np.ndarray | pd.Series,
@@ -227,6 +232,7 @@ def plot_predictions_vs_actual(
 # ---------------------------------------------------------------------------
 # Model comparison
 # ---------------------------------------------------------------------------
+
 
 def plot_model_comparison(
     comparison_df: pd.DataFrame,

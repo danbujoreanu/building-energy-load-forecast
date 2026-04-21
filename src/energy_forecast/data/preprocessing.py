@@ -94,7 +94,9 @@ def build_model_ready_data(
         sparse = sorted(c for c in df.columns if c not in keep_cols)
         logger.info(
             "Dropped %d sparse columns (< %.0f%% coverage): %s",
-            dropped_cols, col_min_coverage * 100, sparse,
+            dropped_cols,
+            col_min_coverage * 100,
+            sparse,
         )
     df = df[keep_cols]
 
@@ -122,23 +124,22 @@ def build_model_ready_data(
 # Private helpers
 # ---------------------------------------------------------------------------
 
+
 def _filter_by_completeness(
     df: pd.DataFrame,
     target: str,
     threshold: float,
 ) -> pd.DataFrame:
     """Remove buildings where target completeness is below ``threshold``."""
-    completeness = (
-        df[target]
-        .groupby(level="building_id")
-        .apply(lambda s: s.notna().mean())
-    )
+    completeness = df[target].groupby(level="building_id").apply(lambda s: s.notna().mean())
     keep = completeness[completeness >= threshold].index
     removed = set(df.index.get_level_values("building_id").unique()) - set(keep)
     if removed:
         logger.warning(
             "Removing %d buildings below %.0f%% completeness: %s",
-            len(removed), threshold * 100, sorted(removed),
+            len(removed),
+            threshold * 100,
+            sorted(removed),
         )
     return df.loc[df.index.get_level_values("building_id").isin(keep)]
 
@@ -155,16 +156,24 @@ def _merge_metadata(df: pd.DataFrame, metadata: pd.DataFrame) -> pd.DataFrame:
         falls back to the global median users-per-sqm.
     """
     meta_cols = [
-        "building_id", "building_category", "floor_area",
-        "year_of_construction", "number_of_users", "energy_label",
-        "sh_heat_source", "dhw_heat_source",
+        "building_id",
+        "building_category",
+        "floor_area",
+        "year_of_construction",
+        "number_of_users",
+        "energy_label",
+        "sh_heat_source",
+        "dhw_heat_source",
     ]
     available = [c for c in meta_cols if c in metadata.columns]
     meta = metadata[available].copy()
 
     # ── Intelligent number_of_users imputation ────────────────────────────────
-    if "number_of_users" in meta.columns and "floor_area" in meta.columns and \
-       "building_category" in meta.columns:
+    if (
+        "number_of_users" in meta.columns
+        and "floor_area" in meta.columns
+        and "building_category" in meta.columns
+    ):
         meta = _impute_number_of_users(meta)
 
     # ── Derive central_heating_system (matches thesis feature set) ────────────
@@ -173,11 +182,13 @@ def _merge_metadata(df: pd.DataFrame, metadata: pd.DataFrame) -> pd.DataFrame:
     # Rule: primary heat source (first token before comma) is EH or EFH → 0.
     # Derived from sh_heat_source column; matches consolidated_building_metadata.csv.
     if "sh_heat_source" in meta.columns:
+
         def _to_central(val: str | float) -> int:
             if pd.isna(val):
                 return 0
             primary = str(val).split(",")[0].strip()
             return 0 if primary in ("EH", "EFH") else 1
+
         meta["central_heating_system"] = meta["sh_heat_source"].apply(_to_central)
         logger.info(
             "Derived central_heating_system: %d centralised, %d distributed",
@@ -214,14 +225,11 @@ def _impute_number_of_users(meta: pd.DataFrame) -> pd.DataFrame:
 
     # Category-level median density
     cat_density = (
-        complete
-        .assign(density=complete["number_of_users"] / complete["floor_area"])
+        complete.assign(density=complete["number_of_users"] / complete["floor_area"])
         .groupby("building_category")["density"]
         .median()
     )
-    global_density = (
-        complete["number_of_users"] / complete["floor_area"]
-    ).median()
+    global_density = (complete["number_of_users"] / complete["floor_area"]).median()
 
     meta = meta.copy()
     imputed_info = []
@@ -242,7 +250,8 @@ def _impute_number_of_users(meta: pd.DataFrame) -> pd.DataFrame:
     if imputed_info:
         logger.info(
             "Imputed number_of_users for %d buildings (thesis-style category density):\n  %s",
-            len(imputed_info), "\n  ".join(imputed_info),
+            len(imputed_info),
+            "\n  ".join(imputed_info),
         )
 
     return meta
@@ -305,9 +314,9 @@ def _add_calendar_features(df: pd.DataFrame) -> pd.DataFrame:
     """Add deterministic calendar columns (no future information used)."""
     ts = df.index.get_level_values("timestamp")
     df = df.copy()
-    df["hour_of_day"]  = ts.hour
-    df["day_of_week"]  = ts.dayofweek        # 0=Monday … 6=Sunday
-    df["day_of_year"]  = ts.dayofyear
-    df["month"]        = ts.month
-    df["is_weekend"]   = (ts.dayofweek >= 5).astype(int)
+    df["hour_of_day"] = ts.hour
+    df["day_of_week"] = ts.dayofweek  # 0=Monday … 6=Sunday
+    df["day_of_year"] = ts.dayofyear
+    df["month"] = ts.month
+    df["is_weekend"] = (ts.dayofweek >= 5).astype(int)
     return df

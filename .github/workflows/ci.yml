@@ -69,10 +69,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build Docker image
-        run: docker build -t sparc-energy:ci-check .
+        run: docker build -f deployment/Dockerfile -t sparc-energy:ci-check .
       - name: Smoke test — container health
         run: |
           docker run -d --name sparc-test -p 8000:8000 sparc-energy:ci-check
-          sleep 5
-          curl --retry 5 --retry-delay 2 --retry-connrefused http://localhost:8000/health
+          sleep 8
+          curl --retry 5 --retry-delay 3 --retry-connrefused http://localhost:8000/health
           docker stop sparc-test

@@ -12,17 +12,17 @@ def mini_df() -> pd.DataFrame:
     n = 300
     rng = pd.date_range("2022-01-01", periods=n, freq="h", tz="Europe/Oslo")
     idx = pd.MultiIndex.from_arrays(
-        [np.repeat([1, 2], n // 2), np.tile(rng[:n // 2], 2)],
+        [np.repeat([1, 2], n // 2), np.tile(rng[: n // 2], 2)],
         names=["building_id", "timestamp"],
     )
     return pd.DataFrame(
         {
             "Electricity_Imported_Total_kWh": np.random.rand(n) * 30 + 5,
-            "Temperature_Outdoor_C":          np.random.randn(n) * 8,
-            "hour_of_day":  np.tile(rng[:n // 2].hour, 2),
-            "day_of_week":  np.tile(rng[:n // 2].dayofweek, 2),
-            "month":        np.tile(rng[:n // 2].month, 2),
-            "day_of_year":  np.tile(rng[:n // 2].dayofyear, 2),
+            "Temperature_Outdoor_C": np.random.randn(n) * 8,
+            "hour_of_day": np.tile(rng[: n // 2].hour, 2),
+            "day_of_week": np.tile(rng[: n // 2].dayofweek, 2),
+            "month": np.tile(rng[: n // 2].month, 2),
+            "day_of_year": np.tile(rng[: n // 2].dayofyear, 2),
         },
         index=idx,
     )

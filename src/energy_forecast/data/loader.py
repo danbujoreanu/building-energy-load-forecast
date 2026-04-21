@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 # Timezone helper
 # ---------------------------------------------------------------------------
 
+
 def _get_timezone(cfg: dict, city: str | None = None) -> str:
     """Return the timezone string for a given city, with fallback chain.
 
@@ -54,49 +55,67 @@ def _get_timezone(cfg: dict, city: str | None = None) -> str:
 # Column-name mapping: raw codes → human-readable names
 # ---------------------------------------------------------------------------
 _COLUMN_MAP: dict[str, str] = {
-    "Tout":       "Temperature_Outdoor_C",
-    "SolGlob":    "Global_Solar_Horizontal_Radiation_W_m2",
-    "WindSpd":    "Wind_Speed_m_s",
-    "WindDir":    "Wind_Direction_deg",
-    "RH":         "Relative_Humidity_pct",
-    "ElImp":      "Electricity_Imported_Total_kWh",
-    "ElPV":       "Electricity_Production_PV_kWh",
-    "ElLight":    "Electricity_Lighting_kWh",
-    "ElBoil":     "Electricity_Electric_Boiler_kWh",
-    "ElHP":       "Electricity_Heat_Pump_kWh",
-    "ElEV":       "Electricity_EV_Charging_kWh",
-    "ElTech":     "Electricity_Technical_Rooms_kWh",
-    "ElPump":     "Electricity_Pumps_kWh",
-    "ElSnow":     "Electricity_Snow_Melt_kWh",
-    "HtTot":      "Heat_Total_kWh",
-    "HtSpace":    "Heat_Space_Heating_kWh",
-    "HtDHW":      "Heat_DHW_kWh",
-    "HtVent":     "Heat_Ventilation_kWh",
-    "HtHP":       "Heat_Heat_Pump_kWh",
-    "HtDH":       "Heat_District_Heating_kWh",
-    "HtSC":       "Heat_Solar_Collector_kWh",
-    "HtSnow":     "Heat_Snow_Melt_kWh",
+    "Tout": "Temperature_Outdoor_C",
+    "SolGlob": "Global_Solar_Horizontal_Radiation_W_m2",
+    "WindSpd": "Wind_Speed_m_s",
+    "WindDir": "Wind_Direction_deg",
+    "RH": "Relative_Humidity_pct",
+    "ElImp": "Electricity_Imported_Total_kWh",
+    "ElPV": "Electricity_Production_PV_kWh",
+    "ElLight": "Electricity_Lighting_kWh",
+    "ElBoil": "Electricity_Electric_Boiler_kWh",
+    "ElHP": "Electricity_Heat_Pump_kWh",
+    "ElEV": "Electricity_EV_Charging_kWh",
+    "ElTech": "Electricity_Technical_Rooms_kWh",
+    "ElPump": "Electricity_Pumps_kWh",
+    "ElSnow": "Electricity_Snow_Melt_kWh",
+    "HtTot": "Heat_Total_kWh",
+    "HtSpace": "Heat_Space_Heating_kWh",
+    "HtDHW": "Heat_DHW_kWh",
+    "HtVent": "Heat_Ventilation_kWh",
+    "HtHP": "Heat_Heat_Pump_kWh",
+    "HtDH": "Heat_District_Heating_kWh",
+    "HtSC": "Heat_Solar_Collector_kWh",
+    "HtSnow": "Heat_Snow_Melt_kWh",
 }
 
 # Metadata keys written as-is from the file header
 _META_KEYS = [
-    "Header_line", "location", "year_of_construction", "floor_area",
-    "number_of_users", "number_of_buildings", "building_category",
-    "energy_label", "notes", "central_heating_system", "dhw_heat_source",
-    "sh_heat_source", "ventilation_heat_source", "ventilation_types",
-    "night_setback", "lighting_control", "pv", "timestamp_format",
-    "time_zone", "building_id",
+    "Header_line",
+    "location",
+    "year_of_construction",
+    "floor_area",
+    "number_of_users",
+    "number_of_buildings",
+    "building_category",
+    "energy_label",
+    "notes",
+    "central_heating_system",
+    "dhw_heat_source",
+    "sh_heat_source",
+    "ventilation_heat_source",
+    "ventilation_types",
+    "night_setback",
+    "lighting_control",
+    "pv",
+    "timestamp_format",
+    "time_zone",
+    "building_id",
 ]
 
 _NUMERIC_META = [
-    "year_of_construction", "floor_area", "number_of_users",
-    "number_of_buildings", "Header_line",
+    "year_of_construction",
+    "floor_area",
+    "number_of_users",
+    "number_of_buildings",
+    "Header_line",
 ]
 
 
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
+
 
 def load_city_data(
     city: str,
@@ -163,6 +182,7 @@ def load_city_data(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _parse_building_file(
     filepath: Path,
     cfg: dict[str, Any],
@@ -212,7 +232,8 @@ def _parse_building_file(
     except (ValueError, TypeError):
         logger.debug(
             "Timestamp format '%s' failed for %s — falling back to ISO8601 inference",
-            ts_fmt, filepath.name,
+            ts_fmt,
+            filepath.name,
         )
         # BUG-C4: infer_datetime_format was deprecated in pandas 2.2 and removed
         # in pandas 3.0.  Pandas infers the format by default without the flag.

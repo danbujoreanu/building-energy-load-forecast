@@ -53,9 +53,9 @@ def select_features(
         Names of the retained feature columns.
     """
     sel_cfg = cfg["features"]["selection"]
-    var_threshold  = sel_cfg.get("variance_threshold", 0.0)
+    var_threshold = sel_cfg.get("variance_threshold", 0.0)
     corr_threshold = sel_cfg.get("correlation_threshold", 0.99)
-    n_keep         = sel_cfg.get("n_features_lgbm", 35)
+    n_keep = sel_cfg.get("n_features_lgbm", 35)
 
     logger.info("Starting feature selection with %d initial features", X_train.shape[1])
 
@@ -84,6 +84,7 @@ def select_features(
 # Stage 1: Variance threshold
 # ---------------------------------------------------------------------------
 
+
 def _variance_filter(
     X_train: pd.DataFrame,  # noqa: N803
     X_val: pd.DataFrame,  # noqa: N803
@@ -99,6 +100,7 @@ def _variance_filter(
 # ---------------------------------------------------------------------------
 # Stage 2: Correlation filter
 # ---------------------------------------------------------------------------
+
 
 def _correlation_filter(
     X_train: pd.DataFrame,  # noqa: N803
@@ -124,9 +126,7 @@ def _correlation_filter(
     ``lag_25h`` if they are near-perfectly correlated for a given dataset).
     """
     corr_matrix = X_train.corr().abs()
-    upper = corr_matrix.where(
-        np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)
-    )
+    upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
     to_drop = [col for col in upper.columns if any(upper[col] > threshold)]
     kept = [c for c in X_train.columns if c not in to_drop]
     logger.debug("Correlation filter dropped: %s", to_drop[:10])
@@ -136,6 +136,7 @@ def _correlation_filter(
 # ---------------------------------------------------------------------------
 # Stage 3: LightGBM importance
 # ---------------------------------------------------------------------------
+
 
 def _lgbm_importance_filter(
     X_train: pd.DataFrame,  # noqa: N803

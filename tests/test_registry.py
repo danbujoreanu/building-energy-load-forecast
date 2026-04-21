@@ -22,14 +22,13 @@ from energy_forecast.registry import (
     RegistryError,
 )
 
-
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
 
 _GOOD_METRICS = ModelMetrics(MAE=4.0, RMSE=6.5, R2=0.975)
 _WORSE_METRICS = ModelMetrics(MAE=4.3, RMSE=7.0, R2=0.970)  # within 5% threshold
-_BAD_METRICS = ModelMetrics(MAE=5.0, RMSE=8.0, R2=0.950)    # >5% regression
+_BAD_METRICS = ModelMetrics(MAE=5.0, RMSE=8.0, R2=0.950)  # >5% regression
 
 
 def _make_version(
@@ -204,15 +203,9 @@ def test_list_versions_filters_by_status(tmp_path: Path) -> None:
 def test_list_versions_filters_by_city_and_model(tmp_path: Path) -> None:
     """list_versions(city=..., model_name=...) narrows results correctly."""
     registry = ModelRegistry(tmp_path)
-    registry.register(
-        _make_version(city="drammen", model_name="LightGBM", version_id="v1")
-    )
-    registry.register(
-        _make_version(city="oslo", model_name="LightGBM", version_id="v2")
-    )
-    registry.register(
-        _make_version(city="drammen", model_name="Ridge", version_id="v3")
-    )
+    registry.register(_make_version(city="drammen", model_name="LightGBM", version_id="v1"))
+    registry.register(_make_version(city="oslo", model_name="LightGBM", version_id="v2"))
+    registry.register(_make_version(city="drammen", model_name="Ridge", version_id="v3"))
 
     drammen_lgbm = registry.list_versions(city="drammen", model_name="LightGBM")
     assert len(drammen_lgbm) == 1
@@ -248,9 +241,7 @@ def test_atomic_write_not_corrupted_on_exception(tmp_path: Path) -> None:
     assert fetched is not None
 
     # A subsequent real write should overwrite the .tmp and complete cleanly
-    v2 = registry.register(
-        _make_version(version_id="v2", trained_at="2026-04-15T12:00:00+00:00")
-    )
+    v2 = registry.register(_make_version(version_id="v2", trained_at="2026-04-15T12:00:00+00:00"))
     assert registry.get_version(v2.version_id) is not None
     assert not tmp_file.exists() or json.loads(tmp_file.read_text()) is not None or True
     # Main registry must be valid JSON with 2 entries
@@ -479,9 +470,9 @@ def test_registry_ci_rollback_scenario(tmp_path: Path) -> None:
     restored = registry.rollback("drammen", "LightGBM", steps=1)
 
     # Step 6: verify rollback result
-    assert restored.version_id == "ci-v1", (
-        f"Expected rollback to restore ci-v1, got {restored.version_id}"
-    )
+    assert (
+        restored.version_id == "ci-v1"
+    ), f"Expected rollback to restore ci-v1, got {restored.version_id}"
     assert restored.status == ModelStatus.ACTIVE
 
     current_active = registry.get_active("drammen", "LightGBM")

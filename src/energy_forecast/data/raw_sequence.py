@@ -5,6 +5,7 @@ Loader and preprocessor for "Setup C" Paradigm Parity Deep Learning models.
 Bypasses feature engineering and directly loads raw sequences (Target, Weather)
 scaled properly to prevent temporal data leakage.
 """
+
 import logging
 
 import numpy as np
@@ -13,6 +14,7 @@ from sklearn.preprocessing import StandardScaler
 
 logger = logging.getLogger(__name__)
 
+
 def build_raw_sequences(
     df_train: pd.DataFrame,
     df_val: pd.DataFrame,
@@ -20,11 +22,20 @@ def build_raw_sequences(
     target_col: str,
     feature_cols: list[str],
     lookback: int,
-    horizon: int
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, StandardScaler, StandardScaler]:
+    horizon: int,
+) -> tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    StandardScaler,
+    StandardScaler,
+]:
     """Builds 3D raw sliding window sequences for Deep Learning models.
-    
-    Crucially, fits the StandardScaler ONLY on the training split to prevent 
+
+    Crucially, fits the StandardScaler ONLY on the training split to prevent
     data leakage. Then transforms the train, validation, and test splits.
     Respects MultiIndex (building_id) temporal boundaries.
     """  # noqa: W291, W293
@@ -48,7 +59,9 @@ def build_raw_sequences(
     X_te_scaled = scaler_X.transform(df_test[feature_cols].values)  # noqa: N806
     y_te_scaled = scaler_y.transform(df_test[[target_col]].values).squeeze()
 
-    def _build_sequences_for_split(X_scaled: np.ndarray, y_scaled: np.ndarray, df_index: pd.MultiIndex):  # noqa: N803
+    def _build_sequences_for_split(
+        X_scaled: np.ndarray, y_scaled: np.ndarray, df_index: pd.MultiIndex
+    ):  # noqa: N803
         X_seqs, y_seqs = [], []  # noqa: N806
 
         # Temporarily rebuild DataFrames to use pandas MultiIndex slicing (xs)
@@ -77,12 +90,27 @@ def build_raw_sequences(
         return np.array(X_seqs, dtype=np.float32), np.array(y_seqs, dtype=np.float32)
 
     logger.info("Building raw sliding window sequences per split...")
-    X_train_seq, y_train_seq = _build_sequences_for_split(X_tr_scaled, y_tr_scaled, df_train.index)  # noqa: N806
-    X_val_seq, y_val_seq = _build_sequences_for_split(X_v_scaled, y_v_scaled, df_val.index)  # noqa: N806
-    X_test_seq, y_test_seq = _build_sequences_for_split(X_te_scaled, y_te_scaled, df_test.index)  # noqa: N806
+    X_train_seq, y_train_seq = _build_sequences_for_split(
+        X_tr_scaled, y_tr_scaled, df_train.index
+    )  # noqa: N806
+    X_val_seq, y_val_seq = _build_sequences_for_split(
+        X_v_scaled, y_v_scaled, df_val.index
+    )  # noqa: N806
+    X_test_seq, y_test_seq = _build_sequences_for_split(
+        X_te_scaled, y_te_scaled, df_test.index
+    )  # noqa: N806
 
     logger.info(f"Generated Training Sequences: X={X_train_seq.shape}, y={y_train_seq.shape}")
     logger.info(f"Generated Validation Sequences: X={X_val_seq.shape}, y={y_val_seq.shape}")
     logger.info(f"Generated Test Sequences: X={X_test_seq.shape}, y={y_test_seq.shape}")
 
-    return X_train_seq, y_train_seq, X_val_seq, y_val_seq, X_test_seq, y_test_seq, scaler_X, scaler_y
+    return (
+        X_train_seq,
+        y_train_seq,
+        X_val_seq,
+        y_val_seq,
+        X_test_seq,
+        y_test_seq,
+        scaler_X,
+        scaler_y,
+    )

@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # SINTEF Oslo dataset — DOI: 10.60609/2hvr-wc82
 OSLO_DATASET_URL = "https://data.sintef.no/product/dp-679b0640-834e-46bd-bc8f-8484ca79b414"
-OSLO_BUILDING_IDS = list(range(8091, 8139))   # 48 buildings
+OSLO_BUILDING_IDS = list(range(8091, 8139))  # 48 buildings
 
 
 def parse_args() -> argparse.Namespace:
@@ -41,7 +41,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     setup_logging()
     args = parse_args()
-    cfg  = load_config(args.config)
+    cfg = load_config(args.config)
 
     if args.dataset in ("oslo", "all"):
         out_dir = Path(cfg["paths"]["raw_data"]["oslo"])

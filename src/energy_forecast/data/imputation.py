@@ -6,6 +6,7 @@ from sklearn.impute import IterativeImputer
 
 logger = logging.getLogger(__name__)
 
+
 def impute_missing_weather(df: pd.DataFrame, weather_cols: list[str]) -> pd.DataFrame:
     """
     Impute missing weather data (especially Solar Radiation) using MICE (IterativeImputer).
@@ -35,21 +36,14 @@ def impute_missing_weather(df: pd.DataFrame, weather_cols: list[str]) -> pd.Data
     logger.info("Applying MICE (IterativeImputer) to weather columns...")
 
     imputer = IterativeImputer(
-        max_iter=10,
-        random_state=42,
-        initial_strategy="median",
-        skip_complete=True
+        max_iter=10, random_state=42, initial_strategy="median", skip_complete=True
     )
 
     # Fit and transform
     imputed_values = imputer.fit_transform(temp_df)
 
     # Convert back to DataFrame
-    imputed_df = pd.DataFrame(
-        imputed_values,
-        index=temp_df.index,
-        columns=temp_df.columns
-    )
+    imputed_df = pd.DataFrame(imputed_values, index=temp_df.index, columns=temp_df.columns)
 
     # Put back the imputed columns into original df
     df_out = df.copy()
@@ -62,6 +56,7 @@ def impute_missing_weather(df: pd.DataFrame, weather_cols: list[str]) -> pd.Data
     missing_after = df_out[cols_to_impute].isna().sum()
     logger.info("Missing weather data after MICE:\n%s", missing_after)
     return df_out
+
 
 def impute_missing_metadata(df: pd.DataFrame) -> pd.DataFrame:
     """

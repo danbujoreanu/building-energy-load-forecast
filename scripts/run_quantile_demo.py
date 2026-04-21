@@ -19,6 +19,7 @@ from energy_forecast.utils import load_config, set_global_seed, setup_logging
 
 logger = logging.getLogger(__name__)
 
+
 def main():
     setup_logging("INFO")
     cfg = load_config()
@@ -33,10 +34,10 @@ def main():
     logger.info("Loading feature-selected data splits...")
     X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")  # noqa: N806
     y_train = pd.read_parquet(proc_dir / "y_train.parquet").squeeze()
-    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
-    y_val   = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
-    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
-    y_test  = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
+    X_val = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
+    y_val = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
+    X_test = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
+    y_test = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
 
     # Model Initialization
     logger.info("Initializing LightGBMQuantileForecaster...")
@@ -73,14 +74,10 @@ def main():
     logger.info("============================================================")
 
     # Print a tiny sample
-    sample = pd.DataFrame({
-        "Actual": y_true[:5],
-        "P10": p10[:5],
-        "P50": p50[:5],
-        "P90": p90[:5]
-    })
+    sample = pd.DataFrame({"Actual": y_true[:5], "P10": p10[:5], "P50": p50[:5], "P90": p90[:5]})
     logger.info("Sample Predictions:")
     logger.info("\n" + sample.to_string())
+
 
 if __name__ == "__main__":
     main()

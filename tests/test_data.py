@@ -14,13 +14,14 @@ import pytest
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def sample_timeseries() -> pd.DataFrame:
     """Create a minimal synthetic MultiIndex (building_id, timestamp) DataFrame."""
     n = 200
     rng = pd.date_range("2022-01-01", periods=n, freq="h", tz="Europe/Oslo")
     building_ids = np.repeat([6396, 6397], n // 2)  # noqa: F841
-    timestamps = np.tile(rng, 2)[:n * 2 // 2]  # noqa: F841
+    timestamps = np.tile(rng, 2)[: n * 2 // 2]  # noqa: F841
 
     idx = pd.MultiIndex.from_arrays(
         [np.repeat([6396, 6397], n), np.tile(rng, 2)],
@@ -29,14 +30,14 @@ def sample_timeseries() -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "Electricity_Imported_Total_kWh": np.random.rand(n * 2) * 50 + 5,
-            "Temperature_Outdoor_C":          np.random.randn(n * 2) * 10,
+            "Temperature_Outdoor_C": np.random.randn(n * 2) * 10,
             "Global_Solar_Horizontal_Radiation_W_m2": np.abs(np.random.randn(n * 2)) * 100,
             "Wind_Speed_m_s": np.abs(np.random.randn(n * 2)) * 3,
-            "hour_of_day":  np.tile(rng.hour, 2),
-            "day_of_week":  np.tile(rng.dayofweek, 2),
-            "month":        np.tile(rng.month, 2),
-            "day_of_year":  np.tile(rng.dayofyear, 2),
-            "is_weekend":   (np.tile(rng.dayofweek, 2) >= 5).astype(int),
+            "hour_of_day": np.tile(rng.hour, 2),
+            "day_of_week": np.tile(rng.dayofweek, 2),
+            "month": np.tile(rng.month, 2),
+            "day_of_year": np.tile(rng.dayofyear, 2),
+            "is_weekend": (np.tile(rng.dayofweek, 2) >= 5).astype(int),
         },
         index=idx,
     )
@@ -61,13 +62,17 @@ def sample_config() -> dict:
         },
         "splits": {
             "train_end": "2022-01-05",
-            "val_end":   "2022-01-07",
+            "val_end": "2022-01-07",
         },
         "paths": {
             "raw_data": {"drammen": "data/raw/drammen", "oslo": "data/raw/oslo"},
             "processed": "data/processed",
             "splits": "data/processed/splits",
-            "outputs": {"figures": "outputs/figures", "models": "outputs/models", "results": "outputs/results"},
+            "outputs": {
+                "figures": "outputs/figures",
+                "models": "outputs/models",
+                "results": "outputs/results",
+            },
         },
     }
 
@@ -75,6 +80,7 @@ def sample_config() -> dict:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestPreprocessing:
     def test_completeness_filter(self, sample_timeseries, sample_config):
@@ -106,7 +112,8 @@ class TestPreprocessing:
         target = sample_config["data"]["target_column"]
         sample_timeseries.loc[sample_timeseries.index[0], target] = -999.0
         result = _clip_outliers(
-            sample_timeseries, target,
+            sample_timeseries,
+            target,
             sample_config["data"]["weather_columns"],
         )
         assert result.loc[result.index[0], target] != -999.0
@@ -127,7 +134,7 @@ class TestSplits:
 
         splits = make_splits(sample_timeseries, sample_config)
         train_max = splits["X_train"].index.get_level_values("timestamp").max()
-        val_min   = splits["X_val"].index.get_level_values("timestamp").min()
+        val_min = splits["X_val"].index.get_level_values("timestamp").min()
         if len(splits["X_val"]) > 0:
             assert train_max < val_min, "Data leakage detected!"
 

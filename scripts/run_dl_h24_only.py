@@ -24,19 +24,23 @@ PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 sys.path.append(str(PROJECT_ROOT / "src"))
 
 # --- ENVIRONMENT STEWARDSHIP ---
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import tensorflow as tf  # noqa: E402
 
-tf.get_logger().setLevel('ERROR')
+tf.get_logger().setLevel("ERROR")
 
 from energy_forecast.evaluation import evaluate  # noqa: E402
-from energy_forecast.models.deep_learning import CNNLSTMForecaster, GRUForecaster  # noqa: E402, F401
+from energy_forecast.models.deep_learning import (
+    CNNLSTMForecaster,
+    GRUForecaster,
+)  # noqa: E402, F401
 from energy_forecast.models.tft import TFTForecaster  # noqa: E402
 from energy_forecast.utils import load_config, set_global_seed  # noqa: E402
 
 # Setup logging - USER FACING & CLEAN
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
 logger = logging.getLogger(__name__)
+
 
 def _build_y_true_matrix(y, lookback: int, horizon: int) -> np.ndarray:
     parts = []
@@ -45,8 +49,9 @@ def _build_y_true_matrix(y, lookback: int, horizon: int) -> np.ndarray:
         y_b = y.xs(bid, level="building_id").values
         n = len(y_b)
         for i in range(lookback, n - horizon + 1):
-            parts.append(y_b[i: i + horizon])
+            parts.append(y_b[i : i + horizon])
     return np.array(parts, dtype=np.float32)
+
 
 def main():
     cfg = load_config(PROJECT_ROOT / "config/config.yaml")
@@ -75,9 +80,12 @@ def main():
     # These are identical to the splits used by run_pipeline.py for the authoritative results.
     city_prefix = f"{city}_"
     split_keys = {
-        "X_train": "X_train_fs", "y_train": "y_train",
-        "X_val":   "X_val_fs",   "y_val":   "y_val",
-        "X_test":  "X_test_fs",  "y_test":  "y_test",
+        "X_train": "X_train_fs",
+        "y_train": "y_train",
+        "X_val": "X_val_fs",
+        "y_val": "y_val",
+        "X_test": "X_test_fs",
+        "y_test": "y_test",
     }
     splits = {}
     for local_key, file_stem in split_keys.items():
@@ -96,7 +104,7 @@ def main():
     activations = {
         "CNN-LSTM_SetupB": "ReLU (Conv), Tanh (Recurrent), ReLU (Dense)",
         "GRU_SetupB": "Tanh (Recurrent), ReLU (Dense)",
-        "TFT_SetupB": "GLU (Gated Linear Unit), ReLU"
+        "TFT_SetupB": "GLU (Gated Linear Unit), ReLU",
     }
 
     # Only TFT_SetupB is needed here.
@@ -119,6 +127,7 @@ def main():
             # Do NOT override epochs for TF models here; the config default (20)
             # is correct for CNN-LSTM/GRU.  TFT uses cfg["training"]["tft"]["max_epochs"].
             import copy
+
             model_cfg = copy.deepcopy(cfg)
 
             t0 = time.time()
@@ -151,7 +160,9 @@ def main():
 
                 logger.info(f" ✅ FINISHED: {name} | MAE: {res['MAE']:.3f} | Time: {train_t}s")
             else:
-                logger.error(f" ❌ SHAPE MISMATCH: {name} (preds {preds.shape} vs true {y_true_2d.shape})")
+                logger.error(
+                    f" ❌ SHAPE MISMATCH: {name} (preds {preds.shape} vs true {y_true_2d.shape})"
+                )
 
         except Exception as e:
             logger.error(f" ❌ FAILED: {name} | Error: {str(e)}")
@@ -159,6 +170,7 @@ def main():
         logger.info("-" * 60)
 
     logger.info("🎉 Setup B recovery complete!")
+
 
 if __name__ == "__main__":
     main()

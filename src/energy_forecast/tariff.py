@@ -12,12 +12,12 @@ import pandas as pd
 
 # Rates in €/kWh (20% Affinity discount applied to all usage charges)
 BGE: dict[str, float] = {
-    "day":            0.4034 * 0.80,   # €0.32272/kWh  — all other hours
-    "night":          0.2965 * 0.80,   # €0.23720/kWh  — 23:00–08:00
-    "peak":           0.4928 * 0.80,   # €0.39424/kWh  — Mon–Fri 17:00–19:00 only
-    "free":           0.00,            # €0.00/kWh     — Saturday 09:00–17:00
-    "export":         0.185,           # €0.18500/kWh  (no Affinity discount on export)
-    "standing_daily": 0.6152,          # €/day
+    "day": 0.4034 * 0.80,  # €0.32272/kWh  — all other hours
+    "night": 0.2965 * 0.80,  # €0.23720/kWh  — 23:00–08:00
+    "peak": 0.4928 * 0.80,  # €0.39424/kWh  — Mon–Fri 17:00–19:00 only
+    "free": 0.00,  # €0.00/kWh     — Saturday 09:00–17:00
+    "export": 0.185,  # €0.18500/kWh  (no Affinity discount on export)
+    "standing_daily": 0.6152,  # €/day
 }
 
 FREE_CAP_KWH: float = 100.0  # BGE monthly free-slot allowance cap

@@ -48,10 +48,10 @@ logger = logging.getLogger(__name__)
 sns.set_theme(style="whitegrid", palette="muted", font_scale=1.1)
 FIGURE_DPI = 150
 PALETTE_CAT = {
-    "Kdg": "#4C72B0",   # Kindergarten — blue
-    "Sch": "#DD8452",   # School — orange
-    "Nsh": "#55A868",   # Nursing Home — green
-    "Off": "#C44E52",   # Office — red
+    "Kdg": "#4C72B0",  # Kindergarten — blue
+    "Sch": "#DD8452",  # School — orange
+    "Nsh": "#55A868",  # Nursing Home — green
+    "Off": "#C44E52",  # Office — red
 }
 _CAT_LABELS = {"Kdg": "Kindergarten", "Sch": "School", "Nsh": "Nursing Home", "Off": "Office"}
 
@@ -71,6 +71,7 @@ def _save_or_show(fig: plt.Figure, save_path: str | Path | None) -> None:
 # 1. Building metadata overview (4-panel, matches thesis EDA notebook)
 # ---------------------------------------------------------------------------
 
+
 def plot_building_metadata_overview(
     metadata: pd.DataFrame,
     save_path: str | Path | None = None,
@@ -89,7 +90,8 @@ def plot_building_metadata_overview(
         bars = ax.barh(
             [_CAT_LABELS.get(c, c) for c in cat_counts.index],
             cat_counts.values,
-            color=colors, edgecolor="white",
+            color=colors,
+            edgecolor="white",
         )
         ax.bar_label(bars, padding=3, fontsize=10)
         ax.set_xlabel("Number of Buildings")
@@ -103,8 +105,13 @@ def plot_building_metadata_overview(
     if "year_of_construction" in metadata.columns:
         years = metadata["year_of_construction"].dropna()
         ax.hist(years, bins=15, color="#4C72B0", edgecolor="white", alpha=0.85)
-        ax.axvline(years.median(), color="crimson", linestyle="--", linewidth=1.5,
-                   label=f"Median: {int(years.median())}")
+        ax.axvline(
+            years.median(),
+            color="crimson",
+            linestyle="--",
+            linewidth=1.5,
+            label=f"Median: {int(years.median())}",
+        )
         ax.set_xlabel("Year of Construction")
         ax.set_ylabel("Number of Buildings")
         ax.set_title("B  Year of Construction", fontweight="bold", loc="left")
@@ -116,12 +123,13 @@ def plot_building_metadata_overview(
     ax = axes[1, 0]
     if "floor_area" in metadata.columns and "building_category" in metadata.columns:
         plot_df = metadata[["floor_area", "building_category"]].dropna()
-        plot_df["Category"] = plot_df["building_category"].map(
-            lambda c: _CAT_LABELS.get(c, c)
-        )
+        plot_df["Category"] = plot_df["building_category"].map(lambda c: _CAT_LABELS.get(c, c))
         sns.boxplot(
-            data=plot_df, y="Category", x="floor_area",
-            palette=list(PALETTE_CAT.values()), ax=ax,
+            data=plot_df,
+            y="Category",
+            x="floor_area",
+            palette=list(PALETTE_CAT.values()),
+            ax=ax,
             flierprops={"marker": ".", "markersize": 4},
         )
         ax.set_xlabel("Floor Area (m²)")
@@ -139,11 +147,21 @@ def plot_building_metadata_overview(
             .value_counts()
             .reindex(["A", "B", "C", "D", "E", "F", "G", "Unknown"], fill_value=0)
         )
-        label_colors = ["#2ecc71", "#27ae60", "#f1c40f", "#e67e22",
-                        "#e74c3c", "#c0392b", "#8e44ad", "#95a5a6"]
+        label_colors = [
+            "#2ecc71",
+            "#27ae60",
+            "#f1c40f",
+            "#e67e22",
+            "#e74c3c",
+            "#c0392b",
+            "#8e44ad",
+            "#95a5a6",
+        ]
         bars = ax.bar(
-            label_counts.index, label_counts.values,
-            color=label_colors[:len(label_counts)], edgecolor="white",
+            label_counts.index,
+            label_counts.values,
+            color=label_colors[: len(label_counts)],
+            edgecolor="white",
         )
         ax.bar_label(bars, padding=2, fontsize=10)
         ax.set_xlabel("Energy Label")
@@ -155,7 +173,8 @@ def plot_building_metadata_overview(
     fig.suptitle(
         "Drammen Building Portfolio — Metadata Overview\n"
         f"({len(metadata)} buildings, Cofactor dataset)",
-        fontsize=14, fontweight="bold",
+        fontsize=14,
+        fontweight="bold",
     )
     _save_or_show(fig, save_path)
 
@@ -164,6 +183,7 @@ def plot_building_metadata_overview(
 # 2. Column / sensor availability heatmap per building
 #    (matches building_column_availability_summary.csv from thesis)
 # ---------------------------------------------------------------------------
+
 
 def plot_column_availability_heatmap(
     metadata: pd.DataFrame,
@@ -196,18 +216,28 @@ def plot_column_availability_heatmap(
     cov_df = cov_df.loc[:, cov_df.max(axis=0) > 0]
 
     # Shorten column names for display
-    short_names = {c: c.replace("Electricity_", "El_").replace("_kWh", "")
-                     .replace("Heat_", "Ht_").replace("Temperature_Outdoor_C", "T_out")
-                     .replace("Global_Solar_Horizontal_Radiation_W_m2", "Solar")
-                     .replace("Wind_Speed_m_s", "WindSpd")
-                     .replace("Wind_Direction_deg", "WindDir")
-                     .replace("Relative_Humidity_pct", "RH")
-                   for c in cov_df.columns}
+    short_names = {
+        c: c.replace("Electricity_", "El_")
+        .replace("_kWh", "")
+        .replace("Heat_", "Ht_")
+        .replace("Temperature_Outdoor_C", "T_out")
+        .replace("Global_Solar_Horizontal_Radiation_W_m2", "Solar")
+        .replace("Wind_Speed_m_s", "WindSpd")
+        .replace("Wind_Direction_deg", "WindDir")
+        .replace("Relative_Humidity_pct", "RH")
+        for c in cov_df.columns
+    }
     cov_df = cov_df.rename(columns=short_names)
 
     # Add category label for y-axis
-    cat_map = metadata.set_index("building_id")["building_category"].to_dict() if "building_category" in metadata.columns else {}
-    y_labels = [f"{bid} ({_CAT_LABELS.get(cat_map.get(bid, '?'), '?')[:3]})" for bid in cov_df.index]
+    cat_map = (
+        metadata.set_index("building_id")["building_category"].to_dict()
+        if "building_category" in metadata.columns
+        else {}
+    )
+    y_labels = [
+        f"{bid} ({_CAT_LABELS.get(cat_map.get(bid, '?'), '?')[:3]})" for bid in cov_df.index
+    ]
 
     fig_h = max(8, len(cov_df) * 0.35)
     fig_w = max(14, len(cov_df.columns) * 0.7)
@@ -218,7 +248,8 @@ def plot_column_availability_heatmap(
         cov_df,
         ax=ax,
         cmap="RdYlGn",
-        vmin=0, vmax=1,
+        vmin=0,
+        vmax=1,
         linewidths=0.4,
         linecolor="white",
         annot=False,
@@ -239,6 +270,7 @@ def plot_column_availability_heatmap(
 # 3. Missing data analysis (per-column %, thesis-style bar chart)
 # ---------------------------------------------------------------------------
 
+
 def plot_missing_data_analysis(
     timeseries: pd.DataFrame,
     metadata: pd.DataFrame | None = None,
@@ -257,23 +289,33 @@ def plot_missing_data_analysis(
     missing_pct = timeseries.isnull().mean().sort_values(ascending=False) * 100
     missing_pct = missing_pct[missing_pct > 0]
 
-    colors_a = ["#e74c3c" if v > 50 else "#f39c12" if v > 20 else "#2ecc71"
-                for v in missing_pct.values]
-    short = [c.replace("Electricity_", "El_").replace("_kWh", "")
-              .replace("Heat_", "Ht_").replace("Temperature_Outdoor_C", "T_out")
-              .replace("Global_Solar_Horizontal_Radiation_W_m2", "Solar")
-              .replace("Relative_Humidity_pct", "RH") for c in missing_pct.index]
+    colors_a = [
+        "#e74c3c" if v > 50 else "#f39c12" if v > 20 else "#2ecc71" for v in missing_pct.values
+    ]
+    short = [
+        c.replace("Electricity_", "El_")
+        .replace("_kWh", "")
+        .replace("Heat_", "Ht_")
+        .replace("Temperature_Outdoor_C", "T_out")
+        .replace("Global_Solar_Horizontal_Radiation_W_m2", "Solar")
+        .replace("Relative_Humidity_pct", "RH")
+        for c in missing_pct.index
+    ]
 
     bars = ax1.barh(short, missing_pct.values, color=colors_a, edgecolor="white")
     ax1.axvline(50, color="crimson", linestyle="--", linewidth=1.2, label="50% threshold")
     ax1.set_xlabel("Missing Data (%)")
-    ax1.set_title("A  Column-Level Missing Data (%)\n"
-                  "(Red >50% | Orange >20% | Green ≤20%)", fontweight="bold", loc="left")
+    ax1.set_title(
+        "A  Column-Level Missing Data (%)\n" "(Red >50% | Orange >20% | Green ≤20%)",
+        fontweight="bold",
+        loc="left",
+    )
     ax1.legend(fontsize=9)
     ax1.set_xlim(0, 105)
     for bar, val in zip(bars, missing_pct.values):
-        ax1.text(val + 0.5, bar.get_y() + bar.get_height() / 2,
-                 f"{val:.1f}%", va="center", fontsize=7)
+        ax1.text(
+            val + 0.5, bar.get_y() + bar.get_height() / 2, f"{val:.1f}%", va="center", fontsize=7
+        )
 
     # ── Panel B: Per-building target missing % ─────────────────────────────
     building_ids = timeseries.index.get_level_values("building_id").unique()
@@ -292,29 +334,35 @@ def plot_missing_data_analysis(
     if metadata is not None and "building_category" in metadata.columns:
         cat_map = metadata.set_index("building_id")["building_category"].to_dict()
     colors_b = [PALETTE_CAT.get(cat_map.get(bid, ""), "#888") for bid in bld_ser.index]
-    y_labels = [f"{bid}\n({_CAT_LABELS.get(cat_map.get(bid, '?'), '?')[:3]})"
-                for bid in bld_ser.index]
+    y_labels = [
+        f"{bid}\n({_CAT_LABELS.get(cat_map.get(bid, '?'), '?')[:3]})" for bid in bld_ser.index
+    ]
 
     bars2 = ax2.bar(  # noqa: F841
-        range(len(bld_ser)), bld_ser.values,
-        color=colors_b, edgecolor="white", width=0.7,
+        range(len(bld_ser)),
+        bld_ser.values,
+        color=colors_b,
+        edgecolor="white",
+        width=0.7,
     )
     ax2.set_xticks(range(len(bld_ser)))
     ax2.set_xticklabels(y_labels, rotation=90, fontsize=7)
     ax2.axhline(30, color="crimson", linestyle="--", linewidth=1.2, label="30% threshold")
     ax2.set_ylabel("Missing Target Values (%)")
     ax2.set_title(
-        f"B  Per-Building Missing % — {target.replace('_', ' ')}\n"
-        f"(Colour = building category)",
-        fontweight="bold", loc="left",
+        f"B  Per-Building Missing % — {target.replace('_', ' ')}\n" f"(Colour = building category)",
+        fontweight="bold",
+        loc="left",
     )
-    legend_patches = [mpatches.Patch(color=v, label=_CAT_LABELS.get(k, k))
-                      for k, v in PALETTE_CAT.items()]
+    legend_patches = [
+        mpatches.Patch(color=v, label=_CAT_LABELS.get(k, k)) for k, v in PALETTE_CAT.items()
+    ]
     ax2.legend(handles=legend_patches, fontsize=9, loc="upper right")
 
     fig.suptitle(
         "Missing Data Analysis — Drammen Dataset",
-        fontsize=14, fontweight="bold",
+        fontsize=14,
+        fontweight="bold",
     )
     _save_or_show(fig, save_path)
 
@@ -322,6 +370,7 @@ def plot_missing_data_analysis(
 # ---------------------------------------------------------------------------
 # 4. Energy profiles per building (daily + monthly aggregations)
 # ---------------------------------------------------------------------------
+
 
 def plot_all_building_energy_profiles(
     timeseries: pd.DataFrame,
@@ -350,12 +399,26 @@ def plot_all_building_energy_profiles(
     if "building_category" in metadata.columns:
         cat_map = metadata.set_index("building_id")["building_category"].to_dict()
 
-    season_map = {12: "Winter", 1: "Winter", 2: "Winter",
-                  3: "Spring", 4: "Spring", 5: "Spring",
-                  6: "Summer", 7: "Summer", 8: "Summer",
-                  9: "Autumn", 10: "Autumn", 11: "Autumn"}
-    season_colors = {"Winter": "#4C72B0", "Spring": "#55A868",
-                     "Summer": "#DD8452", "Autumn": "#C44E52"}
+    season_map = {
+        12: "Winter",
+        1: "Winter",
+        2: "Winter",
+        3: "Spring",
+        4: "Spring",
+        5: "Spring",
+        6: "Summer",
+        7: "Summer",
+        8: "Summer",
+        9: "Autumn",
+        10: "Autumn",
+        11: "Autumn",
+    }
+    season_colors = {
+        "Winter": "#4C72B0",
+        "Spring": "#55A868",
+        "Summer": "#DD8452",
+        "Autumn": "#C44E52",
+    }
 
     for bid in building_ids:
         try:
@@ -375,8 +438,14 @@ def plot_all_building_energy_profiles(
             daily = ts.resample("1D").mean()
             ax1.plot(daily.index, daily.values, color=color, linewidth=0.9, alpha=0.9)
             roll7 = daily.rolling(7, center=True).mean()
-            ax1.plot(roll7.index, roll7.values, color="crimson", linewidth=1.8,
-                     linestyle="--", label="7-day rolling mean")
+            ax1.plot(
+                roll7.index,
+                roll7.values,
+                color="crimson",
+                linewidth=1.8,
+                linestyle="--",
+                label="7-day rolling mean",
+            )
             ax1.set_xlabel("Date")
             ax1.set_ylabel("Electricity (kWh/hour, daily mean)")
             ax1.set_title(f"Building {bid} ({cat_label}) — Daily Mean Electricity")
@@ -384,14 +453,19 @@ def plot_all_building_energy_profiles(
             ax1.xaxis.set_major_locator(mticker.MaxNLocator(8))
 
             # Right: average hourly profile by season
-            df_hour = pd.DataFrame({"hour": ts.index.hour,
-                                    "month": ts.index.month,
-                                    "value": ts.values})
+            df_hour = pd.DataFrame(
+                {"hour": ts.index.hour, "month": ts.index.month, "value": ts.values}
+            )
             df_hour["season"] = df_hour["month"].map(season_map)
             for season, grp in df_hour.groupby("season"):
                 hourly_mean = grp.groupby("hour")["value"].mean()
-                ax2.plot(hourly_mean.index, hourly_mean.values,
-                         color=season_colors[season], linewidth=1.8, label=season)
+                ax2.plot(
+                    hourly_mean.index,
+                    hourly_mean.values,
+                    color=season_colors[season],
+                    linewidth=1.8,
+                    label=season,
+                )
             ax2.set_xlabel("Hour of Day")
             ax2.set_ylabel("Average Electricity (kWh)")
             ax2.set_title("Average Hourly Profile by Season")
@@ -401,7 +475,8 @@ def plot_all_building_energy_profiles(
             fig.suptitle(
                 f"Building {bid} | {cat_label} | "
                 f"{ts.index.min().date()} → {ts.index.max().date()}",
-                fontsize=12, fontweight="bold",
+                fontsize=12,
+                fontweight="bold",
             )
             out_path = out_dir / f"energy_profile_building_{bid}.png"
             _save_or_show(fig, out_path)
@@ -415,6 +490,7 @@ def plot_all_building_energy_profiles(
 # ---------------------------------------------------------------------------
 # 5. Temperature vs Electricity by category — scatter + regression
 # ---------------------------------------------------------------------------
+
 
 def plot_temperature_vs_electricity_by_category(
     timeseries: pd.DataFrame,
@@ -433,8 +509,11 @@ def plot_temperature_vs_electricity_by_category(
     needed = [target, temp_col]
     df = timeseries[needed].dropna().reset_index()
 
-    cat_map = metadata.set_index("building_id")["building_category"].to_dict() \
-        if "building_category" in metadata.columns else {}
+    cat_map = (
+        metadata.set_index("building_id")["building_category"].to_dict()
+        if "building_category" in metadata.columns
+        else {}
+    )
     df["category"] = df["building_id"].map(lambda b: _CAT_LABELS.get(cat_map.get(b, ""), "Unknown"))
 
     if len(df) > sample_n:
@@ -445,8 +524,14 @@ def plot_temperature_vs_electricity_by_category(
     # ── Panel A: all buildings, colour by category ─────────────────────────
     cat_palette = {_CAT_LABELS[k]: v for k, v in PALETTE_CAT.items()}
     for cat, grp in df.groupby("category"):
-        ax1.scatter(grp[temp_col], grp[target],
-                    alpha=0.15, s=8, color=cat_palette.get(cat, "#888"), label=cat)
+        ax1.scatter(
+            grp[temp_col],
+            grp[target],
+            alpha=0.15,
+            s=8,
+            color=cat_palette.get(cat, "#888"),
+            label=cat,
+        )
     # Quadratic trend over all
     x_all = df[temp_col].values
     y_all = df[target].values
@@ -456,15 +541,17 @@ def plot_temperature_vs_electricity_by_category(
     ax1.plot(x_line, p(x_line), "k--", linewidth=2.5, label="Quadratic trend (all)")
     ax1.set_xlabel("Outdoor Temperature (°C)")
     ax1.set_ylabel("Electricity Imported (kWh)")
-    ax1.set_title("A  Electricity vs Temperature — All Buildings\n"
-                  "(sample n=75k, colour = category)", fontweight="bold", loc="left")
+    ax1.set_title(
+        "A  Electricity vs Temperature — All Buildings\n" "(sample n=75k, colour = category)",
+        fontweight="bold",
+        loc="left",
+    )
     ax1.legend(markerscale=3, fontsize=9)
 
     # ── Panel B: per-category regression lines ─────────────────────────────
     for cat, grp in df.groupby("category"):
         color = cat_palette.get(cat, "#888")
-        ax2.scatter(grp[temp_col], grp[target],
-                    alpha=0.08, s=5, color=color)
+        ax2.scatter(grp[temp_col], grp[target], alpha=0.08, s=5, color=color)
         try:
             z2 = np.polyfit(grp[temp_col].values, grp[target].values, 2)
             p2 = np.poly1d(z2)
@@ -480,13 +567,17 @@ def plot_temperature_vs_electricity_by_category(
             )
     ax2.set_xlabel("Outdoor Temperature (°C)")
     ax2.set_ylabel("Electricity Imported (kWh)")
-    ax2.set_title("B  Quadratic Regression per Building Category\n"
-                  "(heating demand dominates below ~15°C)", fontweight="bold", loc="left")
+    ax2.set_title(
+        "B  Quadratic Regression per Building Category\n" "(heating demand dominates below ~15°C)",
+        fontweight="bold",
+        loc="left",
+    )
     ax2.legend(fontsize=9)
 
     fig.suptitle(
         "Temperature Sensitivity of Electricity Consumption — Drammen Dataset",
-        fontsize=14, fontweight="bold",
+        fontsize=14,
+        fontweight="bold",
     )
     _save_or_show(fig, save_path)
 
@@ -494,6 +585,7 @@ def plot_temperature_vs_electricity_by_category(
 # ---------------------------------------------------------------------------
 # 6. ACF / PACF for a representative building
 # ---------------------------------------------------------------------------
+
 
 def plot_acf_pacf(
     timeseries: pd.DataFrame,
@@ -523,20 +615,27 @@ def plot_acf_pacf(
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8))
 
-    plot_acf(ts, lags=nlags, ax=ax1, alpha=0.05,
-             title=f"ACF — Building {bid} (ElImp/hour, lags=168 h = 1 week)")
-    plot_pacf(ts, lags=min(nlags, 100), ax=ax2, alpha=0.05, method="ywm",
-              title=f"PACF — Building {bid}")
+    plot_acf(
+        ts,
+        lags=nlags,
+        ax=ax1,
+        alpha=0.05,
+        title=f"ACF — Building {bid} (ElImp/hour, lags=168 h = 1 week)",
+    )
+    plot_pacf(
+        ts, lags=min(nlags, 100), ax=ax2, alpha=0.05, method="ywm", title=f"PACF — Building {bid}"
+    )
 
     for ax in (ax1, ax2):
-        ax.axvline(24,  color="crimson",  linestyle="--", linewidth=1.2, alpha=0.7, label="24h")
+        ax.axvline(24, color="crimson", linestyle="--", linewidth=1.2, alpha=0.7, label="24h")
         ax.axvline(168, color="darkorange", linestyle="--", linewidth=1.2, alpha=0.7, label="168h")
         ax.legend(fontsize=9)
 
     fig.suptitle(
         f"Autocorrelation Analysis — Building {bid}\n"
         "Strong 24h (diurnal) and 168h (weekly) cycles confirm lag feature design",
-        fontsize=13, fontweight="bold",
+        fontsize=13,
+        fontweight="bold",
     )
     _save_or_show(fig, save_path)
 
@@ -544,6 +643,7 @@ def plot_acf_pacf(
 # ---------------------------------------------------------------------------
 # 7. Seasonal decomposition
 # ---------------------------------------------------------------------------
+
 
 def plot_seasonal_decomposition(
     timeseries: pd.DataFrame,
@@ -597,6 +697,7 @@ def plot_seasonal_decomposition(
 # 8. Comprehensive model results comparison (4-panel, thesis Figure)
 # ---------------------------------------------------------------------------
 
+
 def plot_model_results_comparison(
     metrics_df: pd.DataFrame,
     save_path_prefix: str | Path | None = None,
@@ -619,17 +720,18 @@ def plot_model_results_comparison(
     df = df.sort_values("MAE", ascending=True).reset_index(drop=True)
 
     BASELINE_KEYWORDS = {"Naive", "Baseline", "Persistence", "Seasonal"}  # noqa: N806
+
     def is_baseline(name: str) -> bool:
         return any(kw.lower() in name.lower() for kw in BASELINE_KEYWORDS)
 
     bar_colors = []
     for i, name in enumerate(df["Model"]):
         if i == 0:
-            bar_colors.append("#2ecc71")   # best = green
+            bar_colors.append("#2ecc71")  # best = green
         elif is_baseline(name):
-            bar_colors.append("#95a5a6")   # baselines = grey
+            bar_colors.append("#95a5a6")  # baselines = grey
         else:
-            bar_colors.append("#4C72B0")   # others = blue
+            bar_colors.append("#4C72B0")  # others = blue
 
     # ── 4-panel figure ────────────────────────────────────────────────────
     metric_pairs = [
@@ -650,15 +752,25 @@ def plot_model_results_comparison(
         if col not in df.columns:
             ax.set_visible(False)
             continue
-        colors_p = ["#2ecc71" if bar_colors[i] == "#2ecc71" else
-                    "#95a5a6" if is_baseline(df["Model"].iloc[i]) else "#4C72B0"
-                    for i in range(len(df))]
+        colors_p = [
+            (
+                "#2ecc71"
+                if bar_colors[i] == "#2ecc71"
+                else "#95a5a6" if is_baseline(df["Model"].iloc[i]) else "#4C72B0"
+            )
+            for i in range(len(df))
+        ]
         if not lower_better:
             # For R² higher is better — invert the highlight logic
             best_idx = df[col].idxmax()
-            colors_p = ["#2ecc71" if i == best_idx else
-                        "#95a5a6" if is_baseline(df["Model"].iloc[i]) else "#4C72B0"
-                        for i in range(len(df))]
+            colors_p = [
+                (
+                    "#2ecc71"
+                    if i == best_idx
+                    else "#95a5a6" if is_baseline(df["Model"].iloc[i]) else "#4C72B0"
+                )
+                for i in range(len(df))
+            ]
         bars = ax.barh(df["Model"], df[col], color=colors_p, edgecolor="white")
         ax.bar_label(bars, fmt="%.3f", padding=3, fontsize=8)
         ax.set_xlabel(xlabel)
@@ -668,7 +780,8 @@ def plot_model_results_comparison(
 
     fig.suptitle(
         "Model Performance Comparison — Drammen Test Set",
-        fontsize=14, fontweight="bold",
+        fontsize=14,
+        fontweight="bold",
     )
     if save_path_prefix:
         _save_or_show(fig, str(save_path_prefix) + "_4panel.png")
@@ -702,6 +815,7 @@ def plot_model_results_comparison(
 # 9. Actual vs predicted time series (one building, N days)
 # ---------------------------------------------------------------------------
 
+
 def plot_actual_vs_predicted_timeseries(
     y_true: pd.Series | np.ndarray,
     y_pred: np.ndarray,
@@ -727,13 +841,31 @@ def plot_actual_vs_predicted_timeseries(
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 8), sharex=False)
 
     # Top: time series comparison
-    ax1.plot(ts_index[:n_show], y_true_arr[:n_show],
-             color="#4C72B0", linewidth=1.2, label="Actual", zorder=3)
-    ax1.plot(ts_index[:n_show], y_pred[:n_show],
-             color="#DD8452", linewidth=1.2, linestyle="--", label=f"Predicted ({model_name})", zorder=2)
-    ax1.fill_between(ts_index[:n_show],
-                     y_true_arr[:n_show], y_pred[:n_show],
-                     alpha=0.15, color="crimson", label="Error")
+    ax1.plot(
+        ts_index[:n_show],
+        y_true_arr[:n_show],
+        color="#4C72B0",
+        linewidth=1.2,
+        label="Actual",
+        zorder=3,
+    )
+    ax1.plot(
+        ts_index[:n_show],
+        y_pred[:n_show],
+        color="#DD8452",
+        linewidth=1.2,
+        linestyle="--",
+        label=f"Predicted ({model_name})",
+        zorder=2,
+    )
+    ax1.fill_between(
+        ts_index[:n_show],
+        y_true_arr[:n_show],
+        y_pred[:n_show],
+        alpha=0.15,
+        color="crimson",
+        label="Error",
+    )
     ax1.set_ylabel("Electricity (kWh)")
     bid_str = f" — Building {building_id}" if building_id else ""
     ax1.set_title(f"{model_name} — Actual vs Predicted ({n_days} days){bid_str}")
@@ -741,9 +873,13 @@ def plot_actual_vs_predicted_timeseries(
 
     # Bottom: residuals
     residuals = y_true_arr[:n_show] - y_pred[:n_show]
-    ax2.bar(range(len(residuals)), residuals,
-            color=["#e74c3c" if r < 0 else "#2ecc71" for r in residuals],
-            width=1.0, alpha=0.7)
+    ax2.bar(
+        range(len(residuals)),
+        residuals,
+        color=["#e74c3c" if r < 0 else "#2ecc71" for r in residuals],
+        width=1.0,
+        alpha=0.7,
+    )
     ax2.axhline(0, color="black", linewidth=1.0)
     ax2.set_xlabel("Hour index")
     ax2.set_ylabel("Residual (kWh)")
@@ -753,7 +889,8 @@ def plot_actual_vs_predicted_timeseries(
         f"{model_name} Prediction Quality | "
         f"MAE={np.mean(np.abs(residuals)):.3f} kWh | "
         f"RMSE={np.sqrt(np.mean(residuals**2)):.3f} kWh",
-        fontsize=12, fontweight="bold",
+        fontsize=12,
+        fontweight="bold",
     )
     _save_or_show(fig, save_path)
 
@@ -761,6 +898,7 @@ def plot_actual_vs_predicted_timeseries(
 # ---------------------------------------------------------------------------
 # 10. Ensemble weights bar chart
 # ---------------------------------------------------------------------------
+
 
 def plot_ensemble_weights(
     weights: dict[str, float],
@@ -778,13 +916,17 @@ def plot_ensemble_weights(
     ax.bar_label(bars, fmt="%.4f", padding=4, fontsize=10)
     ax.set_xlabel("Weight (normalised inverse-MAE)")
     ax.set_title(
-        "Weighted Average Ensemble — Model Weights\n"
-        "(Higher weight = lower validation MAE)",
+        "Weighted Average Ensemble — Model Weights\n" "(Higher weight = lower validation MAE)",
         fontweight="bold",
     )
     ax.invert_yaxis()
-    ax.axvline(1.0 / len(ws), color="crimson", linestyle="--",
-               linewidth=1.2, label=f"Equal weight ({1/len(ws):.3f})")
+    ax.axvline(
+        1.0 / len(ws),
+        color="crimson",
+        linestyle="--",
+        linewidth=1.2,
+        label=f"Equal weight ({1/len(ws):.3f})",
+    )
     ax.legend(fontsize=9)
     _save_or_show(fig, save_path)
 
@@ -792,6 +934,7 @@ def plot_ensemble_weights(
 # ---------------------------------------------------------------------------
 # 11. Thesis vs new pipeline comparison table + chart
 # ---------------------------------------------------------------------------
+
 
 def plot_thesis_vs_pipeline_comparison(
     thesis_df: pd.DataFrame,
@@ -812,8 +955,10 @@ def plot_thesis_vs_pipeline_comparison(
     # Linear and ensemble models — excluded from side-by-side chart by default
     # to keep the comparison focused on tree-based models present in both runs
     ORACLE_ARTIFACT_MODELS = {  # noqa: N806
-        "Ridge", "Lasso",
-        "Stacking Ensemble (Ridge meta)", "Stacking Ensemble (LGBM meta)",
+        "Ridge",
+        "Lasso",
+        "Stacking Ensemble (Ridge meta)",
+        "Stacking Ensemble (LGBM meta)",
     }
 
     p_df = pipeline_df.copy()
@@ -827,7 +972,8 @@ def plot_thesis_vs_pipeline_comparison(
     merged = pd.merge(
         thesis_df[["Model", "MAE"]].rename(columns={"MAE": "Thesis MAE (kWh)"}),
         p_df[["Model", "MAE"]].rename(columns={"MAE": "Pipeline MAE (kWh)"}),
-        on="Model", how="inner",
+        on="Model",
+        how="inner",
     ).sort_values("Thesis MAE (kWh)")
 
     if merged.empty:
@@ -838,10 +984,22 @@ def plot_thesis_vs_pipeline_comparison(
     width = 0.38
 
     fig, ax = plt.subplots(figsize=(max(12, len(merged) * 1.6), 8))
-    bars1 = ax.bar(x - width / 2, merged["Thesis MAE (kWh)"], width,
-                   color="#4C72B0", label="Thesis 2025 — 24h multi-step forecast", alpha=0.9)
-    bars2 = ax.bar(x + width / 2, merged["Pipeline MAE (kWh)"], width,
-                   color="#DD8452", label="Pipeline v2 2026 — 1-step oracle (h=1)", alpha=0.9)
+    bars1 = ax.bar(
+        x - width / 2,
+        merged["Thesis MAE (kWh)"],
+        width,
+        color="#4C72B0",
+        label="Thesis 2025 — 24h multi-step forecast",
+        alpha=0.9,
+    )
+    bars2 = ax.bar(
+        x + width / 2,
+        merged["Pipeline MAE (kWh)"],
+        width,
+        color="#DD8452",
+        label="Pipeline v2 2026 — 1-step oracle (h=1)",
+        alpha=0.9,
+    )
 
     ax.bar_label(bars1, fmt="%.3f", padding=3, fontsize=9)
     ax.bar_label(bars2, fmt="%.3f", padding=3, fontsize=9)
@@ -867,7 +1025,10 @@ def plot_thesis_vs_pipeline_comparison(
         ax.annotate(
             f"Δ{diff:+.2f}",
             xy=(x[i], max(t_mae, p_mae) + 0.1),
-            ha="center", fontsize=8, color=color, fontweight="bold",
+            ha="center",
+            fontsize=8,
+            color=color,
+            fontweight="bold",
         )
 
     # Add explanation text box
@@ -877,8 +1038,12 @@ def plot_thesis_vs_pipeline_comparison(
         "Tree model MAEs are within ~0.3 kWh of thesis — methodology difference."
     )
     ax.text(
-        0.01, 0.97, note,
-        transform=ax.transAxes, fontsize=8, verticalalignment="top",
+        0.01,
+        0.97,
+        note,
+        transform=ax.transAxes,
+        fontsize=8,
+        verticalalignment="top",
         bbox=dict(boxstyle="round,pad=0.4", facecolor="lightyellow", alpha=0.8),
     )
 

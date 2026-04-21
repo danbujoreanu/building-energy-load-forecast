@@ -30,15 +30,15 @@ def run(cfg: dict) -> None:
     from energy_forecast.models.sklearn_models import build_sklearn_models
 
     proc_dir = Path(cfg["paths"]["processed"]) / cfg["city"] / "splits"
-    fig_dir  = Path(cfg["paths"]["outputs"]["figures"])
+    fig_dir = Path(cfg["paths"]["outputs"]["figures"])
 
     logger.info("── Stage 4: SHAP Explainability ────────────────────")
 
     X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")  # noqa: N806
     y_train = pd.read_parquet(proc_dir / "y_train.parquet").squeeze()
-    X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
-    y_val   = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
-    X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
+    X_val = pd.read_parquet(proc_dir / "X_val_fs.parquet")  # noqa: N806
+    y_val = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
+    X_test = pd.read_parquet(proc_dir / "X_test_fs.parquet")  # noqa: N806
 
     # Refit tree models (fast — RF ~2min, XGB/LGBM ~3s each)
     tree_models = {
@@ -55,7 +55,7 @@ def run(cfg: dict) -> None:
             X_train,
             X_test,
             save_dir=fig_dir,
-            n_samples=500,   # subsample for speed; increase for publication
+            n_samples=500,  # subsample for speed; increase for publication
         )
 
     logger.info("Stage 4 complete. SHAP plots → %s/shap/", fig_dir)

@@ -19,7 +19,6 @@ import pytest
 
 from energy_forecast.api import schemas
 
-
 # ─── Fixtures ────────────────────────────────────────────────────────────────
 
 FEATURE_NAMES = [f"Column_{i}" for i in range(35)]
@@ -35,6 +34,7 @@ def reset_registry():
 
 # ─── Lenient mode (no model registered) ──────────────────────────────────────
 
+
 def test_lenient_mode_passes_any_nonempty_dict():
     features = {"anything": 1.0, "goes": 2.0}
     result = schemas.validate_features(features)
@@ -48,6 +48,7 @@ def test_lenient_mode_passes_empty_dict():
 
 
 # ─── register_features ───────────────────────────────────────────────────────
+
 
 def test_register_features_activates_strict_mode():
     schemas.register_features(FEATURE_NAMES)
@@ -64,6 +65,7 @@ def test_expected_feature_names_returns_copy():
 
 # ─── Strict validation — happy path ──────────────────────────────────────────
 
+
 def test_exact_correct_features_pass():
     schemas.register_features(FEATURE_NAMES)
     features = {name: float(i) for i, name in enumerate(FEATURE_NAMES)}
@@ -73,6 +75,7 @@ def test_exact_correct_features_pass():
 
 # ─── Strict validation — error cases ─────────────────────────────────────────
 
+
 def test_missing_features_raises():
     schemas.register_features(FEATURE_NAMES)
     # Only send first 10 features
@@ -81,7 +84,7 @@ def test_missing_features_raises():
         schemas.validate_features(partial)
     msg = str(exc_info.value)
     assert "Missing 25" in msg
-    assert "Column_10" in msg          # first missing feature
+    assert "Column_10" in msg  # first missing feature
 
 
 def test_extra_features_raises():
@@ -98,7 +101,7 @@ def test_extra_features_raises():
 def test_both_missing_and_extra_raises():
     schemas.register_features(FEATURE_NAMES)
     # Replace first 3 expected with wrong names
-    features = {name: 0.0 for name in FEATURE_NAMES[3:]}   # missing first 3
+    features = {name: 0.0 for name in FEATURE_NAMES[3:]}  # missing first 3
     features["wrong_a"] = 1.0
     features["wrong_b"] = 2.0
     with pytest.raises(ValueError) as exc_info:
@@ -126,6 +129,7 @@ def test_error_message_includes_expected_count():
 
 # ─── clear_features ──────────────────────────────────────────────────────────
 
+
 def test_clear_restores_lenient_mode():
     schemas.register_features(FEATURE_NAMES)
     schemas.clear_features()
@@ -142,6 +146,7 @@ def test_clear_empties_expected_list():
 
 
 # ─── Edge cases ──────────────────────────────────────────────────────────────
+
 
 def test_register_empty_list_activates_strict_mode():
     """Even an empty feature list activates strict mode."""

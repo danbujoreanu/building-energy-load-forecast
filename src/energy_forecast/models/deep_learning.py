@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 # Chunked prediction helper
 # ---------------------------------------------------------------------------
 
+
 def _chunked_predict(model, X_seq: np.ndarray, chunk_size: int = 4096) -> np.ndarray:
     """Run model.predict in chunks to avoid staging the full array on Metal GPU.
 
@@ -58,6 +59,7 @@ def _chunked_predict(model, X_seq: np.ndarray, chunk_size: int = 4096) -> np.nda
 # ---------------------------------------------------------------------------
 # Sequence builder
 # ---------------------------------------------------------------------------
+
 
 def build_sequences(
     X: pd.DataFrame,  # noqa: N803
@@ -94,7 +96,7 @@ def build_sequences(
         for i in range(lookback, n - horizon + 1):
             X_seqs.append(X_b[i - lookback : i])
             if horizon == 1:
-                y_seqs.append(y_b[i])              # scalar — H+1 (current mode)
+                y_seqs.append(y_b[i])  # scalar — H+1 (current mode)
             else:
                 y_seqs.append(y_b[i : i + horizon])  # vector — H+N multi-horizon
 
@@ -104,6 +106,7 @@ def build_sequences(
 # ---------------------------------------------------------------------------
 # Prediction reshape utility
 # ---------------------------------------------------------------------------
+
 
 def reshape_dl_predictions(raw: np.ndarray, horizon: int) -> np.ndarray:
     """Reshape raw DL model output to the expected evaluation format.
@@ -149,6 +152,7 @@ def reshape_dl_predictions(raw: np.ndarray, horizon: int) -> np.ndarray:
 # LSTM
 # ---------------------------------------------------------------------------
 
+
 class LSTMForecaster(BaseForecaster):
     """Stacked LSTM: 64 → 32 units with dropout, followed by Dense layers."""
 
@@ -169,26 +173,30 @@ class LSTMForecaster(BaseForecaster):
         )
         n_features = X_tr_seq.shape[2]
 
-        model = tf.keras.Sequential([
-            tf.keras.layers.LSTM(
-                dl_cfg["lstm"]["units"][0], return_sequences=True,
-                input_shape=(seq_cfg["lookback"], n_features)
-            ),
-            tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
-            tf.keras.layers.LSTM(dl_cfg["lstm"]["units"][1]),
-            tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
-            tf.keras.layers.Dense(dl_cfg["lstm"]["dense_units"], activation="relu"),
-            tf.keras.layers.Dense(seq_cfg["horizon"]),  # 1 for H+1; 24 for H+24
-        ], name="LSTM")
+        model = tf.keras.Sequential(
+            [
+                tf.keras.layers.LSTM(
+                    dl_cfg["lstm"]["units"][0],
+                    return_sequences=True,
+                    input_shape=(seq_cfg["lookback"], n_features),
+                ),
+                tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
+                tf.keras.layers.LSTM(dl_cfg["lstm"]["units"][1]),
+                tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
+                tf.keras.layers.Dense(dl_cfg["lstm"]["dense_units"], activation="relu"),
+                tf.keras.layers.Dense(seq_cfg["horizon"]),  # 1 for H+1; 24 for H+24
+            ],
+            name="LSTM",
+        )
         model.compile(optimizer="adam", loss="mse", metrics=["mae"])
 
         callbacks = _make_callbacks(dl_cfg)
 
         fit_kwargs: dict = {
-            "epochs":     dl_cfg["epochs"],
+            "epochs": dl_cfg["epochs"],
             "batch_size": dl_cfg["batch_size"],
-            "callbacks":  callbacks,
-            "verbose":    2,   # 2 = one line per epoch (\n); 1 = \r progress bar (floods log files)
+            "callbacks": callbacks,
+            "verbose": 2,  # 2 = one line per epoch (\n); 1 = \r progress bar (floods log files)
         }
         if X_val is not None and y_val is not None:
             X_v_seq, y_v_seq = build_sequences(  # noqa: N806
@@ -206,6 +214,7 @@ class LSTMForecaster(BaseForecaster):
         # resident until GC'd.  The caller immediately calls predict() which
         # builds test sequences — keeping training arrays alive triggers OOM.
         import gc
+
         del X_tr_seq, y_tr_seq
         if "validation_data" in fit_kwargs:
             del fit_kwargs["validation_data"]
@@ -226,6 +235,7 @@ class LSTMForecaster(BaseForecaster):
 # ---------------------------------------------------------------------------
 # CNN-LSTM
 # ---------------------------------------------------------------------------
+
 
 class CNNLSTMForecaster(BaseForecaster):
     """1-D Conv layers for local pattern detection, LSTM for temporal context."""
@@ -248,30 +258,33 @@ class CNNLSTMForecaster(BaseForecaster):
         )
         n_features = X_tr_seq.shape[2]
 
-        model = tf.keras.Sequential([
-            tf.keras.layers.Conv1D(
-                cnn_cfg["conv_filters"][0], cnn_cfg["kernel_size"],
-                activation="relu",
-                input_shape=(seq_cfg["lookback"], n_features)
-            ),
-            tf.keras.layers.MaxPooling1D(pool_size=2),
-            tf.keras.layers.Conv1D(
-                cnn_cfg["conv_filters"][1], cnn_cfg["kernel_size"],
-                activation="relu"
-            ),
-            tf.keras.layers.LSTM(cnn_cfg["lstm_units"]),
-            tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
-            tf.keras.layers.Dense(cnn_cfg["dense_units"], activation="relu"),
-            tf.keras.layers.Dense(seq_cfg["horizon"]),  # 1 for H+1; 24 for H+24
-        ], name="CNN_LSTM")
+        model = tf.keras.Sequential(
+            [
+                tf.keras.layers.Conv1D(
+                    cnn_cfg["conv_filters"][0],
+                    cnn_cfg["kernel_size"],
+                    activation="relu",
+                    input_shape=(seq_cfg["lookback"], n_features),
+                ),
+                tf.keras.layers.MaxPooling1D(pool_size=2),
+                tf.keras.layers.Conv1D(
+                    cnn_cfg["conv_filters"][1], cnn_cfg["kernel_size"], activation="relu"
+                ),
+                tf.keras.layers.LSTM(cnn_cfg["lstm_units"]),
+                tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
+                tf.keras.layers.Dense(cnn_cfg["dense_units"], activation="relu"),
+                tf.keras.layers.Dense(seq_cfg["horizon"]),  # 1 for H+1; 24 for H+24
+            ],
+            name="CNN_LSTM",
+        )
         model.compile(optimizer="adam", loss="mse", metrics=["mae"])
 
         callbacks = _make_callbacks(dl_cfg)
         fit_kwargs: dict = {
-            "epochs":     dl_cfg["epochs"],
+            "epochs": dl_cfg["epochs"],
             "batch_size": dl_cfg["batch_size"],
-            "callbacks":  callbacks,
-            "verbose":    2,   # 2 = one line per epoch (\n); 1 = \r progress bar (floods log files)
+            "callbacks": callbacks,
+            "verbose": 2,  # 2 = one line per epoch (\n); 1 = \r progress bar (floods log files)
         }
         if X_val is not None and y_val is not None:
             X_v_seq, y_v_seq = build_sequences(  # noqa: N806
@@ -284,6 +297,7 @@ class CNNLSTMForecaster(BaseForecaster):
         self.model_ = model
         self._seq_cfg = seq_cfg
         import gc
+
         del X_tr_seq, y_tr_seq
         if "validation_data" in fit_kwargs:
             del fit_kwargs["validation_data"]
@@ -302,6 +316,7 @@ class CNNLSTMForecaster(BaseForecaster):
 # ---------------------------------------------------------------------------
 # GRU
 # ---------------------------------------------------------------------------
+
 
 class GRUForecaster(BaseForecaster):
     """Gated Recurrent Unit — lighter alternative to LSTM."""
@@ -323,25 +338,29 @@ class GRUForecaster(BaseForecaster):
         )
         n_features = X_tr_seq.shape[2]
 
-        model = tf.keras.Sequential([
-            tf.keras.layers.GRU(
-                dl_cfg["gru"]["units"][0], return_sequences=True,
-                input_shape=(seq_cfg["lookback"], n_features)
-            ),
-            tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
-            tf.keras.layers.GRU(dl_cfg["gru"]["units"][1]),
-            tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
-            tf.keras.layers.Dense(dl_cfg["gru"]["dense_units"], activation="relu"),
-            tf.keras.layers.Dense(seq_cfg["horizon"]),  # 1 for H+1; 24 for H+24
-        ], name="GRU")
+        model = tf.keras.Sequential(
+            [
+                tf.keras.layers.GRU(
+                    dl_cfg["gru"]["units"][0],
+                    return_sequences=True,
+                    input_shape=(seq_cfg["lookback"], n_features),
+                ),
+                tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
+                tf.keras.layers.GRU(dl_cfg["gru"]["units"][1]),
+                tf.keras.layers.Dropout(dl_cfg["dropout_rate"]),
+                tf.keras.layers.Dense(dl_cfg["gru"]["dense_units"], activation="relu"),
+                tf.keras.layers.Dense(seq_cfg["horizon"]),  # 1 for H+1; 24 for H+24
+            ],
+            name="GRU",
+        )
         model.compile(optimizer="adam", loss="mse", metrics=["mae"])
 
         callbacks = _make_callbacks(dl_cfg)
         fit_kwargs: dict = {
-            "epochs":     dl_cfg["epochs"],
+            "epochs": dl_cfg["epochs"],
             "batch_size": dl_cfg["batch_size"],
-            "callbacks":  callbacks,
-            "verbose":    2,   # 2 = one line per epoch (\n); 1 = \r progress bar (floods log files)
+            "callbacks": callbacks,
+            "verbose": 2,  # 2 = one line per epoch (\n); 1 = \r progress bar (floods log files)
         }
         if X_val is not None and y_val is not None:
             X_v_seq, y_v_seq = build_sequences(  # noqa: N806
@@ -354,6 +373,7 @@ class GRUForecaster(BaseForecaster):
         self.model_ = model
         self._seq_cfg = seq_cfg
         import gc
+
         del X_tr_seq, y_tr_seq
         if "validation_data" in fit_kwargs:
             del fit_kwargs["validation_data"]
@@ -373,9 +393,11 @@ class GRUForecaster(BaseForecaster):
 # Private utilities
 # ---------------------------------------------------------------------------
 
+
 def _import_tf():
     try:
         import tensorflow as tf
+
         tf.get_logger().setLevel("ERROR")
         return tf
     except ImportError as e:

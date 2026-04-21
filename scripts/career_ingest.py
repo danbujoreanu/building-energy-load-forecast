@@ -107,7 +107,9 @@ def cmd_match(args):
         print("\n📝 RESUME TAILORING NOTES")
         print(result["resume_notes"])
 
-    print(f"\n[Top retrieval score: {result['top_score']:.3f} | LLM: {'Gemini' if result['llm_used'] else 'retrieval-only'}]")
+    print(
+        f"\n[Top retrieval score: {result['top_score']:.3f} | LLM: {'Gemini' if result['llm_used'] else 'retrieval-only'}]"
+    )
 
 
 def cmd_tech_eval(args):
@@ -152,18 +154,25 @@ def main():
     parser = argparse.ArgumentParser(
         description="Career Intelligence CLI — job spec analysis and tech evaluation"
     )
-    parser.add_argument("--all-obsidian", action="store_true",
-                        help="Ingest all job specs from Obsidian Applications folder")
-    parser.add_argument("--obsidian-dir", type=str, default=None,
-                        help="Override default Obsidian Applications path")
-    parser.add_argument("--file", type=str, default=None,
-                        help="Ingest a single job spec file")
-    parser.add_argument("--match", type=str, default=None,
-                        help="Analyse fit for a job spec (by company/title query)")
-    parser.add_argument("--tech-eval", action="store_true",
-                        help="Evaluate tech stack gaps across all job specs")
-    parser.add_argument("--list", action="store_true",
-                        help="List all ingested job specs")
+    parser.add_argument(
+        "--all-obsidian",
+        action="store_true",
+        help="Ingest all job specs from Obsidian Applications folder",
+    )
+    parser.add_argument(
+        "--obsidian-dir", type=str, default=None, help="Override default Obsidian Applications path"
+    )
+    parser.add_argument("--file", type=str, default=None, help="Ingest a single job spec file")
+    parser.add_argument(
+        "--match",
+        type=str,
+        default=None,
+        help="Analyse fit for a job spec (by company/title query)",
+    )
+    parser.add_argument(
+        "--tech-eval", action="store_true", help="Evaluate tech stack gaps across all job specs"
+    )
+    parser.add_argument("--list", action="store_true", help="List all ingested job specs")
 
     args = parser.parse_args()
 

@@ -37,6 +37,7 @@ _SKIP_NAMES = {"readme", "index", "_index", "template", "00_template"}
 
 def _ingest_file(fp: Path) -> None:
     from intel.career import ingest_job_spec, _enrich_with_inferred_metadata
+
     try:
         _enrich_with_inferred_metadata(fp)
         result = ingest_job_spec(fp, copy_to_intel=True)
@@ -75,9 +76,12 @@ def watch(watch_dir: Path) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Watch Obsidian Applications folder and auto-ingest job specs")
-    parser.add_argument("--dir", type=str, default=None,
-                        help=f"Directory to watch (default: {_DEFAULT_DIR})")
+    parser = argparse.ArgumentParser(
+        description="Watch Obsidian Applications folder and auto-ingest job specs"
+    )
+    parser.add_argument(
+        "--dir", type=str, default=None, help=f"Directory to watch (default: {_DEFAULT_DIR})"
+    )
     args = parser.parse_args()
 
     watch_dir = Path(args.dir).expanduser().resolve() if args.dir else _DEFAULT_DIR.resolve()

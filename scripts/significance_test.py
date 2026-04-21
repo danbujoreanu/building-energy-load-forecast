@@ -51,8 +51,8 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-RESULTS_DIR  = PROJECT_ROOT / "outputs" / "results"
-PREDS_DIR    = PROJECT_ROOT / "outputs" / "predictions"
+RESULTS_DIR = PROJECT_ROOT / "outputs" / "results"
+PREDS_DIR = PROJECT_ROOT / "outputs" / "predictions"
 
 
 # ---------------------------------------------------------------------------
@@ -61,11 +61,11 @@ PREDS_DIR    = PROJECT_ROOT / "outputs" / "predictions"
 
 # LightGBM is the reference model — all comparisons are LightGBM vs X
 _COMPARISONS = [
-    ("LightGBM", "Ridge",        "LightGBM vs Ridge (linear baseline)"),
-    ("LightGBM", "Lasso",        "LightGBM vs Lasso (linear baseline)"),
+    ("LightGBM", "Ridge", "LightGBM vs Ridge (linear baseline)"),
+    ("LightGBM", "Lasso", "LightGBM vs Lasso (linear baseline)"),
     ("LightGBM", "RandomForest", "LightGBM vs Random Forest"),
-    ("LightGBM", "XGBoost",      "LightGBM vs XGBoost"),
-    ("LightGBM", "Mean Baseline","LightGBM vs Mean Baseline"),
+    ("LightGBM", "XGBoost", "LightGBM vs XGBoost"),
+    ("LightGBM", "Mean Baseline", "LightGBM vs Mean Baseline"),
 ]
 
 
@@ -94,9 +94,9 @@ def run_per_building_tests(output_path: Path) -> pd.DataFrame:
 
         pair = pivot[[ref_model, cmp_model]].dropna()
         n = len(pair)
-        a = pair[ref_model].values   # LightGBM MAEs
-        b = pair[cmp_model].values   # Comparison model MAEs
-        diff = a - b                  # negative = LightGBM is better (lower MAE)
+        a = pair[ref_model].values  # LightGBM MAEs
+        b = pair[cmp_model].values  # Comparison model MAEs
+        diff = a - b  # negative = LightGBM is better (lower MAE)
 
         # Wilcoxon signed-rank (non-parametric, n=44)
         wilcoxon_stat, wilcoxon_p = stats.wilcoxon(a, b, alternative="less")
@@ -108,30 +108,34 @@ def run_per_building_tests(output_path: Path) -> pd.DataFrame:
         d = cohens_d(a, b)
 
         significance = (
-            "***" if wilcoxon_p < 0.001
-            else "**" if wilcoxon_p < 0.01
-            else "*" if wilcoxon_p < 0.05
-            else "ns"
+            "***"
+            if wilcoxon_p < 0.001
+            else "**" if wilcoxon_p < 0.01 else "*" if wilcoxon_p < 0.05 else "ns"
         )
 
         row = {
-            "comparison":         label,
-            "n_buildings":        n,
-            "lgbm_mean_mae":      round(float(np.mean(a)), 4),
-            "cmp_mean_mae":       round(float(np.mean(b)), 4),
-            "mean_diff":          round(float(np.mean(diff)), 4),
-            "wilcoxon_stat":      round(float(wilcoxon_stat), 4),
-            "wilcoxon_p":         round(float(wilcoxon_p), 6),
-            "t_stat":             round(float(t_stat), 4),
-            "t_p_one_sided":      round(float(t_p_one), 6),
-            "cohens_d":           round(float(d), 4),
-            "significance":       significance,
+            "comparison": label,
+            "n_buildings": n,
+            "lgbm_mean_mae": round(float(np.mean(a)), 4),
+            "cmp_mean_mae": round(float(np.mean(b)), 4),
+            "mean_diff": round(float(np.mean(diff)), 4),
+            "wilcoxon_stat": round(float(wilcoxon_stat), 4),
+            "wilcoxon_p": round(float(wilcoxon_p), 6),
+            "t_stat": round(float(t_stat), 4),
+            "t_p_one_sided": round(float(t_p_one), 6),
+            "cohens_d": round(float(d), 4),
+            "significance": significance,
         }
         rows.append(row)
 
         logger.info(
             "%-45s | n=%2d | ΔMAE=%+.3f | Wilcoxon p=%.4f %s | d=%.2f",
-            label, n, np.mean(diff), wilcoxon_p, significance, d
+            label,
+            n,
+            np.mean(diff),
+            wilcoxon_p,
+            significance,
+            d,
         )
 
     results_df = pd.DataFrame(rows)
@@ -146,8 +150,11 @@ def run_per_building_tests(output_path: Path) -> pd.DataFrame:
     for r in rows:
         logger.info(
             "%-45s & %d & %+.3f & %.4f & %s \\\\",
-            r["comparison"], r["n_buildings"], r["mean_diff"],
-            r["wilcoxon_p"], r["significance"]
+            r["comparison"],
+            r["n_buildings"],
+            r["mean_diff"],
+            r["wilcoxon_p"],
+            r["significance"],
         )
     logger.info("\\end{tabular}")
 
@@ -157,6 +164,7 @@ def run_per_building_tests(output_path: Path) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Mode 2: Diebold-Mariano Test (requires saved prediction error files)
 # ---------------------------------------------------------------------------
+
 
 def _dm_test_hln(e1: np.ndarray, e2: np.ndarray, h: int = 24) -> tuple[float, float]:
     """Harvey-Leybourne-Newbold (1997) corrected Diebold-Mariano test.
@@ -168,7 +176,7 @@ def _dm_test_hln(e1: np.ndarray, e2: np.ndarray, h: int = 24) -> tuple[float, fl
 
     Returns (dm_stat, p_value_one_sided)
     """
-    d = e1 ** 2 - e2 ** 2          # loss differential (squared error)
+    d = e1**2 - e2**2  # loss differential (squared error)
     T = len(d)  # noqa: N806
     d_mean = np.mean(d)
 
@@ -195,14 +203,12 @@ _DM_COMPARISONS = [
     # Cross-paradigm — Setup A vs Setup C (primary journal paper comparison)
     # PatchTST errors: generated by run_raw_dl.py --save-predictions
     ("LightGBM", "PatchTST_SetupC", "LightGBM (Setup A) vs PatchTST (Setup C, raw sequences)"),
-
     # Cross-paradigm — Setup A vs Setup B (negative control)
     # CNN-LSTM (Setup B, tabular features): from run_pipeline.py --save-predictions
     ("LightGBM", "CNN-LSTM", "LightGBM (Setup A) vs CNN-LSTM (Setup B, tabular DL)"),
-
     # Within-paradigm (tree models only)
-    ("LightGBM", "Ridge",    "LightGBM (Setup A) vs Ridge (Setup A)"),
-    ("LightGBM", "XGBoost",  "LightGBM (Setup A) vs XGBoost (Setup A)"),
+    ("LightGBM", "Ridge", "LightGBM (Setup A) vs Ridge (Setup A)"),
+    ("LightGBM", "XGBoost", "LightGBM (Setup A) vs XGBoost (Setup A)"),
 ]
 
 
@@ -227,12 +233,17 @@ def run_dm_tests(output_path: Path) -> pd.DataFrame:
             logger.warning(
                 "  Skipping '%s' — missing prediction files:\n    %s\n"
                 "  Run: python scripts/run_pipeline.py --save-predictions",
-                label, "\n    ".join(missing)
+                label,
+                "\n    ".join(missing),
             )
-            rows.append({
-                "comparison": label, "dm_stat": None, "p_value": None,
-                "significance": "NOT RUN — missing prediction files",
-            })
+            rows.append(
+                {
+                    "comparison": label,
+                    "dm_stat": None,
+                    "p_value": None,
+                    "significance": "NOT RUN — missing prediction files",
+                }
+            )
             continue
 
         e1 = np.load(f1).flatten()
@@ -242,22 +253,18 @@ def run_dm_tests(output_path: Path) -> pd.DataFrame:
 
         dm_stat, p_val = _dm_test_hln(e1, e2, h=24)
         significance = (
-            "***" if p_val < 0.001
-            else "**" if p_val < 0.01
-            else "*" if p_val < 0.05
-            else "ns"
+            "***" if p_val < 0.001 else "**" if p_val < 0.01 else "*" if p_val < 0.05 else "ns"
         )
 
-        logger.info(
-            "%-55s | DM=%.4f | p=%.4f %s",
-            label, dm_stat, p_val, significance
+        logger.info("%-55s | DM=%.4f | p=%.4f %s", label, dm_stat, p_val, significance)
+        rows.append(
+            {
+                "comparison": label,
+                "dm_stat": round(dm_stat, 4),
+                "p_value": round(p_val, 6),
+                "significance": significance,
+            }
         )
-        rows.append({
-            "comparison": label,
-            "dm_stat":    round(dm_stat, 4),
-            "p_value":    round(p_val, 6),
-            "significance": significance,
-        })
 
     dm_df = pd.DataFrame(rows)
     dm_path = output_path.parent / "dm_test_results.csv"
@@ -269,6 +276,7 @@ def run_dm_tests(output_path: Path) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Statistical significance tests")

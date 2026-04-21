@@ -66,21 +66,28 @@ logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 DEFAULT_HORIZONS = [1, 6, 12, 24, 48]
-SKLEARN_MODELS   = ["lightgbm", "xgboost", "ridge"]
-DL_MODELS        = ["LSTM"]
-OUTPUT_FILE      = ROOT / "outputs" / "results" / "horizon_metrics.csv"
+SKLEARN_MODELS = ["lightgbm", "xgboost", "ridge"]
+DL_MODELS = ["LSTM"]
+OUTPUT_FILE = ROOT / "outputs" / "results" / "horizon_metrics.csv"
 
 
 def parse_args():
     p = argparse.ArgumentParser(description="Horizon sensitivity sweep")
-    p.add_argument("--config",      default="config/config.yaml")
-    p.add_argument("--horizons",    nargs="+", type=int, default=DEFAULT_HORIZONS,
-                   help="Horizons to sweep (hours)")
-    p.add_argument("--include-dl",  action="store_true",
-                   help="Include LSTM in sweep (adds ~1h per horizon)")
-    p.add_argument("--resume",      action="store_true",
-                   help="Skip (model, horizon) pairs already in output CSV")
-    p.add_argument("--city",        default="drammen", choices=["drammen", "oslo"])
+    p.add_argument("--config", default="config/config.yaml")
+    p.add_argument(
+        "--horizons",
+        nargs="+",
+        type=int,
+        default=DEFAULT_HORIZONS,
+        help="Horizons to sweep (hours)",
+    )
+    p.add_argument(
+        "--include-dl", action="store_true", help="Include LSTM in sweep (adds ~1h per horizon)"
+    )
+    p.add_argument(
+        "--resume", action="store_true", help="Skip (model, horizon) pairs already in output CSV"
+    )
+    p.add_argument("--city", default="drammen", choices=["drammen", "oslo"])
     return p.parse_args()
 
 
@@ -108,7 +115,7 @@ def _build_features_for_horizon(cfg: dict, horizon: int) -> tuple:
     from energy_forecast.data import make_splits
     from energy_forecast.features import build_temporal_features, select_features
 
-    city     = cfg.get("city", "drammen")
+    city = cfg.get("city", "drammen")
     proc_dir = Path(cfg["paths"]["processed"]) / city / "splits"
 
     if horizon == 24 and (proc_dir / "X_train_fs.parquet").exists():
@@ -116,10 +123,10 @@ def _build_features_for_horizon(cfg: dict, horizon: int) -> tuple:
         logger.info("H+24: reusing existing processed splits")
         X_train = pd.read_parquet(proc_dir / "X_train_fs.parquet")
         y_train = pd.read_parquet(proc_dir / "y_train.parquet").squeeze()
-        X_val   = pd.read_parquet(proc_dir / "X_val_fs.parquet")
-        y_val   = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
-        X_test  = pd.read_parquet(proc_dir / "X_test_fs.parquet")
-        y_test  = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
+        X_val = pd.read_parquet(proc_dir / "X_val_fs.parquet")
+        y_val = pd.read_parquet(proc_dir / "y_val.parquet").squeeze()
+        X_test = pd.read_parquet(proc_dir / "X_test_fs.parquet")
+        y_test = pd.read_parquet(proc_dir / "y_test.parquet").squeeze()
         return X_train, y_train, X_val, y_val, X_test, y_test
 
     # General path: rebuild features for this specific horizon
@@ -139,12 +146,12 @@ def _build_features_for_horizon(cfg: dict, horizon: int) -> tuple:
     df = pd.read_parquet(model_ready_path)
 
     featured = build_temporal_features(df, cfg_h, target)
-    splits   = make_splits(featured, cfg_h, target, city=city)
+    splits = make_splits(featured, cfg_h, target, city=city)
 
     X_tr = splits["X_train"]
     y_tr = splits["y_train"]
-    X_v  = splits["X_val"]
-    y_v  = splits["y_val"]
+    X_v = splits["X_val"]
+    y_v = splits["y_val"]
     X_te = splits["X_test"]
     y_te = splits["y_test"]
 
@@ -153,8 +160,9 @@ def _build_features_for_horizon(cfg: dict, horizon: int) -> tuple:
     return X_tr, y_tr, X_v, y_v, X_te, y_te
 
 
-def _run_sklearn_model(name: str, cfg: dict, horizon: int,
-                       X_train, y_train, X_val, y_val, X_test, y_test) -> dict:
+def _run_sklearn_model(
+    name: str, cfg: dict, horizon: int, X_train, y_train, X_val, y_val, X_test, y_test
+) -> dict:
     """Train and evaluate one sklearn model at a given horizon."""
     from energy_forecast.models.sklearn_models import build_sklearn_models
     import sklearn.metrics as skm
@@ -177,23 +185,23 @@ def _run_sklearn_model(name: str, cfg: dict, horizon: int,
         # Reshape y_test to (n_samples, H) if it's flat
         n_steps = preds.shape[1]
         y_true_2d = y_true_flat.reshape(-1, n_steps) if y_true_flat.ndim == 1 else y_true_flat
-        mae  = float(np.mean(np.abs(y_true_2d - preds)))
+        mae = float(np.mean(np.abs(y_true_2d - preds)))
         rmse = float(np.sqrt(np.mean((y_true_2d - preds) ** 2)))
         ss_res = np.sum((y_true_2d - preds) ** 2)
         ss_tot = np.sum((y_true_2d - y_true_2d.mean()) ** 2)
         r2 = float(1 - ss_res / ss_tot) if ss_tot > 0 else float("nan")
     else:
         y_true = y_test.values if hasattr(y_test, "values") else y_test
-        mae  = float(np.mean(np.abs(y_true - preds)))
+        mae = float(np.mean(np.abs(y_true - preds)))
         rmse = float(np.sqrt(np.mean((y_true - preds) ** 2)))
-        r2   = float(skm.r2_score(y_true, preds))
+        r2 = float(skm.r2_score(y_true, preds))
 
     return {
-        "model":      name,
-        "horizon":    horizon,
-        "MAE":        round(mae, 4),
-        "RMSE":       round(rmse, 4),
-        "R2":         round(r2, 4),
+        "model": name,
+        "horizon": horizon,
+        "MAE": round(mae, 4),
+        "RMSE": round(rmse, 4),
+        "R2": round(r2, 4),
         "train_time": train_time,
     }
 
@@ -211,8 +219,9 @@ def _subsample_per_building(X, y, max_rows: int = 4380):
     return X_sub, y_sub
 
 
-def _run_lstm_model(cfg: dict, horizon: int,
-                    X_train, y_train, X_val, y_val, X_test, y_test) -> dict:
+def _run_lstm_model(
+    cfg: dict, horizon: int, X_train, y_train, X_val, y_val, X_test, y_test
+) -> dict:
     """Train and evaluate LSTM at a given horizon (Setup B, tabular features).
 
     Training/val data is subsampled to last 4,380 rows per building (~6 months)
@@ -227,7 +236,7 @@ def _run_lstm_model(cfg: dict, horizon: int,
     cfg_h["sequence"]["horizon"] = horizon
 
     X_tr_sub, y_tr_sub = _subsample_per_building(X_train, y_train, max_rows=4380)
-    X_v_sub,  y_v_sub  = _subsample_per_building(X_val,   y_val,   max_rows=1460)
+    X_v_sub, y_v_sub = _subsample_per_building(X_val, y_val, max_rows=1460)
     logger.info("LSTM sweep: training on %d rows (subsampled from %d)", len(X_tr_sub), len(X_train))
 
     model = LSTMForecaster(cfg_h)
@@ -238,18 +247,18 @@ def _run_lstm_model(cfg: dict, horizon: int,
     preds = model.predict(X_test)  # shape (n, horizon)
     y_true_flat = y_test.values if hasattr(y_test, "values") else np.array(y_test)
     y_true_2d = y_true_flat.reshape(-1, horizon)
-    mae  = float(np.mean(np.abs(y_true_2d - preds)))
+    mae = float(np.mean(np.abs(y_true_2d - preds)))
     rmse = float(np.sqrt(np.mean((y_true_2d - preds) ** 2)))
     ss_res = np.sum((y_true_2d - preds) ** 2)
     ss_tot = np.sum((y_true_2d - y_true_2d.mean()) ** 2)
     r2 = float(1 - ss_res / ss_tot) if ss_tot > 0 else float("nan")
 
     return {
-        "model":      "LSTM",
-        "horizon":    horizon,
-        "MAE":        round(mae, 4),
-        "RMSE":       round(rmse, 4),
-        "R2":         round(r2, 4),
+        "model": "LSTM",
+        "horizon": horizon,
+        "MAE": round(mae, 4),
+        "RMSE": round(rmse, 4),
+        "R2": round(r2, 4),
         "train_time": train_time,
     }
 
@@ -271,13 +280,13 @@ def _append_result(row: dict) -> None:
 
 def main():
     args = parse_args()
-    cfg  = load_config(args.config)
+    cfg = load_config(args.config)
     cfg["city"] = args.city
     set_global_seed(cfg.get("seed", 42))
 
-    horizons    = sorted(args.horizons)
+    horizons = sorted(args.horizons)
     model_names = SKLEARN_MODELS + (DL_MODELS if args.include_dl else [])
-    completed   = load_completed_pairs(args.resume)
+    completed = load_completed_pairs(args.resume)
 
     logger.info("=" * 60)
     logger.info("Sprint 2: Horizon Sensitivity Sweep")
@@ -287,16 +296,18 @@ def main():
     logger.info("=" * 60)
 
     total = len(horizons) * len(model_names)
-    done  = 0
+    done = 0
 
     for horizon in horizons:
         logger.info("\n── Horizon H+%d ─────────────────────────────────────", horizon)
 
         try:
-            X_train, y_train, X_val, y_val, X_test, y_test = \
-                _build_features_for_horizon(cfg, horizon)
-            logger.info("Data loaded: train=%d val=%d test=%d",
-                        len(X_train), len(X_val), len(X_test))
+            X_train, y_train, X_val, y_val, X_test, y_test = _build_features_for_horizon(
+                cfg, horizon
+            )
+            logger.info(
+                "Data loaded: train=%d val=%d test=%d", len(X_train), len(X_val), len(X_test)
+            )
         except Exception as e:
             logger.error("Failed to load data for H+%d: %s — skipping", horizon, e)
             continue
@@ -311,15 +322,23 @@ def main():
             logger.info("  Training %s at H+%d …", name, horizon)
             try:
                 if name == "LSTM":
-                    row = _run_lstm_model(cfg, horizon, X_train, y_train,
-                                         X_val, y_val, X_test, y_test)
+                    row = _run_lstm_model(
+                        cfg, horizon, X_train, y_train, X_val, y_val, X_test, y_test
+                    )
                 else:
-                    row = _run_sklearn_model(name, cfg, horizon, X_train, y_train,
-                                             X_val, y_val, X_test, y_test)
+                    row = _run_sklearn_model(
+                        name, cfg, horizon, X_train, y_train, X_val, y_val, X_test, y_test
+                    )
 
                 _append_result(row)
-                logger.info("  %s H+%d → MAE=%.3f R²=%.4f  (%.1fs)",
-                             name, horizon, row["MAE"], row["R2"], row["train_time"])
+                logger.info(
+                    "  %s H+%d → MAE=%.3f R²=%.4f  (%.1fs)",
+                    name,
+                    horizon,
+                    row["MAE"],
+                    row["R2"],
+                    row["train_time"],
+                )
                 done += 1
             except Exception as e:
                 logger.error("  FAILED %s H+%d: %s", name, horizon, e)
@@ -329,8 +348,7 @@ def main():
 
     if OUTPUT_FILE.exists():
         df = pd.read_csv(OUTPUT_FILE, index_col=0)
-        pivot = df.pivot_table(index="model", columns="horizon",
-                               values="MAE", aggfunc="first")
+        pivot = df.pivot_table(index="model", columns="horizon", values="MAE", aggfunc="first")
         logger.info("\nMAE summary:\n%s", pivot.to_string())
 
 

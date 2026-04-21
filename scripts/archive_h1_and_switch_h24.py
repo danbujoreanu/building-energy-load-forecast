@@ -89,14 +89,14 @@ def archive_results(dry_run: bool) -> None:
     res_dir = ROOT / "outputs" / "results"
     logger.info("── Archiving results CSVs ──────────────────────────────────────")
 
-    _move(res_dir / "final_metrics.csv",        res_dir / "h1_metrics.csv",              dry_run)
+    _move(res_dir / "final_metrics.csv", res_dir / "h1_metrics.csv", dry_run)
     _move(res_dir / "per_building_metrics.csv", res_dir / "h1_per_building_metrics.csv", dry_run)
 
 
 def archive_figures(dry_run: bool) -> None:
     """Step 2: copy all plots from outputs/figures/ to outputs/figures/h1/."""
     fig_dir = ROOT / "outputs" / "figures"
-    h1_dir  = fig_dir / "h1"
+    h1_dir = fig_dir / "h1"
     logger.info("── Archiving figures → %s ─────────────────────────────────────", h1_dir)
 
     # Top-level PNGs (building_profiles, model_comparison_*, etc.)
@@ -116,7 +116,7 @@ def archive_figures(dry_run: bool) -> None:
 def archive_model_checkpoints(dry_run: bool) -> None:
     """Step 3: copy TFT checkpoint(s) to outputs/models/h1/."""
     model_dir = ROOT / "outputs" / "models"
-    h1_dir    = model_dir / "h1"
+    h1_dir = model_dir / "h1"
     logger.info("── Archiving model checkpoints → %s ───────────────────────────", h1_dir)
 
     found = list(model_dir.glob("*.ckpt"))
@@ -170,7 +170,11 @@ def flip_config_to_h24(dry_run: bool) -> None:
         logger.warning("sequence.horizon: 1 not found — already flipped or pattern mismatch.")
 
     if dry_run:
-        logger.info("DRY-RUN  would write updated config.yaml (%d forecast_horizon + %d horizon replacements)", n1, n2)
+        logger.info(
+            "DRY-RUN  would write updated config.yaml (%d forecast_horizon + %d horizon replacements)",
+            n1,
+            n2,
+        )
         # Show the changed lines
         for i, (orig_line, new_line) in enumerate(
             zip(original.splitlines(), updated.splitlines()), start=1
@@ -182,7 +186,8 @@ def flip_config_to_h24(dry_run: bool) -> None:
     cfg_path.write_text(updated, encoding="utf-8")
     logger.info(
         "config.yaml updated: forecast_horizon → 24 (%d), sequence.horizon → 24 (%d)",
-        n1, n2,
+        n1,
+        n2,
     )
 
 
@@ -213,10 +218,11 @@ def main() -> None:
         logger.info("DRY-RUN mode — no files will be modified.")
 
     # Step 1: check TFT is done by looking for final_metrics.csv with TFT row
-    res_dir  = ROOT / "outputs" / "results"
+    res_dir = ROOT / "outputs" / "results"
     csv_path = res_dir / "final_metrics.csv"
     if csv_path.exists():
         import pandas as pd
+
         df = pd.read_csv(csv_path)
         if "TFT" not in df.get("Model", pd.Series([])).values:
             logger.warning(
