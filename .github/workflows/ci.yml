@@ -28,7 +28,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install pandas numpy scikit-learn lightgbm matplotlib seaborn \
-                      statsmodels pyyaml pyarrow tqdm missingno
+                      statsmodels pyyaml pyarrow tqdm missingno requests python-dotenv
           pip install pytest pytest-cov ruff
 
       - name: Install package (editable)
@@ -37,8 +37,12 @@ jobs:
       - name: Lint with ruff
         run: ruff check src/ tests/ scripts/
 
-      - name: Run tests
-        run: pytest tests/ -v --tb=short --cov=src/energy_forecast --cov-report=term-missing
+      - name: Run tests (with coverage gate)
+        run: |
+          pytest tests/ -v --tb=short \
+            --cov=src/energy_forecast \
+            --cov-report=term-missing \
+            --cov-fail-under=75
 
   lint:
     name: Code quality
@@ -49,8 +53,26 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - run: pip install ruff black
+      - run: |
+          pip install ruff black mypy pandas-stubs types-PyYAML types-requests
+          pip install -e . --no-deps
       - name: Check formatting (black)
         run: black --check src/ tests/ scripts/
       - name: Lint (ruff)
         run: ruff check src/ tests/ scripts/
+      - name: Type check (mypy)
+        run: mypy src/energy_forecast/ --ignore-missing-imports --no-error-summary
+
+  docker-build:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t sparc-energy:ci-check .
+      - name: Smoke test — container health
+        run: |
+          docker run -d --name sparc-test -p 8000:8000 sparc-energy:ci-check
+          sleep 5
+          curl --retry 5 --retry-delay 2 --retry-connrefused http://localhost:8000/health
+          docker stop sparc-test
