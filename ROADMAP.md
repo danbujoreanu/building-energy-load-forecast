@@ -159,6 +159,27 @@ In conversation: say "P-01" and we both know exactly which item is meant. Zero a
 | E-34 | Ops runbook additions — incident procedures, escalation path, MTTR/SLA targets | 🟡 | MEDIUM | 2026-04-21 | — | Staff Reliability Engineer | — | Extend `docs/DEPLOY_RUNBOOK.md`. 3 incident types: API down, data gap, drift alarm. SLA: API detection <5 min, drift-to-rollback <4h. Linear: DAN-102 |
 | E-35 | Stage gate criteria — formal entry/exit conditions for DAN-96 → DAN-97 → DAN-98 | 🟡 | MEDIUM | 2026-04-21 | — | Staff Product Manager | — | Create `docs/governance/STAGE_GATES.md`. Each gate has runnable verification command. BMS transition services pattern. Linear: DAN-103 |
 
+### E-36 through E-39: Engineering Excellence (Added 2026-04-21 — DocuSign + Intercom)
+
+> Source: DocuSign "AI Code Review" + "LLM Eval" articles (Apr 21 2026) and Intercom "2× nine months later" (Apr 16 2026). See `docs/engineering/BEST_PRACTICES.md` for full standards.
+
+| ID | Item | Status | Priority | Added | Owner | Depends On | Source | Linear |
+|----|------|--------|----------|-------|-------|-----------|--------|--------|
+| E-36 | **Push to GitHub + CI active** — push 27 local commits; configure `ANTHROPIC_API_KEY` GitHub Secret; enable branch protection (require CI pass before merge) | 🚨 | URGENT | 2026-04-21 | Dan | — | Intercom 2×: "velocity = stability; downtime down 35% as deploys doubled" | DAN-108 |
+| E-37 | **Pytest anti-pattern audit** — verify all test files call production functions, not local re-implementations (DocuSign: 35 tests providing zero regression protection) | 🟡 | MEDIUM | 2026-04-21 | Staff ML Engineer | E-36 | DocuSign: "How I'm Using AI to Navigate AI Code Review" | DAN-109 |
+| E-38 | **Segmented model metrics** — MAE/precision/recall by city, season, time-of-day band (peak/night/free-sat), and forecast horizon | 🟡 | MEDIUM | 2026-04-21 | Staff Data Scientist | E-36 | DocuSign: "How We Evaluate LLM Accuracy" — segment by contract type; "no single metric captures performance" | DAN-110 |
+| E-39 | **Prompt eval layer** — test LLM advisor prompts against fixed cases without deployment; score = quality metric not just pass/fail | 🔵 | LOW | 2026-04-21 | Staff ML Engineer | P-13 LLM Advisor | DocuSign: engineers iterate prompts via UI dashboard, no code deploy needed | DAN-111 |
+
+**Notes on E-36 through E-39:**
+
+- **E-36 (CI active):** CI pipeline already exists in `.github/workflows/ci.yml` (3 jobs: tests, code quality, docker build). Enhanced 2026-04-21 to add mypy type checking, coverage gate ≥75%, and Docker smoke test. Blocked ONLY by pushing the 27 local commits. **DAN-108 blocks DAN-49 (App Runner deploy)** — do not deploy to cloud without CI green.
+
+- **E-37 (Pytest audit):** The DocuSign story: engineer wrote 35 Spock tests, all passing, all calling methods defined inside the test file itself. Zero regression protection. Fix: tests must import from `src/energy_forecast/` modules. See `docs/engineering/BEST_PRACTICES.md` Section 2.
+
+- **E-38 (Segmented metrics):** Aggregate MAE of 4.0 kWh hides that peak-window errors (17–19h Mon–Fri at BGE peak rate €0.4928/kWh) cost 3× more than off-peak errors. Per-season accuracy matters: winter heating load behaves differently to summer solar export.
+
+- **E-39 (Prompt eval):** Applies when Phase 2 LLM energy advisor (P-13, Gemini Flash) lands. Build the eval layer before wiring the LLM to production — keep prompt iteration separate from deployment cycle. Low priority until P-13 is scoped.
+
 **Notes on outstanding items:**
 
 - **E-17 (SRP refactor):** `run_pipeline.py` at 634 lines is a single-file monolith. Target: `scripts/stages/train_stage.py`, `evaluate_stage.py`, `explain_stage.py`, each ≤200 lines. `run_pipeline.py` becomes a thin orchestrator. Must be done before D-12 (App Runner deploy) or it ships with the debt baked in.
