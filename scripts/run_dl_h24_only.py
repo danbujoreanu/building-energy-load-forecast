@@ -30,10 +30,6 @@ import tensorflow as tf  # noqa: E402
 tf.get_logger().setLevel("ERROR")
 
 from energy_forecast.evaluation import evaluate  # noqa: E402
-from energy_forecast.models.deep_learning import (
-    CNNLSTMForecaster,
-    GRUForecaster,
-)  # noqa: E402, F401
 from energy_forecast.models.tft import TFTForecaster  # noqa: E402
 from energy_forecast.utils import load_config, set_global_seed  # noqa: E402
 

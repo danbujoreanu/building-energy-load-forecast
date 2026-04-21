@@ -74,7 +74,6 @@ def main() -> None:  # noqa: PLR0914 (many local vars — dataset reconstruction
             n = len(y_b)
             for i in range(lookback, n - horizon + 1):
                 parts.append(y_b[i : i + horizon])
-        import numpy as np  # noqa: PLC0415
 
         return np.array(parts, dtype=np.float32)
 

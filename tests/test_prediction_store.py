@@ -12,9 +12,7 @@ Coverage:
 """
 
 import json
-import tempfile
 from datetime import datetime, timezone
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -74,7 +72,7 @@ def test_jsonl_appends_multiple_records(tmp_jsonl):
     ps.store_prediction("b2", ISSUED_AT, P10, P50, P90)
     lines = tmp_jsonl.read_text().strip().split("\n")
     assert len(lines) == 2
-    records = [json.loads(l) for l in lines]
+    records = [json.loads(line) for line in lines]
     assert records[0]["building_id"] == "b1"
     assert records[1]["building_id"] == "b2"
 
@@ -121,7 +119,7 @@ def test_store_does_not_crash_without_db(tmp_jsonl):
 
 def test_postgres_write_skipped_when_no_db_url(tmp_jsonl):
     """PostgreSQL path is skipped when DATABASE_URL is not set."""
-    with patch.object(ps, "_DB_URL", ""), patch.object(ps, "_PSYCOPG2_AVAILABLE", True) as mock_pg:
+    with patch.object(ps, "_DB_URL", ""), patch.object(ps, "_PSYCOPG2_AVAILABLE", True):
         ps.store_prediction("b1", ISSUED_AT, P10, P50, P90)
     # JSONL still written
     assert tmp_jsonl.exists()

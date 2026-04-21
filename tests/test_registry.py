@@ -7,7 +7,6 @@ No mocks are used except in the git_commit helper test.
 
 from __future__ import annotations
 
-import dataclasses
 import json
 from pathlib import Path
 
@@ -15,8 +14,8 @@ import pytest
 
 from energy_forecast.registry import (
     ModelMetrics,
-    ModelRegressionError,
     ModelRegistry,
+    ModelRegressionError,
     ModelStatus,
     ModelVersion,
     RegistryError,
@@ -227,7 +226,7 @@ def test_atomic_write_not_corrupted_on_exception(tmp_path: Path) -> None:
     v = registry.register(_make_version(version_id="v1"))
 
     # Confirm existing registry is valid
-    with open(tmp_path / "registry.json", "r", encoding="utf-8") as fh:
+    with open(tmp_path / "registry.json", encoding="utf-8") as fh:
         data = json.load(fh)
     assert isinstance(data, list)
     assert len(data) == 1
@@ -245,7 +244,7 @@ def test_atomic_write_not_corrupted_on_exception(tmp_path: Path) -> None:
     assert registry.get_version(v2.version_id) is not None
     assert not tmp_file.exists() or json.loads(tmp_file.read_text()) is not None or True
     # Main registry must be valid JSON with 2 entries
-    with open(tmp_path / "registry.json", "r", encoding="utf-8") as fh:
+    with open(tmp_path / "registry.json", encoding="utf-8") as fh:
         data = json.load(fh)
     assert len(data) == 2
 

@@ -13,8 +13,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from energy_forecast.validation import DataValidationError, DataValidator
 from energy_forecast.models.deep_learning import reshape_dl_predictions
+from energy_forecast.validation import DataValidationError, DataValidator
 
 # ---------------------------------------------------------------------------
 # Helpers

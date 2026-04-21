@@ -28,11 +28,7 @@ import pytest
 
 from energy_forecast.monitoring import (
     DriftDetector,
-    DriftReport,
     DriftSeverity,
-    FeatureDriftResult,
-    RollingMAEResult,
-    TargetDriftResult,
 )
 from energy_forecast.monitoring.drift_detector import _max_severity
 

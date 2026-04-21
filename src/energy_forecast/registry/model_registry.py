@@ -18,7 +18,7 @@ import logging
 import os
 import subprocess
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
@@ -611,7 +611,7 @@ class ModelRegistry:
         if not self._registry_path.exists():
             return []
         try:
-            with open(self._registry_path, "r", encoding="utf-8") as fh:
+            with open(self._registry_path, encoding="utf-8") as fh:
                 raw = json.load(fh)
             return [_version_from_dict(d) for d in raw]
         except (json.JSONDecodeError, KeyError) as exc:
@@ -637,7 +637,7 @@ class ModelRegistry:
             os.fsync(fh.fileno())
         os.replace(tmp_path, self._registry_path)
 
-    def _write_lock(self) -> "_FileLock":
+    def _write_lock(self) -> _FileLock:
         """Return a context manager that acquires an exclusive advisory lock."""
         return _FileLock(self._lock_path)
 
@@ -658,7 +658,7 @@ class _FileLock:
         self._path = path
         self._fh = None
 
-    def __enter__(self) -> "_FileLock":
+    def __enter__(self) -> _FileLock:
         self._fh = open(self._path, "w", encoding="utf-8")
         try:
             fcntl.flock(self._fh.fileno(), fcntl.LOCK_EX)

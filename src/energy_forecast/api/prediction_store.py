@@ -38,7 +38,7 @@ import fcntl
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
