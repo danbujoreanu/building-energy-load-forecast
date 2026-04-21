@@ -1,186 +1,101 @@
-# n8n — Local Workflow Automation
+# n8n — Workflow Automation Hub
 
-**What it is:** Visual workflow builder. Like Zapier or Make, but running entirely on your Mac — zero subscription cost.  
-**Port:** 5678 (http://localhost:5678)  
-**Status:** Not yet in docker-compose — add it with the steps below (10 minutes).  
-**Linear:** DAN-94
-
----
-
-## What n8n Does for Sparc Energy
-
-| Workflow | Replaces | Benefit |
-|----------|----------|---------|
-| Daily morning brief at 08:00 | Manual `python deployment/live_inference.py` | Runs automatically while you sleep |
-| Intel feeds refresh at 06:00 | Manual `python scripts/intel_feeds.py --ingest` | Always-fresh RAG knowledge |
-| Weekly drift report | Manual `python scripts/run_drift_check.py` | Automatic alert if model degrades |
-| Pytest failure alert | Checking GitHub manually | Instant notification if tests break |
+**Status:** ✅ Running  
+**URL:** http://localhost:5678  
+**Container:** `sparc-n8n` (in Sparc Docker stack)  
+**Version:** n8nio/n8n:latest (2.17.3 as of April 2026)  
+**Linear:** DAN-94 ✅ Done  
 
 ---
 
-## Step 1 — Add n8n to docker-compose.yml
+## What's Running Right Now
 
-Open `docker-compose.yml` in a text editor.
+All 5 workflows are **active**. They require `PUSHOVER_APP_TOKEN` in `.env` to deliver notifications.
 
-Find the `volumes:` section near the bottom (it looks like this):
-```yaml
-volumes:
-  pgdata:
-  redisdata:
-  grafanadata:
-  caddydata:
-  caddyconfig:
-```
+| # | Workflow | Trigger | Action | Status |
+|---|----------|---------|--------|--------|
+| 1 | Sparc — Grafana Alert Relay | POST webhook | Pushover (priority HIGH) | ✅ Active |
+| 2 | Greenhouse — Grafana Alert Relay | POST webhook | Pushover (priority HIGH) | ✅ Active |
+| 3 | Sparc — Daily Morning Brief | 08:00 cron → `/control` | Pushover | ✅ Active |
+| 4 | Greenhouse — Daily Evening Summary | 20:00 cron → InfluxDB | Pushover | ✅ Active |
+| 5 | Sparc — Weekly Drift Check | Mon 09:00 → `/health` | Pushover if CRITICAL | ✅ Active |
 
-**Add `n8ndata:` to that list:**
-```yaml
-volumes:
-  pgdata:
-  redisdata:
-  grafanadata:
-  caddydata:
-  caddyconfig:
-  n8ndata:          ← ADD THIS LINE
-```
-
-Then find the `grafana:` service block and paste the n8n service **after it** (before the `caddy:` block):
-
-```yaml
-  # ── n8n (Local Workflow Automation) ─────────────────────────────────────────
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: sparc-n8n
-    ports:
-      - "5678:5678"
-    environment:
-      - N8N_HOST=localhost
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://localhost:5678
-      - GENERIC_TIMEZONE=Europe/Dublin
-    volumes:
-      - n8ndata:/home/node/.n8n
-      - ./scripts:/home/node/sparc_scripts:ro
-    depends_on:
-      - api
-    restart: unless-stopped
-    networks:
-      - sparc
-```
+For full workflow documentation, configuration details, and webhook URLs:
+→ **`docs/infra/services/N8N_WORKFLOWS.md`**
 
 ---
 
-## Step 2 — Start n8n
+## Quick Access
 
 ```bash
-cd ~/building-energy-load-forecast
-
-# Start only n8n (if stack already running):
-docker compose up -d n8n
-
-# Or restart the whole stack:
-docker compose up -d
-```
-
----
-
-## Step 3 — Open n8n and set up account
-
-```bash
+# Open n8n UI
 open http://localhost:5678
-```
 
-1. Create an account (local only — no email verification needed)
-2. You'll see the n8n workflow editor
+# Check n8n container is healthy
+docker compose ps | grep n8n
 
----
+# Tail n8n logs
+docker compose logs -f n8n --tail=30
 
-## Step 4 — Build Your First Workflow: Daily Morning Brief
+# Verify env vars loaded
+docker exec sparc-n8n env | grep -E "PUSHOVER|CALLMEBOT"
 
-This workflow runs `live_inference.py` every morning at 08:00.
-
-### In the n8n UI:
-
-1. Click **+ New Workflow**
-2. Name it: `Sparc — Daily Morning Brief`
-3. Add a **Schedule Trigger** node:
-   - Mode: `Cron`
-   - Cron Expression: `0 8 * * *` (8:00 AM every day)
-
-4. Add an **HTTP Request** node (connected to Schedule Trigger):
-   - Method: `POST`
-   - URL: `http://api:8000/predict`
-   - Body: `{"city": "ireland", "dry_run": false}`
-
-5. Add an **Execute Command** node (optional — for running Python scripts directly):
-   - Command: `python3 /home/node/sparc_scripts/intel_feeds.py --ingest`
-
-6. Click **Save** → **Activate**
-
-> The `api:8000` URL works because n8n is on the same `sparc` Docker network as the API.
-
----
-
-## Useful Workflows to Build
-
-### Intel Feeds Refresh (daily 06:00)
-```
-Schedule (0 6 * * *) → Execute Command: python3 /home/node/sparc_scripts/intel_feeds.py --ingest
-```
-
-### Weekly Drift Check
-```
-Schedule (0 9 * * 1) → Execute Command: python3 /home/node/sparc_scripts/run_drift_check.py --report
-                     → IF drift = CRITICAL → HTTP POST to your email/WhatsApp
-```
-
-### Morning Brief + WhatsApp notification
-```
-Schedule (0 8 * * *) → HTTP POST api:8000/predict
-                     → Extract P50 kWh + recommended action from response
-                     → HTTP POST to Twilio/WhatsApp API (needs Twilio free account)
+# Restart n8n (after .env changes)
+docker compose up -d n8n
 ```
 
 ---
 
-## Connecting to Claude / Anthropic API (optional)
+## Architecture
 
-If you want n8n to use Claude for summaries:
+```
+Sparc Grafana (port 3001) ─── http://n8n:5678/webhook/sparc-alert ──→ n8n WF1 → Pushover
+GH Grafana (port 3000)    ─── http://host.docker.internal:5678/webhook/gh-alert ──→ n8n WF2 → Pushover
+08:00 cron ───────────────── api:8000/control ──→ n8n WF3 → Pushover
+20:00 cron ───────────────── host.docker.internal:8086 (InfluxDB) ──→ n8n WF4 → Pushover
+Mon 09:00 ────────────────── api:8000/health ──→ n8n WF5 → Pushover (if CRITICAL)
+```
 
-1. In n8n, go to **Settings → Credentials**
-2. Add **Anthropic API** credential
-3. Enter your `ANTHROPIC_API_KEY`
-4. Use the **AI Agent** or **HTTP Request** node to call `api.anthropic.com`
+n8n sits on the `sparc` Docker network alongside `api`, `db`, `redis`, `grafana`.  
+Greenhouse reaches it via `host.docker.internal` (Mac host bridge between separate Docker stacks).
 
 ---
 
-## Troubleshooting
+## Credentials (all in `.env`, gitignored)
 
-### n8n won't start
+| Variable | Value | Source |
+|----------|-------|--------|
+| `N8N_API_KEY` | `eyJ...` | n8n Settings → API → Create key |
+| `PUSHOVER_APP_TOKEN` | `ar74vud1m3bz99i23nj57anjqsn8rt` | pushover.net/apps/build |
+| `PUSHOVER_USER_KEY` | `usbzw4m19wwcht38mz631ycfnznemg` | pushover.net dashboard |
+| `CALLMEBOT_PHONE` | `353863531001` | Backup channel |
+| `CALLMEBOT_API_KEY` | `8022840` | Backup channel |
+
+---
+
+## Notification Delivery
+
+**Primary: Pushover**
+- Install app: App Store / Google Play → search "Pushover" → log in with account
+- Notifications appear within 2–3 seconds of trigger
+- Priority HIGH (1) for alerts; normal (0) for scheduled briefs
+- Test:
 ```bash
-docker compose logs n8n --tail=20
-# Common cause: port 5678 already in use
-lsof -i :5678
+source ~/building-energy-load-forecast/.env
+curl -s \
+  --form-string "token=${PUSHOVER_APP_TOKEN}" \
+  --form-string "user=${PUSHOVER_USER_KEY}" \
+  --form-string "title=Test" \
+  --form-string "message=From Sparc n8n" \
+  https://api.pushover.net/1/messages.json
 ```
 
-### Workflows don't trigger
-- Check the workflow is **Active** (toggle in top-right of workflow editor)
-- Check the Schedule Trigger timezone matches `Europe/Dublin`
-
-### Can't reach `api:8000` from n8n
-Both services must be on the same Docker network. Verify:
+**Backup: CallMeBot WhatsApp**
 ```bash
-docker network inspect building-energy-load-forecast_sparc | grep -E "sparc-api|sparc-n8n"
+source ~/building-energy-load-forecast/.env
+curl "https://api.callmebot.com/whatsapp.php?phone=${CALLMEBOT_PHONE}&text=Sparc+test&apikey=${CALLMEBOT_API_KEY}"
 ```
-Both should appear. If n8n is missing: `docker compose restart n8n`
 
 ---
 
-## Data n8n Can Access
-
-Because `./scripts` is mounted as `/home/node/sparc_scripts:ro`, n8n's Execute Command nodes can run:
-- `python3 /home/node/sparc_scripts/intel_feeds.py --ingest`
-- `python3 /home/node/sparc_scripts/intel_ingest.py --status`
-- `python3 /home/node/sparc_scripts/run_drift_check.py --report`
-
-Note: These run inside the n8n container, which uses the n8n Python (not your conda env). For scripts needing `scikit-learn` / `lightgbm`, call the FastAPI endpoints instead of running scripts directly.
+*File: `docs/infra/services/N8N.md` | Last updated: 21 April 2026*
