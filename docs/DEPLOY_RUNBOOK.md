@@ -1,8 +1,9 @@
 # Sparc Energy — End-to-End Deployment Runbook
+*Created: 2026-04-01 (approx) | Last modified: 2026-04-22*
 
 **Purpose:** Exact sequence to go from code on Mac → full working system (local + cloud).  
 **Test target:** Maynooth household — myenergi Eddi + ESB Smart Meter HDF CSV upload.  
-**Last updated:** 2026-04-20 | **Status:** Phase 7 — App Runner not yet live
+**Status:** Phase 7 — App Runner deploy in progress | CI/CD active | Branch protection enforced
 
 ---
 
@@ -262,3 +263,237 @@ Grafana: live dashboard showing forecast vs actual, drift, savings
 ```
 
 The test: upload your ESB HDF file, run the morning brief, see the Eddi recommendation for today, check the Grafana dashboard shows the prediction, verify the JSONL audit log has an entry.
+
+---
+
+## INCIDENT RESPONSE (DAN-102)
+
+*Added 2026-04-22 | Equivalent: Standard Operating Procedure (SOP) for GxP/21 CFR Part 11 environments*
+
+### Severity Classification
+
+| Severity | Definition | Target response | Target recovery (MTTR) |
+|----------|-----------|----------------|------------------------|
+| **P1 — Critical** | System makes wrong automated decision that has been acted on (wrong Eddi command executed) | Immediate | 1 hour |
+| **P2 — High** | API down, no predictions served, Eddi on fallback schedule | 30 minutes | 4 hours |
+| **P3 — Medium** | Degraded accuracy (drift detected), Grafana unavailable, CI red | Next session | 24 hours |
+| **P4 — Low** | Non-blocking: Redis cache miss storm, n8n cron skipped, myenergi API timeout | Next session | 48 hours |
+
+---
+
+### P1 — Wrong Automated Decision Executed
+
+**Trigger:** Eddi received a wrong command (e.g. RUN_NOW during peak rate, or heat deferred when solar available)
+
+```bash
+# Step 1: Stop further automated commands immediately
+python deployment/live_inference.py --dry-run  # Switch to dry-run mode
+
+# Step 2: Check what command was sent and when
+tail -20 outputs/logs/control_decisions.jsonl | python3 -m json.tool
+
+# Step 3: Check Eddi current state
+python -c "
+from deployment.connectors import MyEnergiConnector
+c = MyEnergiConnector()
+print(c.get_status())
+"
+
+# Step 4: Manual override if needed (via myenergi app)
+# myenergi app → Eddi → Boost → Manual
+
+# Step 5: Root cause — check the decision reasoning in the JSONL
+# Fields: timestamp, action, confidence, reasoning, forecast_values, price, solar
+
+# Step 6: Document in post-incident review (template below)
+```
+
+**Post-incident:** Do not resume automated control until root cause is identified and a regression test added.
+
+---
+
+### P2 — API Down / Predictions Not Serving
+
+**Trigger:** `/health` returns 503 or connection refused
+
+```bash
+# Step 1: Check all containers
+docker compose ps
+# All services should show "running" — identify any "exited" or "restarting"
+
+# Step 2: Restart specific failed service
+docker compose restart api    # FastAPI
+docker compose restart db     # TimescaleDB
+docker compose restart redis  # Redis cache
+
+# Step 3: Check logs for root cause
+docker compose logs api --tail 50
+docker compose logs db  --tail 50
+
+# Step 4: Verify recovery
+curl http://localhost:8000/health | python3 -m json.tool
+# Expected: {"status":"ok","model":"active or mock"}
+
+# Step 5: If model is "mock" after restart — model artefact missing
+ls outputs/models/  # Should contain .pkl files
+# If empty: retrain
+python scripts/run_pipeline.py --city ireland --save-predictions
+```
+
+**Escalation path:** If TimescaleDB data is corrupted → restore from Docker volume backup (see backup procedure below).
+
+---
+
+### P3 — Model Drift Detected
+
+**Trigger:** `scripts/run_drift_check.py` exits with code 1 (CRITICAL), CI blocks deployment
+
+```bash
+# Step 1: Run drift report to understand which features drifted
+python scripts/run_drift_check.py --city ireland --report
+
+# Step 2: Check when drift started (compare recent vs training distribution)
+# Key features to inspect: lag_24h, temperature, hour_of_day
+
+# Step 3: Decision tree
+# If < 7 days of new data look odd → data quality issue (check ESB upload)
+# If seasonal → expected; retrain with recent window
+# If sudden → check if ESB data format changed (new meter firmware)
+
+# Step 4: Retrain with recent data
+python scripts/run_pipeline.py --city ireland --save-predictions
+python scripts/run_drift_check.py --city ireland  # Must pass before deploying
+
+# Step 5: Promote new model via registry
+python -c "
+from src.energy_forecast.registry.model_registry import ModelRegistry
+r = ModelRegistry()
+r.promote_candidate()  # Only if new model beats current by >5% MAE
+"
+```
+
+---
+
+### P3 — CI Red / Blocked Deployment
+
+**Trigger:** GitHub Actions failure email; merge button disabled for all PRs
+
+```bash
+# Step 1: Identify failing check from GitHub Actions UI
+# Settings → Actions → All workflows → find failing run
+
+# Step 2: Common causes and fixes
+# Tests (3.10 or 3.11) red → run locally: pytest tests/ -v --tb=short
+# Code quality red → run locally: black --check src/ && ruff check src/
+# Docker build red → run locally: docker build -f deployment/Dockerfile -t test .
+
+# Step 3: Fix on a branch, open PR, verify CI green, merge
+# Do NOT push directly to main — branch protection blocks it
+```
+
+---
+
+### Rollback Procedure
+
+**Model rollback** (production model degraded after promotion):
+```bash
+python -c "
+from src.energy_forecast.registry.model_registry import ModelRegistry
+r = ModelRegistry()
+r.rollback()  # Promotes last RETIRED model back to ACTIVE
+"
+```
+
+**Code rollback** (bug introduced in last merge):
+```bash
+# Find last known-good commit
+git log --oneline -10
+
+# Create a revert PR (do NOT force-push main — branch protection prevents it)
+git revert <bad-commit-sha>
+git checkout -b fix/revert-bad-commit
+git push -u origin fix/revert-bad-commit
+# Open PR → CI runs → merge
+```
+
+**Full stack rollback** (complete disaster recovery):
+```bash
+docker compose down
+git checkout <last-good-tag-or-sha>
+docker compose up -d
+# Restore model artefacts if needed
+python scripts/run_pipeline.py --city ireland --save-predictions
+```
+
+---
+
+### Backup Procedure
+
+TimescaleDB data (meter readings, predictions, outcomes) lives in a Docker named volume.
+
+```bash
+# Backup
+docker run --rm \
+  -v building-energy-load-forecast_pgdata:/data \
+  -v $(pwd)/backups:/backup \
+  alpine tar czf /backup/tsdb_$(date +%Y%m%d).tar.gz /data
+
+# Restore
+docker run --rm \
+  -v building-energy-load-forecast_pgdata:/data \
+  -v $(pwd)/backups:/backup \
+  alpine tar xzf /backup/tsdb_YYYYMMDD.tar.gz -C /
+```
+
+**Backup schedule:** Manual before any schema migration or major upgrade. No automated backup in Phase 7 — add to Phase 8 ops scope.
+
+---
+
+### Post-Incident Review Template
+
+After any P1 or P2 incident, create a file `docs/incidents/YYYY-MM-DD-short-title.md`:
+
+```markdown
+# Incident: <title>
+**Date:** YYYY-MM-DD
+**Severity:** P1 / P2
+**Duration:** X hours (detection → resolution)
+
+## What happened
+[1–3 sentences: what the system did wrong]
+
+## Impact
+[What was affected: predictions, Eddi commands, user experience]
+
+## Root cause
+[Single sentence — the actual cause, not a symptom]
+
+## Timeline
+- HH:MM — detected
+- HH:MM — investigation started
+- HH:MM — root cause identified
+- HH:MM — fix deployed
+- HH:MM — system verified healthy
+
+## Fix
+[What was changed]
+
+## Prevention
+[What regression test / alert was added to prevent recurrence]
+```
+
+---
+
+## STAGE GATE CRITERIA (DAN-103)
+
+*Each phase of the pipeline has explicit entry and exit conditions. No phase proceeds without exit criteria met.*
+
+| Phase | Entry criteria | Exit criteria | Evidence required |
+|-------|---------------|---------------|-------------------|
+| **Data Ingestion** | Raw CSV available; schema validated | Zero NaN rows in `meter_readings`; DST handling verified; row count matches expected | `DataValidator.validate_features()` passes; TimescaleDB row count |
+| **Feature Engineering** | `meter_readings` populated; weather data available | Exactly 35 features produced; no future leakage (lag < forecast_horizon); `build_temporal_features()` assertion passes | `len(X.columns) == 35`; integration test DAN-104.3 passes |
+| **Model Training** | Features validated; train/val/test split created with `gap=168` | LightGBM MAE ≤ 5.0 kWh (Drammen), ≤ 8.0 kWh (Oslo); R² ≥ 0.95; DM test vs Ridge p < 0.05 | `final_metrics.csv`; `significance_test.py` output |
+| **Model Promotion** | New model trained; `drift_detector.py` passes | New model MAE ≤ 1.05 × current ACTIVE model MAE (regression gate ≤ 5%) | `model_registry.py` promotion log; CI drift check passes |
+| **API Deployment** | Docker image builds; `/health` returns ok | All 4 CI checks green; `/predict` returns 24-array; `/control` returns valid ActionDecision | GitHub Actions CI; PR merged to main |
+| **Production Deploy** | CI green; Docker image in ECR | App Runner serving `/health` → ok; P50 forecast within ±10% of local; JSONL audit log writing | `curl https://<apprunner-url>/health`; CloudWatch logs |
+| **Governance Sign-off** | All 6 governance artefacts complete | Model Card, AIIA, Data Lineage, Data Provenance, System Component Map, System Access Model all present and reviewed | `docs/governance/` directory; last modified dates current |
