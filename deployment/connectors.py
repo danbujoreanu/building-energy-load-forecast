@@ -615,7 +615,7 @@ class MyEnergiConnector(DeviceConnector):
 
     Authentication:
         HTTP Digest authentication:
-          - Username: HUB serial number (e.g. "21509692")
+          - Username: HUB serial number (e.g. "12345678")
           - Password: API key — myenergi app → Settings → Advanced → API Key
         Server is auto-discovered via director.myenergi.net on first call.
 
@@ -633,7 +633,7 @@ class MyEnergiConnector(DeviceConnector):
         OR pass serial/api_key directly to constructor.
 
     Example:
-        c = MyEnergiConnector(serial="21509692", api_key="your-key")
+        c = MyEnergiConnector(serial="YOUR_HUB_SERIAL", api_key="your-key")
         status = c.get_status()
         print(status["today_kwh"], "kWh diverted to hot water today")
         c.send_command("DEFER_HEATING")
@@ -843,7 +843,7 @@ class MyEnergiConnector(DeviceConnector):
             )
             return []
 
-        # Find the data key: "U{serial}" (e.g. "U21509692")
+        # Find the data key: "U{serial}" (e.g. "U12345678")
         data_key = next((k for k in data if k.startswith("U")), None)
         if not data_key:
             logger.warning("get_history_day: no U-key in response: %s", list(data.keys()))
