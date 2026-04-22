@@ -1,5 +1,7 @@
 # AWS Activate Application — Sparc Energy
-**DAN-89 | Deadline: 2026-04-25 | Submit at:** https://aws.amazon.com/activate/
+*Created: 2026-04-20 | Last modified: 2026-04-22*
+
+**[DAN-89](https://linear.app/danbujoreanu/issue/DAN-89/dan-691-draft-aws-activate-application) | Deadline: 2026-04-25 | Submit at:** https://aws.amazon.com/activate/
 
 ---
 
@@ -127,4 +129,4 @@ $1,000 credit → ~**50 months** runway at MVP scale (well past first 10 paying 
 
 ---
 
-*Created: 2026-04-20 | DAN-89 | Owner: Dan Bujoreanu*
+*Created: 2026-04-20 | Last modified: 2026-04-22 | [DAN-89](https://linear.app/danbujoreanu/issue/DAN-89/dan-691-draft-aws-activate-application) | Owner: Dan Bujoreanu*
