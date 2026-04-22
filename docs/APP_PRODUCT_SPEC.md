@@ -1,7 +1,7 @@
 # App / Device Product Specification
 
 **Product name (working title):** GridSense (or similar)
-**Last updated:** 2026-04-11
+**Last updated:** 2026-04-22
 **Status:** Pre-product — research pipeline complete; deployment architecture designed
 
 ---
@@ -130,6 +130,34 @@ only 10% actively shift consumption — this is the gap the app closes.
 - **Concept drift detection:** Rolling 7-day MAE > 1.5× training MAE → auto-retrain triggered
 - **Note:** This is the "learning phase" Jalal Kazempour mentioned — the system needs ~30 days
   to learn a new household's patterns. Communicate this to users at onboarding.
+
+### 9. Demand Response / Flex Event Response *(Phase 2 feature — DAN-114)*
+
+*Added 2026-04-22 — triggered by live ESB Networks Turn Down event received in production.*
+
+- **What:** Receive ESB Networks / EirGrid Turn Down flex event signals and present the user with a concrete, pre-calculated recommended action — with one-tap Accept/Decline.
+- **Market status:** Live and operational in Ireland. ESB Networks sent a confirmed Turn Down event on 2026-04-22, 17:00–19:00. Opt-in programme already running.
+- **Example notification:**
+  > *"Flex event alert: ESB Networks has called a Turn Down event today 5–7pm. I suggest shifting your hot water boost from 18:00 → 16:00. Saves ~€0.05 and supports the grid. [Accept] [Decline] [Remind me at 3pm]"*
+- **Signal source:** ESB Networks opt-in SMS programme (current); planned upgrade to aggregator webhook (Endeco / Electric Ireland Flex) or SMDS flex channel when SMDS opens mid-2026.
+- **Device action (on Accept):** Modify Eddi schedule via myenergi API — move grid boost out of the flex window.
+- **On Decline:** Log decline. Do not act. Include in weekly digest.
+
+**Critical design constraint — Consent-First:**
+
+Sparc Energy **does not automatically act on flex event signals** for any action affecting comfort or resource availability. The user must explicitly confirm. Rationale:
+
+- A user may need hot water at 18:30 for a shower before a dinner date.
+- A 3-hour notification window (like the 2026-04-22 event: signal at 14:14 for 17:00 event) gives the user time to decide but not to wait.
+- Auto-acting without consent would harm the user and destroy trust.
+
+Full consent model and tiered autonomy table: see `docs/governance/AIIA.md § Flex Event Consent Model`.
+
+**Auto-act exceptions (no user confirmation needed):**
+- Solar surplus divert — purely additive, no resource deprivation possible.
+- EV charge shift — only if user has pre-configured an explicit "auto-shift" preference with a minimum departure SoC guarantee.
+
+**Integration path:** `deployment/connectors.py` has a stub for SEMO/flexibility signals. Phase 2 replaces the mock with a real aggregator webhook or SMDS flex endpoint. `ControlEngine` already has `DEFER_HEATING` action type — the flex event response calls this action after user confirms.
 
 ---
 
