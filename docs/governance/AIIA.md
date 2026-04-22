@@ -1,6 +1,6 @@
 # AI Impact Assessment (AIIA) — LightGBM Energy Demand Forecast
 *Framework: adapted from Google AI Impact Assessment + UK ICO AI Auditing Framework + EU AI Act Art. 9 Risk Management*
-*Author: Dan Alexandru Bujoreanu · Date: 2026-03-28 · Version: 1.0*
+*Author: Dan Alexandru Bujoreanu · Date: 2026-03-28 · Version: 1.1 (updated 2026-04-22)*
 
 ---
 
@@ -50,6 +50,7 @@ This document serves as:
 |------|-----------|---------|-----------|
 | **Wrong forecast → user charges EV at expensive peak time** | Medium (model R²=0.975 but individual household variance is higher) | Low (financial — €5–20/incident estimate) | Confidence interval display; user override always available |
 | **Automated action disrupts user comfort** (e.g., heat pump scheduled off when occupant is cold) | Medium (user misconfiguration) | Low–Medium | Comfort constraints configurable; emergency override button |
+| **Flex event auto-response deprives user of hot water** — system defers Eddi boost during a Turn Down event; user needs shower before dinner | Medium (if fully automated without consent) | Medium (discomfort, degraded trust) | **Consent-first model required** — see §Flex Event Consent Model below. Never auto-act on comfort-affecting flex responses without explicit user confirmation. |
 | **Model underperforms in extreme weather** (heat wave, cold snap) | Low–Medium (trained on 2018-2022 data) | Medium (missed optimisation opportunity during high-cost periods) | Seasonal retraining; anomaly detection flag |
 | **Data breach — smart meter data exposed** | Low (local edge processing; OAuth; encrypted at rest) | High (MPRN + consumption pattern = personal data) | Edge-first architecture; no raw data in cloud; GDPR compliant |
 | **Model trained on Norwegian buildings misapplied to Irish residential** | Low (explicitly documented limitation; Irish-specific retraining planned) | Medium (degraded recommendation quality) | Domain validation before production; clearly stated in UI |
@@ -102,6 +103,7 @@ This document serves as:
 | **Audit log** — every automated action logged with timestamp, forecast input, and decision | 🔄 Planned |
 | **Human review trigger** — escalate to support if user reports 3+ unexpected actions | 🔴 To design |
 | **Retraining cadence** — monthly retraining on rolling 24-month window | 🔴 To implement |
+| **Flex event consent gate** — no comfort-affecting action executed without explicit user confirmation | ✅ Design principle locked (DAN-114) |
 
 ---
 
@@ -130,6 +132,56 @@ This system is classified as **limited risk** under the EU AI Act. Obligations:
 
 ---
 
+## Flex Event Consent Model
+
+*Added 2026-04-22 — triggered by live ESB Networks Turn Down event observed in production.*
+
+### Background
+
+On 2026-04-22, ESB Networks sent an SMS Turn Down flex event alert to opted-in customers: *"There will be a flex event today between 5-7pm. Please minimise your electricity usage where possible during this timeframe."* This is a live demand response programme — not a pilot. The 17:00–19:00 window aligns with both the BGE peak rate (49.28c/kWh, Mon–Fri) and EirGrid's tightest grid period.
+
+This event surfaced a critical product design question: **should Sparc Energy automatically act on flex event signals, or should it recommend and wait for user confirmation?**
+
+### The core tension
+
+The case for auto-action: maximum grid benefit, maximum financial saving, no friction for the user.
+
+The case against: a user may have scheduled their shower for 18:30 before a dinner date. If the system automatically deferred the Eddi boost to 16:00, the tank is cold by 18:30. The user has no recourse in the moment. This is a real harm — not hypothetical.
+
+### Design principle: Consent-First for Comfort-Affecting Actions
+
+**Sparc Energy will never automatically execute an action that affects physical comfort or resource availability without explicit user confirmation.**
+
+The consent-first flow for flex events:
+
+> *"There's a flex event 5–7pm today. I suggest shifting your 18:00 hot water boost to 16:00 — saves ~€0.05 and supports grid stability. [Accept] [Decline] [Remind me later]"*
+
+The user confirms → the system executes. If the user declines → the system logs the decline, does not act, and notes it in the weekly digest ("You declined 1 flex event this week — that's fine").
+
+### Tiered Autonomy Model
+
+| Action type | Autonomy level | Rationale |
+|---|---|---|
+| Defer hot water boost during flex event | **Recommend → User confirms** | Hot water access is a comfort and personal care need |
+| Shift EV charge window outside peak | **Recommend → User confirms** (default); auto if user explicitly opts in with override window configured | Low risk if charge time window is wide enough |
+| Solar surplus divert to Eddi | **Auto-act** | Purely additive — no comfort impact; only runs when surplus exists |
+| Skip 07:00 morning boost | **Never auto** | Hard constraint — 09:30 shower dependency documented in user config |
+| Schedule appliance (dishwasher) to off-peak | **Recommend → User confirms** | User knows their schedule; system doesn't |
+
+### EU AI Act alignment
+
+EU AI Act Article 14 requires that high-human-impact AI systems enable **meaningful human oversight**. While Sparc Energy is classified as Limited Risk (Art. 52), the flex event consent model ensures Article 14 compliance by design: no action affecting user comfort, safety, or resource access is taken without an explicit human confirmation signal.
+
+### GDPR Article 22 alignment
+
+Automated decisions that "significantly affect" individuals require either explicit consent, contractual necessity, or legal obligation. Deferring a scheduled hot water boost could plausibly meet the "significantly affects" threshold for a vulnerable user (elderly, medical needs). The consent-first model ensures we are always within the explicit consent basis — the user clicked Accept.
+
+### Open question
+
+ESB Networks' SMS arrived at 14:14 for a 17:00 event — only 3 hours' notice. The consent flow above works for same-day events. For events notified the day before (if ESB moves to day-ahead notification), the flow remains the same but with more time for the user to plan. Monitor ESB's notification lead time as the programme matures. See DAN-114.
+
+---
+
 ## Assessment Conclusion
 
 **Decision:** Proceed to MVP with the safeguards listed above.
@@ -145,5 +197,6 @@ This system is classified as **limited risk** under the EU AI Act. Obligations:
 | Version | Date | Change | Author |
 |---------|------|--------|--------|
 | 1.0 | 2026-03-28 | Initial AIIA — pre-MVP | Dan Bujoreanu |
+| 1.1 | 2026-04-22 | Added flex event harm to §2a; flex event consent gate to §5; full Flex Event Consent Model section; DAN-114 | Dan Bujoreanu |
 
 *This document should be updated when: the model is retrained on new data, automated action scope changes, new affected parties are identified, or regulatory guidance changes.*

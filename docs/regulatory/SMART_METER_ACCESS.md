@@ -1,6 +1,6 @@
 # Smart Meter Data Access — Regulatory, Privacy & Go-to-Market
 
-**Last updated:** 2026-03-16
+**Last updated:** 2026-04-22
 **Relevant to:** Product commercialisation, Phase 2 hardware, privacy policy, GDPR compliance
 
 ---
@@ -289,3 +289,45 @@ Differentiation: we add forecasting, price-aware scheduling, heat pump/EV optimi
 5. **SEAI partnership path**: Contact SEAI's Innovation & Policy unit. They fund pilots through
    the SEAI Research, Development & Demonstration programme. A pilot showing demand shifting
    from heat pump load would align directly with their targets.
+
+---
+
+## Demand Response / Flex Events
+
+*Added 2026-04-22 — confirmed live in the Irish market.*
+
+### What they are
+
+ESB Networks runs a **Turn Down** demand response programme where opted-in customers receive alerts asking them to reduce electricity usage during defined windows. These are grid-balancing events triggered by EirGrid when demand is high, generation is constrained, or there is a transmission bottleneck.
+
+**First observed in production:** 2026-04-22 at 14:14. SMS received: *"There will be a flex event today between 5-7pm. Please minimise your electricity usage where possible during this timeframe."* Opt-out link: https://esbn.ie/unsub (confirms opt-in programme exists).
+
+**Timing:** The 2026-04-22 event ran 17:00–19:00 — exactly the BGE peak rate window (Mon–Fri, 49.28c/kWh). This alignment is not coincidental — peak grid stress and peak pricing are the same phenomenon.
+
+### Why this is important for Sparc Energy
+
+The demand response market is **live and operational**, not a 2030 roadmap item. The infrastructure exists: ESB Networks already has opt-in lists and notification capability. What is missing is **automated, intelligent device response** at the household level. That is exactly what Sparc Energy provides.
+
+Current state of the market (as of 2026-04-22):
+- ESB sends a text message asking customers to manually reduce usage
+- No automated device response
+- No per-appliance intelligence
+- No price-aware substitution (e.g., pre-heating before the event window)
+
+Sparc Energy closes this gap: receive the signal, calculate the optimal device response, present a one-tap confirmation to the user, execute.
+
+### Integration path
+
+| Phase | Mechanism | Status |
+|-------|-----------|--------|
+| Phase 1 MVP | None — user manually reads ESB SMS and acts | Current |
+| Phase 2 | Push notification to app + one-tap Accept/Decline | Planned (DAN-114) |
+| Phase 3 | Aggregator webhook (Endeco, Electric Ireland Flex) or SMDS flex channel | TBD — depends on SMDS go-live |
+
+The `deployment/connectors.py` stub for SEMO/flexibility signals is the placeholder for Phase 3 integration.
+
+### Consent model (mandatory design constraint)
+
+Sparc Energy **must not automatically execute device actions in response to flex events without explicit user confirmation** for any action that affects comfort or resource availability (hot water, heating). See `docs/governance/AIIA.md § Flex Event Consent Model` for full rationale, tiered autonomy table, and EU AI Act / GDPR alignment.
+
+Summary: recommend → user confirms → system acts. Never auto-act on comfort-affecting decisions.

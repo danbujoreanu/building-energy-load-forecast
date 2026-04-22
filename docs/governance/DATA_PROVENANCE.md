@@ -1,5 +1,5 @@
 # Data Provenance — Building Energy Load Forecast
-*Author: Dan Alexandru Bujoreanu · Last updated: 2026-03-28*
+*Author: Dan Alexandru Bujoreanu · Last updated: 2026-04-22*
 *Purpose: Document origin, consent basis, and handling of all data sources used in this project.*
 
 ---
@@ -145,6 +145,22 @@ Evaluation (scripts/run_pipeline.py --stages evaluate)
 
 ---
 
+### Source 6 — ESB Networks Flex Event Signal *(planned — DAN-114)*
+
+| Field | Value |
+|-------|-------|
+| **Name** | ESB Networks Demand Response / Flex Event Signal |
+| **Description** | Grid-level Turn Down events issued by ESB Networks / EirGrid asking opted-in customers to reduce load during defined windows (typically 1–2 hours). Observed in production: SMS notification received 2026-04-22 at 14:14 for a Turn Down event 17:00–19:00 the same day. |
+| **Provider** | ESB Networks / EirGrid (Irish grid operator) |
+| **Access basis** | Customer opt-in to ESB Networks flex programme (confirmed live). Production API/webhook path TBD — likely via aggregator (Endeco, Electric Ireland Flex) or ESB Networks SMDS flex signal when SMDS opens mid-2026. |
+| **Data subject** | None — grid-level signal, not customer-specific |
+| **Personally identifiable** | No |
+| **Current status** | Manual observation only (SMS). No automated ingestion implemented. Stub in `deployment/connectors.py` as SEMO/flexibility mock. |
+| **Integration path** | Phase 2+: aggregator webhook or SMDS flex channel. See DAN-114. |
+| **Consent implications** | Receiving the signal requires no consent. Acting on it (modifying device schedules) requires explicit user confirmation for any action affecting comfort — see AIIA.md §Flex Event Consent Model. |
+
+---
+
 ## Audit Trail
 
 | Date | Change | Author |
@@ -154,5 +170,6 @@ Evaluation (scripts/run_pipeline.py --stages evaluate)
 | 2026-03 | Home trial initiated — ESB smart meter data collected | Dan Bujoreanu |
 | 2026-03 | Eddi API integration completed | Dan Bujoreanu |
 | 2026-03-28 | This provenance document created | Dan Bujoreanu |
+| 2026-04-22 | Source 6 added: ESB Networks Flex Event Signal (planned) — DAN-114 | Dan Bujoreanu |
 
 *Update this document whenever a new data source is added or data handling changes.*
