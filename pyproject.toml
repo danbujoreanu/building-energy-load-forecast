@@ -8,7 +8,7 @@ version = "0.9.0"
 description = "Day-ahead (H+24) electricity load forecasting — LightGBM vs Deep Learning Paradigm Parity study. Norwegian public buildings (COFACTOR Drammen/Oslo) + Irish residential home trial."
 authors = [{ name = "Dan Alexandru Bujoreanu", email = "dan.bujoreanu@gmail.com" }]
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "Source-Available Non-Commercial" }
 requires-python = ">=3.10"
 keywords = ["energy forecasting", "machine learning", "time series", "LSTM", "TFT", "buildings"]
 classifiers = [

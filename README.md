@@ -6,7 +6,9 @@
 [![CI](https://github.com/danbujoreanu/building-energy-load-forecast/actions/workflows/ci.yml/badge.svg)](https://github.com/danbujoreanu/building-energy-load-forecast/actions)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](https://www.python.org)
 [![Tests](https://img.shields.io/badge/tests-153%20passing-brightgreen)](tests/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: Non-Commercial](https://img.shields.io/badge/License-Non--Commercial-blue.svg)](LICENSE)
+
+> **Licence notice:** This is research and portfolio code accompanying a peer-reviewed publication (Springer CCIS, AICS 2025). Free to study, fork, and build on for non-commercial purposes. Commercial use requires written permission — [contact me](mailto:dan.bujoreanu@gmail.com).
 
 > **System status (April 2026):** Phase 6 complete (cyber-physical control layer, live myenergi Eddi integration, €178/yr saving demonstrated). Phase 7 in progress (Docker Compose local stack, AWS App Runner deployment path). 153/153 tests passing.
 

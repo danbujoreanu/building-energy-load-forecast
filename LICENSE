@@ -1,0 +1,38 @@
+Source-Available Non-Commercial License
+Copyright (c) 2026 Dan Alexandru Bujoreanu
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to use,
+copy, study, modify, and distribute the Software for non-commercial purposes
+only, subject to the following conditions:
+
+1. NON-COMMERCIAL USE ONLY
+   This Software may not be used, in whole or in part, for commercial purposes
+   without prior written permission from the copyright holder. "Commercial
+   purposes" means any activity intended to produce revenue, including but not
+   limited to: offering a paid service, incorporating the Software into a
+   commercial product, or using the Software to generate commercial forecasts
+   or recommendations for third parties.
+
+2. ATTRIBUTION
+   All copies or substantial portions of the Software must include this
+   copyright notice and a reference to the associated research:
+
+     D. Bujoreanu, "Day-Ahead Electricity Load Forecasting: A Paradigm Parity
+     Study of Gradient Boosting vs. Deep Learning for Building Energy
+     Management," Proc. AICS 2025, Springer CCIS, 2025.
+
+3. DERIVATIVES
+   Any modifications or derivative works must be released under these same
+   terms and must clearly state what changes were made.
+
+4. COMMERCIAL LICENSING
+   To obtain a commercial licence, contact: dan.bujoreanu@gmail.com
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
