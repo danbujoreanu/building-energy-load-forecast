@@ -93,6 +93,50 @@ extract_pdf.py
 # Internal roadmap — full version with personas, funding strategy, personal details
 ROADMAP_INTERNAL.md
 
+# Private docs — commercial strategy, personal, funding, unpublished research
+docs/COMMERCIAL_ANALYSIS.md
+docs/COMPETITORS.md
+docs/MARKET_POSITIONING.md
+docs/STRATEGY.md
+docs/TEAM.md
+docs/GOVERNANCE.md
+docs/APP_PRODUCT_SPEC.md
+docs/PERSONAL_OS_ARCHITECTURE.md
+docs/PALLONETTO_EMAIL.md
+docs/SESSION_LOG.md
+docs/SESSION_OVERVIEW.md
+docs/ACTION_PLAN_*.md
+docs/funding/
+docs/marketing/
+docs/product/
+docs/research/
+docs/features/career-intel/
+docs/governance/MEETING_NOTES_*.md
+docs/governance/ORCHESTRATOR_BRIEF_*.md
+docs/governance/AI_PM_PORTFOLIO_NOTES_TRIAGE.md
+docs/governance/FAQ.md
+docs/governance/ISSUE_DOCUMENTATION_STANDARD.md
+docs/regulatory/CRU202517_APPENDIX_A_DRAFT.*
+docs/regulatory/*.pdf
+
+# Intel module — internal RAG tooling, never public
+intel/
+# Intel CLI scripts (reference gitignored intel/ module — internal only)
+scripts/intel_ingest.py
+scripts/intel_feeds.py
+scripts/intel_status.py
+scripts/intel_digest.py
+scripts/intel_roadmap.py
+
+# Feature docs with personal/interview content — keep locally, never public
+docs/features/intel-rag/
+docs/features/agent-autonomy/
+
+# Journal / research workflow — unpublished research, reviewer notes, APC strategy
+docs/REVIEWER_RESPONSE_MATRIX.md
+docs/journal/
+docs/ENERGY_INTELLIGENCE_MODULE_BRIEF.md
+
 # Private operational, commercial & personal files — NEVER commit
 CLAUDE.md
 CAREER_CONTEXT.md
