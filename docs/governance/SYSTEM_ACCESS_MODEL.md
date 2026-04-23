@@ -1,5 +1,5 @@
 # System Access Model — Sparc Energy
-*Created: 2026-04-22 | Last modified: 2026-04-22*
+*Created: 2026-03-28 | Last modified: 2026-03-28*
 *Format: Operational credential register — who calls what, what auth is required, what breaks if a credential is revoked*
 *Governance reference: companion to System Component Map and Deployment Runbook*
 
