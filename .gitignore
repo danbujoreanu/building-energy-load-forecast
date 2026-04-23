@@ -137,6 +137,18 @@ docs/REVIEWER_RESPONSE_MATRIX.md
 docs/journal/
 docs/ENERGY_INTELLIGENCE_MODULE_BRIEF.md
 
+# Operational how-to docs and detailed stack docs — internal reference only
+docs/COMMANDS.md
+docs/TECH_STACK.md
+docs/infra/COMMAND_REFERENCE.md
+docs/infra/DOCKER_BEGINNER_GUIDE.md
+
+# Regulatory detail — commercially sensitive, maintained separately
+docs/regulatory/
+
+# Knowledge base — personal notes, working decisions, domain research
+knowledge/
+
 # Private operational, commercial & personal files — NEVER commit
 CLAUDE.md
 CAREER_CONTEXT.md

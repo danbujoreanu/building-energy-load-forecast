@@ -127,7 +127,6 @@ print(c.get_status())
 
 ## STEP 4 — n8n Local Setup (optional, zero cloud cost)
 
-Based on `AI_PM_Portfolio_Notes/n8n_ClaudeCode_Integration.md`.  
 **Purpose:** Workflow automation, agent telemetry, automated test-failure alerting.  
 **Cost:** Zero — runs in Docker on your Mac.
 
@@ -172,12 +171,10 @@ open http://localhost:5678  # n8n UI
 | Workflow | Trigger | Action |
 |----------|---------|--------|
 | **Daily morning brief** | Cron 08:00 | POST to `http://api:8000/predict` → send WhatsApp/email |
-| **Pytest failure alert** | Webhook on CI fail | Extract stack trace → Claude for diagnosis |
-| **Intel feeds refresh** | Cron daily 06:00 | `exec: python scripts/intel_feeds.py --ingest` |
+| **Pytest failure alert** | Webhook on CI fail | Extract stack trace → investigate and fix |
 | **Drift alert** | Cron weekly | `exec: python scripts/run_drift_check.py --report` |
 
-**Note:** n8n's Claude integration requires `ANTHROPIC_API_KEY` in docker-compose env vars.  
-For the custom PR hook pattern, use `.claude/commands/sparc-pr.md` instead (no infra needed).
+**Note:** n8n AI workflows require `ANTHROPIC_API_KEY` in docker-compose env vars.
 
 ---
 

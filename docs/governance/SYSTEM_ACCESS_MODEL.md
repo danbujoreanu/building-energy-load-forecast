@@ -9,8 +9,6 @@
 
 An ops team inheriting a system needs to know: "What credentials does this system require, who owns each one, where is each one stored, and what is the impact if it is revoked or rotated?" This document is that register.
 
-**Equivalent in pharma/GxP context:** Access Control Matrix / Installation Qualification (IQ) credential register. In 21 CFR Part 11 and EU Annex 11 environments this is a required component of the validation package.
-
 ---
 
 ## Credential Register
@@ -21,7 +19,7 @@ An ops team inheriting a system needs to know: "What credentials does this syste
 | `MYENERGI_SERIAL` | myenergi hub (Eddi gateway) | HTTP Digest username | `.env` (gitignored) | Dan Bujoreanu | **HIGH** — paired with API key; both required | Fixed — hub serial does not change |
 | `DB_PASSWORD` | TimescaleDB / PostgreSQL | Password auth | `.env` + `docker-compose.yml` secrets | Dan Bujoreanu | **HIGH** — FastAPI cannot write predictions; API returns 503 | Rotate via `docker compose down && update .env && docker compose up -d` |
 | `GRAFANA_PASSWORD` | Grafana admin dashboard | HTTP Basic (admin user) | `.env` | Dan Bujoreanu | **LOW** — dashboard inaccessible; no data loss; API unaffected | Via Grafana UI → Profile → Change Password |
-| `ANTHROPIC_API_KEY` | Claude PR reviewer (GitHub Actions) | Bearer token | GitHub Secrets (`ANTHROPIC_API_KEY`) | Dan Bujoreanu (Anthropic account) | **LOW** — Claude PR review fails; 4 Required CI checks unaffected | Via Anthropic console → API Keys → Regenerate; update GitHub Secret |
+| `ANTHROPIC_API_KEY` | AI PR reviewer (GitHub Actions) | Bearer token | GitHub Secrets (`ANTHROPIC_API_KEY`) | Dan Bujoreanu (Anthropic account) | **LOW** — AI PR review fails; 4 Required CI checks unaffected | Via Anthropic console → API Keys → Regenerate; update GitHub Secret |
 | `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` | AWS ECR (Docker push) + App Runner (deploy) | AWS IAM | `~/.aws/credentials` or env vars (Makefile) | Dan Bujoreanu (AWS account) | **MEDIUM** — cannot push new Docker images or deploy; existing App Runner instance continues serving | Via AWS IAM console → rotate key; update local `~/.aws/credentials` |
 | `LINEAR_API_KEY` | Linear project management API | Bearer token | `.env` (gitignored) | Dan Bujoreanu (Linear workspace) | **LOW** — roadmap sync scripts fail; no system impact | Via Linear → Settings → API → Personal API Keys → Regenerate |
 | Open-Meteo API | Live weather data (Open-Meteo) | None (public API) | N/A | N/A (public) | N/A — no auth required | N/A |
@@ -91,7 +89,7 @@ Rebuild procedure: populate `.env` from the table above → `docker compose up -
 | No secrets in version control | `.gitignore` covers `.env`, `~/.aws/`, `outputs/` |
 | EU AI Act Article 52 — audit trail | `control_decisions.jsonl` is append-only; every automated decision logged with timestamp, action, confidence, reasoning |
 | GDPR — data minimisation | No raw meter data in repo; only processed features; ESB CSV never committed |
-| 21 CFR Part 11 / EU Annex 11 equivalent | Audit log is append-only; model registry tracks all model versions; runbook documents change control |
+| Audit trail integrity | Audit log is append-only; model registry tracks all model versions; runbook documents change control |
 
 ---
 

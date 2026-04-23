@@ -19,7 +19,7 @@
 | Tests (Python 3.10 + 3.11) | `.github/workflows/ci.yml` | ✅ Active |
 | Code quality (black + ruff + mypy) | `.github/workflows/ci.yml` | ✅ Active |
 | Docker build + `/health` smoke test | `.github/workflows/ci.yml` | ✅ Active |
-| Claude AI PR reviewer (2-pass) | `.github/workflows/claude-review.yml` | ✅ Active |
+| AI PR reviewer (2-pass) | `.github/workflows/claude-review.yml` | ✅ Active |
 | Branch protection Ruleset | GitHub Settings → Rules → "CI Rules 22.04 Dan 108" | ✅ Active |
 
 **Branch Ruleset on `main` (enforced — free public repo):**
@@ -49,7 +49,7 @@ Raise gate to 70%+ via [DAN-109](https://linear.app/danbujoreanu/issue/DAN-109/p
 ### GitHub Secrets configured
 | Secret | Used by | Status |
 |--------|---------|--------|
-| `ANTHROPIC_API_KEY` | `claude-review.yml` — Claude PR reviewer | ✅ Set |
+| `ANTHROPIC_API_KEY` | `claude-review.yml` — AI PR reviewer | ✅ Set |
 
 ---
 
@@ -114,11 +114,11 @@ pytest tests/ -q                 # Fast test run
 ### The DocuSign AI code review insight
 > *"On medium-complexity PRs (6-10 changed files), our AI reviewer averaged 8.3 comments while human reviewers averaged 2.3 — a more than 3-to-1 gap. On the most complex PRs, where good feedback is most needed, an AI bot is often the dominant voice."*
 
-We have `claude-review.yml` doing exactly this. It runs a **2-pass review**:
+The project uses `claude-review.yml` for automated AI PR review. It runs a **2-pass review**:
 - **Pass 1 (Critical / blocks deployment):** Data leakage, feature count, city allowlist, model trust boundary
 - **Pass 2 (Informational):** Concurrent safety, config coupling, dead code, test gaps
 
-Read Claude's review before merging. Do not rubber-stamp resolve without reading.
+Read the AI review before merging. Do not rubber-stamp resolve without reading.
 
 ### Magic numbers
 All numeric constants (feature counts, horizon values, coverage thresholds, rate values) must live in:
@@ -193,29 +193,28 @@ except Exception:
 
 ---
 
-## 6. AI-Assisted Development
+## 6. AI-Assisted Code Review
 
-### We are Claude Code-first
-All significant code changes go through Claude Code. This is the Intercom model:
-> *"All technical work is becoming agent-first. This is the top priority for R&D."*
+The project uses an automated AI reviewer (`.github/workflows/claude-review.yml`) on every PR.
+This is the DocuSign model:
+> *"On medium-complexity PRs (6-10 changed files), our AI reviewer averaged 8.3 comments while human reviewers averaged 2.3 — a more than 3-to-1 gap."*
 
-### What Claude Code is good at
-- Implementing well-specified tasks (give it a docstring + test, get working code)
-- Refactoring with constraints ("move this to a separate module, don't change the function signatures")
-- Writing tests once you explain what the function must do
-- Catching anti-patterns (DocuSign: 35 tests testing themselves)
+### When the AI reviewer flags something
+1. Read the comment alongside the **full function**, not just the flagged line
+2. Ask: "Is this valid for *this specific code*, or a general pattern that doesn't apply here?"
+3. Never resolve a `BLOCKED` comment without understanding and fixing the root cause
+4. Architecture decisions should always be documented in `docs/adr/` regardless of AI review output
 
-### What requires your judgment
+### What AI review catches well
+- Data leakage (lags < 24h used as features)
+- Feature count drift (contract is exactly 35 features)
+- Silent NaN injection in feature pipelines
+- Test functions that only test themselves (DocuSign anti-pattern)
+
+### What requires human judgment
 - Whether a feature should be built at all
-- Architecture decisions (document in `docs/adr/`)
-- Whether Claude's suggestion applies to *this* code or is a general pattern that doesn't fit
-
-### The DocuSign PR navigator insight
-When Claude's CI review flags something:
-1. Read it alongside the **full function**, not just the flagged line
-2. Ask: "Is this valid for *this specific code*, or is it a general pattern that doesn't apply here?"
-3. If unsure: open a Claude conversation and discuss it — "rubber duck debugging where the duck talks back"
-4. Never resolve a critical review comment without understanding the fix
+- Trade-offs not visible in the diff (performance, product direction)
+- Any change to the model trust boundary
 
 ---
 
@@ -225,6 +224,6 @@ When Claude's CI review flags something:
 |--------|---------|------|----------------------|
 | DocuSign | "How I'm Using AI to Navigate AI Code Review" | Apr 21 2026 | CI-integrated AI reviewer; rubber duck debugging pattern; test anti-pattern |
 | DocuSign | "How We Evaluate LLM Accuracy for Contract Review" | Apr 21 2026 | Precision/recall over accuracy; pipeline step priority; fast iteration with no-code testing |
-| Intercom | "2× — nine months later: We did it" | Apr 16 2026 | Velocity = stability; auto-approved PRs; Claude Code-first engineering; cost per PR economics |
+| Intercom | "2× — nine months later: We did it" | Apr 16 2026 | Velocity = stability; auto-approved PRs; AI-assisted engineering; cost per PR economics |
 
 *File: `docs/engineering/BEST_PRACTICES.md` | Last updated: 2026-04-21*
