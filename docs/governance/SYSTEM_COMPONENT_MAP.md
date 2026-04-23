@@ -1,5 +1,5 @@
 # System Component Map — Sparc Energy
-*Created: 2026-04-22 | Last modified: 2026-04-22*
+*Created: 2026-03-28 | Last modified: 2026-03-28*
 *Format: Operational footprint document — all modules, external dependencies, data flows, failure modes*
 *Governance reference: companion to Data Lineage, AIIA, and Deployment Runbook*
 
