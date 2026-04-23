@@ -90,6 +90,9 @@ extract_pdf.py
 # Claude agent config (local only)
 .claude/
 
+# Internal roadmap — full version with personas, funding strategy, personal details
+ROADMAP_INTERNAL.md
+
 # Private operational, commercial & personal files — NEVER commit
 CLAUDE.md
 CAREER_CONTEXT.md
