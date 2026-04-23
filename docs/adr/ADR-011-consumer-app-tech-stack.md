@@ -88,18 +88,7 @@ AWS App Runner (existing Dockerfile) + AWS RDS PostgreSQL + Upstash Redis + Verc
 
 ### AI/LLM Advisor (P-13)
 
-**Gemini Flash via Gemini API** (not Claude API). The user has a Gemini Pro subscription. Gemini Flash is cost-effective (~$0.075/1M input tokens) and already covered by the subscription. Claude remains the development assistant (Cursor + Claude Code). Gemini Flash is the user-facing energy advisor model.
-
-### IDE
-
-| Option | Decision | Rationale |
-|--------|----------|-----------|
-| **Claude Code** | ✅ Chosen (deep codebase) | Deep multi-file context, subagent dispatch, PreToolUse safety hook. Primary tool for architecture work, multi-file refactors, test generation, and governance docs. |
-| **Google Antigravity** | ✅ Chosen (parallel agents) | Agent-first VS Code fork (Google Labs, Nov 2025). Gemini 3.1 Pro. "Manager View" runs 5 parallel agents simultaneously. Use for: running horizon sweeps, parallel model experiments, scaffolding multiple files at once. Free tier + Pro $20/month. User has Gemini Pro subscription. |
-| **Cursor** | ✅ Chosen (iterative coding) | AI-powered VS Code fork, best-in-class autocomplete for Python + TypeScript polyglot. Use for: day-to-day feature coding, frontend iteration, CSS/Tailwind work. |
-| GitHub Copilot | ❌ Rejected | Weaker multi-file reasoning than Cursor. No agent dispatch. Offers no advantage when Claude Code + Cursor are already in the stack. |
-
-Three tools serve different roles — they are complementary, not competing. See `docs/TECH_STACK.md` Section 1 for workflow guidance on when to use each.
+**Gemini Flash via Gemini API.** Cost-effective (~$0.075/1M input tokens). Gemini Flash is the user-facing energy advisor model.
 
 ---
 
@@ -118,10 +107,9 @@ Dev Analytics:  Streamlit (internal, not deployed)
 Notifications:  Resend (email) → Twilio WhatsApp (Phase 2)
 Automation:     APScheduler → n8n (Phase 2)
 Design:         Google Stitch → Figma (free tier) → Next.js hand-coded
-LLM Advisor:    Gemini Flash (Gemini API, user has Pro subscription)
+LLM Advisor:    Gemini Flash (Gemini API)
 Local hosting:  Docker Compose + Caddy + Cloudflare Tunnel (Mac Mini M5)
 Production:     AWS App Runner + RDS + Vercel (Phase 3)
-IDE:            Claude Code (deep codebase) + Google Antigravity (parallel agents) + Cursor (iterative coding)
 ```
 
 ---

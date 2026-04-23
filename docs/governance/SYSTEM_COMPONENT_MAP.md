@@ -9,8 +9,6 @@
 
 This document maps every component the Sparc Energy system touches: internal services, external APIs, infrastructure, CI/CD, and governance artefacts. An ops engineer inheriting this system should be able to answer "what does this system connect to, what does each component do, and what breaks if X fails?" from this document alone.
 
-**Equivalent in pharma/GxP context:** System Description Document (SDD) / Software Architecture Document (SAD) — required for IQ (Installation Qualification) in 21 CFR Part 11 / EU Annex 11 environments.
-
 ---
 
 ## Architecture Overview (5-Layer Model)
@@ -100,7 +98,7 @@ graph TB
 
     subgraph CICD["CI/CD & Deployment"]
         GHA["GitHub Actions\nTests 3.10+3.11\nCode quality\nDocker build"]
-        CLAUDE_PR["Claude PR Reviewer\nclaude-review.yml\n2-pass: critical + info"]
+        CLAUDE_PR["AI PR Reviewer\nclaude-review.yml\n2-pass: critical + info"]
         ECR["AWS ECR\nDocker image registry\neu-west-1"]
         APPRUNNER["AWS App Runner\nProduction API\n(Phase 7 — in progress)"]
     end
@@ -156,7 +154,7 @@ graph TB
 | **ESB Networks HDF CSV** | Manual download, no API auth | User-initiated | No new meter data; model runs on stale features | P1 port connector (Phase 2) will automate; manual path always available |
 | **SEMO / ENTSO-E prices** | REST (planned) | — | Price signal unavailable; tariff-based fallback (BGE fixed rates) | Mock prices used in current version; BGE fixed rate in `tariff.py` |
 | **AWS ECR / App Runner** | AWS IAM (Makefile) | 99.99% AWS SLA | Production API unavailable | Local Docker stack is fully functional alternative |
-| **Anthropic API** | Bearer token | 99.9% (Anthropic) | Claude PR reviewer fails; CI continues (not a required check) | Informational only; 4 Required CI checks unaffected |
+| **Anthropic API** | Bearer token | 99.9% (Anthropic) | AI PR reviewer fails; CI continues (not a required check) | Informational only; 4 Required CI checks unaffected |
 
 ---
 
@@ -216,16 +214,16 @@ Open-Meteo ─────→ OpenMeteoConnector     │
 
 ## Governance Artefact Map
 
-| Artefact | File | What it covers | BMS/GxP equivalent |
-|---------|------|---------------|-------------------|
-| Model Card | `docs/governance/MODEL_CARD.md` | Model identity, accuracy, limitations, bias, publication | Algorithm Validation Summary |
-| AI Impact Assessment | `docs/governance/AIIA.md` | Affected parties, EU AI Act classification, mitigations | Risk Assessment / FMEA |
-| Data Lineage | `docs/governance/DATA_LINEAGE.md` | 8-stage pipeline map, quality gates, bug impact | Data Flow Diagram + traceability matrix |
-| Data Provenance | `docs/governance/DATA_PROVENANCE.md` | 5 data sources, consent chains, GDPR basis | Data Management Plan / audit trail of origin |
-| System Component Map | `docs/governance/SYSTEM_COMPONENT_MAP.md` (this file) | All modules, external deps, failure modes | System Description Document (SDD) |
-| System Access Model | `docs/governance/SYSTEM_ACCESS_MODEL.md` | All credentials, ownership, rotation policy | Access Control Matrix / IQ credential register |
-| Deployment Runbook | `docs/DEPLOY_RUNBOOK.md` | Go-live procedure, incident response, rollback | SOP (Standard Operating Procedure) |
-| Audit Log | `outputs/logs/control_decisions.jsonl` | Every automated decision, append-only | Electronic Batch Record (EBR) / 21 CFR Part 11 audit trail |
+| Artefact | File | What it covers |
+|---------|------|---------------|
+| Model Card | `docs/governance/MODEL_CARD.md` | Model identity, accuracy, limitations, bias, publication |
+| AI Impact Assessment | `docs/governance/AIIA.md` | Affected parties, EU AI Act classification, mitigations |
+| Data Lineage | `docs/governance/DATA_LINEAGE.md` | 8-stage pipeline map, quality gates, bug impact |
+| Data Provenance | `docs/governance/DATA_PROVENANCE.md` | 5 data sources, consent chains, GDPR basis |
+| System Component Map | `docs/governance/SYSTEM_COMPONENT_MAP.md` (this file) | All modules, external deps, failure modes |
+| System Access Model | `docs/governance/SYSTEM_ACCESS_MODEL.md` | All credentials, ownership, rotation policy |
+| Deployment Runbook | `docs/DEPLOY_RUNBOOK.md` | Go-live procedure, incident response, rollback |
+| Audit Log | `outputs/logs/control_decisions.jsonl` | Every automated decision, append-only |
 
 ---
 
