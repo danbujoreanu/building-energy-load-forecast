@@ -121,6 +121,21 @@ docs/regulatory/*.pdf
 
 # Intel module — internal RAG tooling, never public
 intel/
+# Intel CLI scripts (reference gitignored intel/ module — internal only)
+scripts/intel_ingest.py
+scripts/intel_feeds.py
+scripts/intel_status.py
+scripts/intel_digest.py
+scripts/intel_roadmap.py
+
+# Feature docs with personal/interview content — keep locally, never public
+docs/features/intel-rag/
+docs/features/agent-autonomy/
+
+# Journal / research workflow — unpublished research, reviewer notes, APC strategy
+docs/REVIEWER_RESPONSE_MATRIX.md
+docs/journal/
+docs/ENERGY_INTELLIGENCE_MODULE_BRIEF.md
 
 # Private operational, commercial & personal files — NEVER commit
 CLAUDE.md
