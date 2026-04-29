@@ -174,27 +174,30 @@
 
     {
       "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Monthly solar export kWh + avg daily export. Shows seasonal south-facing roof pattern. Total period shown = all available history (not filtered to dashboard time range).",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "orange", "value": 200 }, { "color": "red", "value": 500 }
-          ]}
-        },
+        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
         "overrides": []
       },
       "gridPos": { "h": 9, "w": 8, "x": 16, "y": 6 },
       "id": 6,
-      "options": { "reduceOptions": { "calcs": ["sum"] }, "orientation": "auto" },
+      "options": {
+        "xField": "month",
+        "barWidth": 0.6,
+        "groupWidth": 0.7,
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  TO_CHAR(DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin'), 'Mon YYYY') AS month,\n  ROUND(SUM(export_kwh)::NUMERIC, 1) AS export_kwh\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND export_kwh > 0.001\nGROUP BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')",
+          "rawSql": "SELECT\n  TO_CHAR(DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin'), 'Mon YY') AS month,\n  ROUND(SUM(export_kwh)::NUMERIC, 1)::FLOAT8 AS total_kwh,\n  ROUND(SUM(export_kwh)::NUMERIC / NULLIF(COUNT(DISTINCT DATE(recorded_at AT TIME ZONE 'Europe/Dublin')), 0), 2)::FLOAT8 AS avg_daily_kwh\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND export_kwh > 0.001\nGROUP BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "Monthly Solar Export — seasonal pattern confirms south-facing roof",
-      "type": "bargauge"
+      "title": "Monthly Solar Export (kWh) — seasonal south-facing roof pattern",
+      "type": "barchart"
     },
 
     {
@@ -209,20 +212,17 @@
       "datasource": { "type": "postgres", "uid": "sparc-postgres" },
       "description": "Average 30-min consumption by hour of day. Peaks reveal Eddi boosts (07:00, 19:45), cooking patterns, showers.",
       "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "fillOpacity": 80 },
-          "unit": "kwatth"
-        },
+        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
         "overrides": []
       },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "id": 7,
       "options": {
         "xField": "hour_label",
-        "barWidth": 0.7,
-        "legend": { "displayMode": "hidden" },
-        "tooltip": { "mode": "single" }
+        "barWidth": 0.6,
+        "groupWidth": 0.7,
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
       },
       "targets": [
         {
@@ -240,17 +240,17 @@
       "datasource": { "type": "postgres", "uid": "sparc-postgres" },
       "description": "Average consumption by day of week. Saturday = free window (BGE). Sunday higher = Eddi day rate.",
       "fieldConfig": {
-        "defaults": {
-          "unit": "kwatth",
-          "color": { "mode": "palette-classic" }
-        },
+        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
         "overrides": []
       },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "id": 8,
       "options": {
         "xField": "day_name",
-        "legend": { "displayMode": "hidden" }
+        "barWidth": 0.6,
+        "groupWidth": 0.7,
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
       },
       "targets": [
         {
@@ -395,20 +395,17 @@
       "datasource": { "type": "postgres", "uid": "sparc-postgres" },
       "description": "Count of 30-min intervals with import > 0.3 kWh by hour of day. Peaks at 07:00 and 19:45 are the Eddi hot-water boosts. Other spikes may indicate shiftable appliances.",
       "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": { "mode": "palette-classic" },
-          "custom": { "fillOpacity": 80 }
-        },
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } },
         "overrides": []
       },
       "gridPos": { "h": 9, "w": 12, "x": 0, "y": 42 },
       "id": 13,
       "options": {
         "xField": "hour_label",
-        "barWidth": 0.8,
-        "legend": { "displayMode": "hidden" },
-        "tooltip": { "mode": "single" }
+        "barWidth": 0.6,
+        "groupWidth": 0.7,
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
       },
       "targets": [
         {
@@ -465,6 +462,38 @@
       "id": 106,
       "title": "Solar Self-Consumption — Opportunity to Reduce Grid Import (18.5c export vs 23.7c night import)",
       "type": "row"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Rule-based BTM asset inference at 30-min resolution. Eddi signatures are high-confidence (known schedule). 'High Power' events (>0.6 kWh/slot) suggest washing machine, dishwasher, oven, or immersion. Works best with time range set to 7–30 days.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false }, "lineWidth": 0, "fillOpacity": 70 }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 51 },
+      "id": 19,
+      "options": {
+        "fillOpacity": 70,
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "mergeValues": true,
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  recorded_at AS time,\n  CASE\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 7\n         AND import_kwh > 0.25 THEN 'Eddi Morning (07:00)'\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') IN (19,20)\n         AND import_kwh > 0.25\n         AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5 THEN 'Eddi Evening (19:45)'\n    WHEN EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6\n         AND EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 17\n         AND import_kwh > 0.15 THEN 'Eddi Saturday (Free)'\n    WHEN import_kwh > 0.6 THEN 'High Power — Appliance?'\n    WHEN import_kwh > 0.15 THEN 'Moderate Load'\n    ELSE 'Baseload'\n  END AS \"Inferred Load\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND $__timeFilter(recorded_at)\nORDER BY recorded_at",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "BTM Asset Activity — Inferred Load (Eddi, High-Power Events)",
+      "type": "state-timeline"
     },
 
     {
@@ -629,5 +658,5 @@
   "timezone": "Europe/Dublin",
   "title": "Household Intelligence",
   "uid": "sparc-household-intelligence",
-  "version": 7
+  "version": 9
 }
