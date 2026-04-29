@@ -107,6 +107,8 @@ docs/SESSION_LOG.md
 docs/SESSION_OVERVIEW.md
 docs/ACTION_PLAN_*.md
 docs/funding/
+docs/FUNDING_AND_MONETISATION.md
+docs/linkedin_posts.md
 docs/marketing/
 docs/product/
 docs/research/
@@ -136,15 +138,25 @@ docs/features/agent-autonomy/
 docs/REVIEWER_RESPONSE_MATRIX.md
 docs/journal/
 docs/ENERGY_INTELLIGENCE_MODULE_BRIEF.md
+docs/JOURNAL_PAPER_DRAFT.md
 
 # Operational how-to docs and detailed stack docs — internal reference only
 docs/COMMANDS.md
 docs/TECH_STACK.md
-docs/infra/COMMAND_REFERENCE.md
-docs/infra/DOCKER_BEGINNER_GUIDE.md
+docs/infra/
+scripts/rag_query.py
+
+# Home trial data and personal tariff analysis — GDPR + commercial sensitivity
+docs/HOME_TRIAL.md
+docs/DATA_LINEAGE.md
+docs/bmc_design_philosophy.md
 
 # Regulatory detail — commercially sensitive, maintained separately
 docs/regulatory/
+docs/CRU202517_APPENDIX_A_DRAFT.md
+
+# Career portfolio — personal profiles, interview prep, employer-specific content
+docs/CAREER_PORTFOLIO_TECH.md
 
 # Knowledge base — personal notes, working decisions, domain research
 knowledge/

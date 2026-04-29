@@ -1,0 +1,190 @@
+{
+  "__inputs": [],
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0" },
+    { "type": "datasource", "id": "postgres", "name": "PostgreSQL", "version": "1.0.0" },
+    { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" }
+  ],
+  "annotations": { "list": [] },
+  "description": "30-min interval meter readings from ESB HDF uploads",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 1, "fillOpacity": 10, "spanNulls": false },
+          "unit": "kwatth",
+          "displayName": "Import kWh"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "sum"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  recorded_at AS time,\n  import_kwh AS \"Import kWh\"\nFROM meter_readings\nWHERE\n  household_id = '$household_id'::uuid\n  AND $__timeFilter(recorded_at)\nORDER BY recorded_at",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "title": "Grid Import (30-min intervals)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "custom": { "lineWidth": 1, "fillOpacity": 10, "spanNulls": false },
+          "unit": "kwatth",
+          "displayName": "Export kWh"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 9 },
+      "id": 2,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "sum"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  recorded_at AS time,\n  export_kwh AS \"Export kWh\"\nFROM meter_readings\nWHERE\n  household_id = '$household_id'::uuid\n  AND $__timeFilter(recorded_at)\nORDER BY recorded_at",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "title": "Solar Export (30-min intervals)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 15, "spanNulls": false },
+          "unit": "kwatth"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "P10" }, "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "P50" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "P90" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 18 },
+      "id": 3,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  issued_at AS time,\n  p10_kwh[12] AS \"P10\",\n  p50_kwh[12] AS \"P50\",\n  p90_kwh[12] AS \"P90\"\nFROM predictions\nWHERE\n  household_id = '$household_id'::uuid\n  AND $__timeFilter(issued_at)\nORDER BY issued_at",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "title": "H+24 Forecast — Noon (P10/P50/P90 kWh)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "fieldConfig": {
+        "defaults": { "unit": "none" },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 27 },
+      "id": 4,
+      "options": { "reduceOptions": { "calcs": ["count"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT COUNT(*) FROM meter_readings WHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Readings in range",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "fieldConfig": {
+        "defaults": { "unit": "kwatth" },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 27 },
+      "id": 5,
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT SUM(import_kwh) FROM meter_readings WHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Import kWh",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "fieldConfig": {
+        "defaults": { "unit": "kwatth" },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 27 },
+      "id": 6,
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT SUM(export_kwh) FROM meter_readings WHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Export kWh",
+      "type": "stat"
+    }
+  ],
+  "refresh": "5m",
+  "schemaVersion": 38,
+  "tags": ["sparc", "meter", "energy"],
+  "templating": {
+    "list": [
+      {
+        "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+        "definition": "SELECT id::text FROM households ORDER BY onboarded_at DESC",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Household",
+        "name": "household_id",
+        "options": [],
+        "query": "SELECT id::text FROM households ORDER BY onboarded_at DESC",
+        "refresh": 2,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-30d", "to": "now" },
+  "timepicker": {},
+  "timezone": "Europe/Dublin",
+  "title": "Meter Readings",
+  "uid": "sparc-meter-readings",
+  "version": 1
+}

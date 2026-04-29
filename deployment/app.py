@@ -1,16 +1,20 @@
 import json
 import logging
 import math
+import os
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import asyncpg
 import joblib
 import lightgbm as lgb  # noqa: F401 — imported to verify lightweight dep
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, field_validator
 
 # ── Path setup (src/ package available inside the container) ──────────────────
@@ -18,6 +22,13 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from energy_forecast.api import schemas as _feature_schemas
+from energy_forecast.api.esb_parser import ESBParseError, parse_esb_csv
+from energy_forecast.api.meter_store import (
+    fetch_forecasts,
+    household_exists,
+    resolve_or_create_household,
+    upsert_meter_readings,
+)
 from energy_forecast.api.prediction_store import store_prediction
 from energy_forecast.control.actions import EnvironmentState, ForecastBundle
 from energy_forecast.control.controller import ControlEngine
@@ -106,12 +117,64 @@ class ControlResponse(BaseModel):
     morning_brief: str
 
 
+class UploadResponse(BaseModel):
+    household_id: str
+    rows_inserted: int
+    date_from: str | None
+    date_to: str | None
+    skipped: int
+
+
+class ForecastEntry(BaseModel):
+    forecast_date: str
+    issued_at: str | None
+    p10_kwh: list[float]
+    p50_kwh: list[float]
+    p90_kwh: list[float]
+
+
+class ForecastResponse(BaseModel):
+    household_id: str
+    forecasts: list[ForecastEntry]
+
+
 # ---------------------------------------------------------------------------
-# Lifespan — load models on startup
+# Lifespan — load models + DB pool + scheduler on startup
 # ---------------------------------------------------------------------------
+
+async def _run_scheduled_inference() -> None:
+    """Daily 16:00 job — run H+24 inference for all registered households."""
+    pool = getattr(app.state, "db_pool", None)
+    if pool is None:
+        logger.warning("[scheduler] DB pool not available — skipping inference run.")
+        return
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch("SELECT id, city FROM households")
+        if not rows:
+            logger.info("[scheduler] No households registered — nothing to forecast.")
+            return
+        for row in rows:
+            household_id = str(row["id"])
+            city = row["city"] or "ireland"
+            try:
+                # Reuse existing morning-brief logic (dry_run=False stores predictions)
+                from deployment.live_inference import run_morning_brief  # noqa: PLC0415
+                run_morning_brief(
+                    city=city,
+                    building_id=household_id,
+                    dry_run=False,
+                )
+                logger.info("[scheduler] Inference complete for %s (%s)", household_id, city)
+            except Exception as exc:
+                logger.error("[scheduler] Inference failed for %s: %s", household_id, exc)
+    except Exception as exc:
+        logger.error("[scheduler] Scheduled inference run failed: %s", exc)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # ── 1. Load ML models ────────────────────────────────────────────────────
     logger.info("Loading Machine Learning models into memory...")
     try:
         models_dir = _REPO_ROOT / "outputs" / "models"
@@ -122,10 +185,6 @@ async def lifespan(app: FastAPI):
         if lgbm_path and lgbm_path.exists():
             models["LightGBM"] = joblib.load(lgbm_path)
             logger.info("Loaded LightGBM from %s", lgbm_path)
-            # E-19: register feature names for /predict validation.
-            # Uses register_model_features() which detects generic Column_N names
-            # (models trained on numpy arrays) and keeps validation lenient until
-            # the model is retrained via scripts/run_pipeline.py.
             feature_names = getattr(models["LightGBM"], "feature_name_", None)
             if feature_names is not None:
                 _feature_schemas.register_model_features(feature_names)
@@ -143,8 +202,38 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.error("Failed to load models during startup: %s", exc)
 
+    # ── 2. Async DB pool (asyncpg) ───────────────────────────────────────────
+    db_url = os.environ.get("DATABASE_URL", "")
+    db_pool = None
+    if db_url:
+        try:
+            db_pool = await asyncpg.create_pool(db_url, min_size=2, max_size=10)
+            app.state.db_pool = db_pool
+            logger.info("asyncpg pool connected to %s", db_url.split("@")[-1])
+        except Exception as exc:
+            logger.warning("Could not connect asyncpg pool: %s — DB endpoints will return 503.", exc)
+            app.state.db_pool = None
+    else:
+        app.state.db_pool = None
+        logger.warning("DATABASE_URL not set — DB endpoints disabled.")
+
+    # ── 3. APScheduler — daily inference at 16:00 Europe/Dublin ─────────────
+    scheduler = AsyncIOScheduler(timezone="Europe/Dublin")
+    scheduler.add_job(
+        _run_scheduled_inference,
+        CronTrigger(hour=16, minute=0),
+        id="daily_inference",
+        replace_existing=True,
+    )
+    scheduler.start()
+    logger.info("APScheduler started — daily inference at 16:00 Europe/Dublin.")
+
     yield
 
+    # ── Shutdown ─────────────────────────────────────────────────────────────
+    scheduler.shutdown(wait=False)
+    if db_pool:
+        await db_pool.close()
     logger.info("Shutting down model inference service...")
     models.clear()
 
@@ -408,4 +497,96 @@ def control(request: ControlRequest):
             for a in actions
         ],
         morning_brief=_control_engine.explain(actions),
+    )
+
+
+@app.post("/upload", response_model=UploadResponse)
+async def upload_meter_data(
+    file: UploadFile = File(...),
+    household_id: str | None = Form(None),
+):
+    """Ingest an ESB Networks HDF CSV file into the meter_readings hypertable.
+
+    Accepts both kW and kWh ESB export formats (auto-detected).  Re-uploads are
+    idempotent — duplicate timestamps are silently skipped.
+
+    If household_id is not provided, the MPRN in the file is used to look up or
+    create the household automatically.
+    """
+    pool = getattr(app.state, "db_pool", None)
+    if pool is None:
+        raise HTTPException(status_code=503, detail="Database not available.")
+
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    try:
+        mprn, rows = parse_esb_csv(contents)
+    except ESBParseError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    if household_id is None:
+        try:
+            household_id = await resolve_or_create_household(pool, mprn)
+        except Exception as exc:
+            logger.error("Household resolution failed: %s", exc)
+            raise HTTPException(status_code=500, detail="Could not resolve household.")
+
+    total = len(rows)
+    try:
+        inserted = await upsert_meter_readings(pool, household_id, rows)
+    except Exception as exc:
+        logger.error("Meter reading upsert failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"DB write failed: {exc}")
+
+    skipped = total - inserted
+    timestamps = [r["recorded_at"] for r in rows if r.get("recorded_at")]
+    date_from = str(min(timestamps)) if timestamps else None
+    date_to = str(max(timestamps)) if timestamps else None
+
+    return UploadResponse(
+        household_id=household_id,
+        rows_inserted=inserted,
+        date_from=date_from,
+        date_to=date_to,
+        skipped=skipped,
+    )
+
+
+@app.get("/forecast/{household_id}", response_model=ForecastResponse)
+async def get_forecast(
+    household_id: str,
+    days: int = Query(default=7, ge=1, le=30),
+):
+    """Return the most recent stored H+24 forecasts for a household.
+
+    Query parameter ``days`` controls how many forecast records to return
+    (default 7, max 30).  Returns 404 if the household_id is not registered.
+    """
+    pool = getattr(app.state, "db_pool", None)
+    if pool is None:
+        raise HTTPException(status_code=503, detail="Database not available.")
+
+    try:
+        exists = await household_exists(pool, household_id)
+    except Exception as exc:
+        logger.error("Household lookup failed: %s", exc)
+        raise HTTPException(status_code=500, detail="DB error.")
+
+    if not exists:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Household '{household_id}' not found. Upload meter data first.",
+        )
+
+    try:
+        forecasts = await fetch_forecasts(pool, household_id, days)
+    except Exception as exc:
+        logger.error("Forecast fetch failed: %s", exc)
+        raise HTTPException(status_code=500, detail="DB error.")
+
+    return ForecastResponse(
+        household_id=household_id,
+        forecasts=[ForecastEntry(**f) for f in forecasts],
     )
