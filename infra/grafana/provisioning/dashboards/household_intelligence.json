@@ -227,7 +227,7 @@
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  LPAD(EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')::TEXT, 2, '0') || ':00' AS hour_label,\n  ROUND(AVG(import_kwh)::NUMERIC, 4) AS avg_kwh\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
+          "rawSql": "SELECT\n  LPAD(EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')::TEXT, 2, '0') || ':00' AS hour_label,\n  ROUND(AVG(import_kwh)::NUMERIC, 4)::FLOAT8 AS avg_kwh,\n  ROUND(PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY import_kwh)::NUMERIC, 4)::FLOAT8 AS p90_kwh\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
         }
@@ -255,7 +255,7 @@
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  CASE EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin')\n    WHEN 0 THEN '0-Sun' WHEN 1 THEN '1-Mon' WHEN 2 THEN '2-Tue'\n    WHEN 3 THEN '3-Wed' WHEN 4 THEN '4-Thu' WHEN 5 THEN '5-Fri'\n    WHEN 6 THEN '6-Sat'\n  END AS day_name,\n  ROUND(SUM(import_kwh)::NUMERIC / NULLIF(COUNT(DISTINCT DATE(recorded_at AT TIME ZONE 'Europe/Dublin')), 0), 2) AS avg_daily_kwh\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
+          "rawSql": "SELECT\n  CASE EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin')\n    WHEN 0 THEN '0-Sun' WHEN 1 THEN '1-Mon' WHEN 2 THEN '2-Tue'\n    WHEN 3 THEN '3-Wed' WHEN 4 THEN '4-Thu' WHEN 5 THEN '5-Fri'\n    WHEN 6 THEN '6-Sat'\n  END AS day_name,\n  ROUND(SUM(import_kwh)::NUMERIC / NULLIF(COUNT(DISTINCT DATE(recorded_at AT TIME ZONE 'Europe/Dublin')), 0), 2)::FLOAT8 AS avg_daily_kwh,\n  ROUND(MAX(import_kwh)::NUMERIC, 4)::FLOAT8 AS peak_30min_kwh\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
         }
@@ -413,7 +413,7 @@
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  LPAD(EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')::TEXT, 2, '0') || ':00' AS hour_label,\n  COUNT(*)::INTEGER AS events\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND import_kwh > 0.3\n  AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
+          "rawSql": "SELECT\n  LPAD(EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')::TEXT, 2, '0') || ':00' AS hour_label,\n  COUNT(*)::FLOAT8 AS events,\n  ROUND(AVG(import_kwh)::NUMERIC, 4)::FLOAT8 AS avg_event_kwh\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND import_kwh > 0.3\n  AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
         }
@@ -629,5 +629,5 @@
   "timezone": "Europe/Dublin",
   "title": "Household Intelligence",
   "uid": "sparc-household-intelligence",
-  "version": 6
+  "version": 7
 }
