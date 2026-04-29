@@ -24,6 +24,7 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 from energy_forecast.api import schemas as _feature_schemas
 from energy_forecast.api.esb_parser import ESBParseError, parse_esb_csv
 from deployment.morning_advisory import SolarAdvisory, build_advisory, send_pushover
+from deployment.myenergi_poller import run_daily_poll
 from energy_forecast.api.meter_store import (
     fetch_forecasts,
     fetch_recent_advisories,
@@ -175,8 +176,20 @@ async def _run_scheduled_inference() -> None:
         logger.error("[scheduler] Scheduled inference run failed: %s", exc)
 
 
+async def _run_myenergi_poll() -> None:
+    """23:30 job — fetch today's MyEnergi minute data, aggregate to 30-min, store in DB."""
+    pool = getattr(app.state, "db_pool", None)
+    if pool is None:
+        logger.warning("[myenergi_poller] DB pool not available — skipping.")
+        return
+    try:
+        await run_daily_poll(pool)
+    except Exception as exc:
+        logger.error("[myenergi_poller] Daily poll failed: %s", exc)
+
+
 async def _run_morning_advisory() -> None:
-    """06:30 job — fetch tomorrow's solar forecast, log to DB, push to Pushover."""
+    """20:00 job — fetch next-day solar forecast, log to DB, push to Pushover."""
     import asyncio
     pool = getattr(app.state, "db_pool", None)
     try:
@@ -246,12 +259,18 @@ async def lifespan(app: FastAPI):
     )
     scheduler.add_job(
         _run_morning_advisory,
-        CronTrigger(hour=6, minute=30),
+        CronTrigger(hour=20, minute=0),
         id="morning_advisory",
         replace_existing=True,
     )
+    scheduler.add_job(
+        _run_myenergi_poll,
+        CronTrigger(hour=23, minute=30),
+        id="myenergi_poll",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("APScheduler started — inference 16:00, advisory 06:30 Europe/Dublin.")
+    logger.info("APScheduler started — inference 16:00, advisory 20:00, myenergi poll 23:30 Europe/Dublin.")
 
     yield
 

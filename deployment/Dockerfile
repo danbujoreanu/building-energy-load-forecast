@@ -36,6 +36,7 @@ COPY deployment/connectors.py ./deployment/
 COPY deployment/live_inference.py ./deployment/
 COPY deployment/mock_data.py ./deployment/
 COPY deployment/morning_advisory.py ./deployment/
+COPY deployment/myenergi_poller.py ./deployment/
 COPY src/ ./src/
 COPY config/ ./config/
 

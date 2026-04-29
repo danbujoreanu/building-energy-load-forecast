@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 MAYNOOTH_LAT = 53.38
 MAYNOOTH_LON = -6.59
-PANEL_FACTOR = 2.86  # kWh solar per kWh/m² GHI (calibrated to 3,000 kWh/yr estimate)
+PANEL_FACTOR = 1.6  # kWh solar per kWh/m² GHI (live-calibrated 2026-04-29: lower bound 1.418 from export+Eddi; ~1.6 includes estimated house self-consumption)
 
 SKIP_BOOST_THRESHOLD  = 5  # peak sun hours (GHI > 200 W/m²) → solar fills tank
 KEEP_BOOST_THRESHOLD  = 2  # below this → insufficient solar
