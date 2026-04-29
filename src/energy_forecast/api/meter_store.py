@@ -114,15 +114,14 @@ async def upsert_meter_readings(
     ]
 
     async with pool.acquire() as conn:
-        result = await conn.executemany(_UPSERT_READINGS, records)
-
-    # executemany returns "INSERT 0 N" style — extract N
-    try:
-        inserted = int(result.split()[-1]) if result else 0
-    except (ValueError, AttributeError, IndexError):
-        inserted = len(records)  # fallback: assume all inserted
-
-    logger.info("Upserted %d rows for household %s", inserted, household_id)
+        await conn.executemany(_UPSERT_READINGS, records)
+        # asyncpg executemany returns None — query actual count instead
+        row = await conn.fetchrow(
+            "SELECT COUNT(*) FROM meter_readings WHERE household_id = $1",
+            household_id,
+        )
+    inserted = row[0] if row else len(records)
+    logger.info("Upserted batch for household %s — total rows in DB: %d", household_id, inserted)
     return inserted
 
 
