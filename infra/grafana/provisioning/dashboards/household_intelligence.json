@@ -211,7 +211,7 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "continuous-BlPu" },
-          "custom": { "lineWidth": 2, "fillOpacity": 25 },
+          "custom": { "fillOpacity": 80, "gradientMode": "none" },
           "unit": "kwatth"
         },
         "overrides": []
@@ -219,6 +219,8 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "id": 7,
       "options": {
+        "xField": "hour_label",
+        "barWidth": 0.7,
         "legend": { "displayMode": "hidden" },
         "tooltip": { "mode": "single" }
       },
@@ -416,7 +418,7 @@
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  LPAD(EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')::TEXT, 2, '0') || ':00' AS hour_label,\n  COUNT(*)::INTEGER AS events,\n  CASE\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 7  THEN 'Eddi morning boost'\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 19 THEN 'Eddi evening boost'\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 10 AND 16 THEN 'Daytime load'\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 19 THEN 'Evening peak'\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 6  THEN 'Night baseload'\n    ELSE 'Other'\n  END AS load_group\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND import_kwh > 0.3\n  AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
+          "rawSql": "SELECT\n  LPAD(EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')::TEXT, 2, '0') || ':00' AS hour_label,\n  COUNT(*)::INTEGER AS events\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND import_kwh > 0.3\n  AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
         }
@@ -632,5 +634,5 @@
   "timezone": "Europe/Dublin",
   "title": "Household Intelligence",
   "uid": "sparc-household-intelligence",
-  "version": 4
+  "version": 5
 }
