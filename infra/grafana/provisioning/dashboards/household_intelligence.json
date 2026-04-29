@@ -163,7 +163,7 @@
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  recorded_at AS time,\n  import_kwh AS \"Import kWh\",\n  export_kwh AS \"Export kWh (Solar)\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\nORDER BY recorded_at",
+          "rawSql": "SELECT\n  $__timeGroup(recorded_at, '$grain') AS time,\n  ROUND(SUM(import_kwh)::NUMERIC, 3) AS \"Import kWh\",\n  ROUND(SUM(export_kwh)::NUMERIC, 3) AS \"Export kWh (Solar)\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\nGROUP BY 1\nORDER BY 1",
           "format": "time_series",
           "refId": "A"
         }
@@ -379,6 +379,205 @@
       ],
       "title": "Monthly Consumption Trend",
       "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 41 },
+      "id": 105,
+      "title": "BTM Load Events — Identify Shiftable Loads (Eddi, Appliances)",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Count of 30-min intervals with import > 0.3 kWh by hour of day. Peaks at 07:00 and 19:45 are the Eddi hot-water boosts. Other spikes may indicate shiftable appliances.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "blue",   "value": null },
+            { "color": "orange", "value": 50 },
+            { "color": "red",    "value": 150 }
+          ]},
+          "custom": { "fillOpacity": 80 }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 42 },
+      "id": 13,
+      "options": {
+        "xField": "hour_label",
+        "barWidth": 0.8,
+        "legend": { "displayMode": "hidden" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  LPAD(EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')::TEXT, 2, '0') || ':00' AS hour_label,\n  COUNT(*) AS \"High-Power Events (>0.3 kWh/30min)\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND import_kwh > 0.3\n  AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "High-Power Events by Hour (import > 0.3 kWh per 30 min)",
+      "type": "barchart"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Weekday vs weekend average load profile. Weekday peaks reveal commute/work patterns. Weekend lower peak = Saturday Free window being used by Eddi.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 15, "spanNulls": false },
+          "unit": "kwatth"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Weekday Avg" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Weekend Avg" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 42 },
+      "id": 14,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  '2000-01-01T' || LPAD(EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')::TEXT, 2, '0') || ':00:00Z' AS time,\n  ROUND(AVG(CASE WHEN EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n                 THEN import_kwh END)::NUMERIC, 4) AS \"Weekday Avg\",\n  ROUND(AVG(CASE WHEN EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') IN (0, 6)\n                 THEN import_kwh END)::NUMERIC, 4) AS \"Weekend Avg\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "title": "Weekday vs Weekend Load Profile",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 51 },
+      "id": 106,
+      "title": "Solar Self-Consumption — Opportunity to Reduce Grid Import (18.5c export vs 23.7c night import)",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Days where solar generated enough to have deferred the 07:00 Eddi grid boost. Each such day saves ~13c (0.55 kWh × 23.72c night rate). Requires Open Meteo integration to act on in real-time — see DAN-107.",
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "orange", "value": 30 }, { "color": "red", "value": 60 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 52 },
+      "id": 15,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "WITH daily AS (\n  SELECT\n    DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS d,\n    SUM(CASE WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 7\n              AND import_kwh > 0.3 THEN 1 ELSE 0 END) AS boost_fired,\n    SUM(export_kwh) AS daily_export\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\n  GROUP BY 1\n)\nSELECT\n  COUNT(*) FILTER (WHERE daily_export > 0.5) AS \"Solar-Rich Days (export > 0.5 kWh)\",\n  COUNT(*) FILTER (WHERE boost_fired > 0 AND daily_export > 0.5) AS \"Overlap: 07:00 boost + solar same day\"\nFROM daily",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Morning Boost vs Solar Overlap",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Estimated annual saving if the 07:00 Eddi grid boost is deferred to solar diversion on overlap days. Saving = 0.55 kWh × 23.72c (night rate avoided). Open Meteo forecast would trigger this recommendation automatically.",
+      "fieldConfig": {
+        "defaults": { "unit": "currencyEUR", "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "orange", "value": 15 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 52 },
+      "id": 16,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "WITH daily AS (\n  SELECT\n    DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS d,\n    MIN(recorded_at) AS min_ts, MAX(recorded_at) AS max_ts,\n    SUM(CASE WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 7\n              AND import_kwh > 0.3 THEN 1 ELSE 0 END) AS boost_fired,\n    SUM(export_kwh) AS daily_export\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\n  GROUP BY 1\n),\noverlap AS (\n  SELECT\n    COUNT(*) AS n,\n    COUNT(*) * 0.55 * 0.2372 AS total_eur,\n    MAX(max_ts) - MIN(min_ts) AS span\n  FROM daily WHERE boost_fired > 0 AND daily_export > 0.5\n)\nSELECT ROUND((total_eur * 365.0 / NULLIF(EXTRACT(DAY FROM span), 0))::NUMERIC, 2) AS \"Est. Annual Saving €\"\nFROM overlap",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Est. Annual Saving (defer 07:00 boost to solar)",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "text" } },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 52 },
+      "id": 17,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "none", "graphMode": "none", "textMode": "name", "justifyMode": "center" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT 1 AS \"Next: Wire Open Meteo sunny-day forecast → suppress 07:00 grid boost notification (DAN-107)\"",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Open Meteo Integration — Next Step",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Monthly breakdown: solar-productive days vs days where 07:00 boost fired AND solar was available. Gap = potential saving. Summer months should show highest overlap.",
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Boost + Solar Overlap" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Solar Days" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 57 },
+      "id": 18,
+      "options": {
+        "xField": "month",
+        "barWidth": 0.7,
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "WITH daily AS (\n  SELECT\n    DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS d,\n    DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin') AS month,\n    SUM(CASE WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 7\n              AND import_kwh > 0.3 THEN 1 ELSE 0 END) AS boost_fired,\n    SUM(export_kwh) AS daily_export\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\n  GROUP BY 1, 2\n)\nSELECT\n  TO_CHAR(month, 'Mon YY') AS month,\n  COUNT(*) FILTER (WHERE daily_export > 0.5) AS \"Solar Days\",\n  COUNT(*) FILTER (WHERE boost_fired > 0 AND daily_export > 0.5) AS \"Boost + Solar Overlap\"\nFROM daily\nGROUP BY month\nORDER BY MIN(d)",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Monthly: Solar Days vs Morning Boost Overlap",
+      "type": "barchart"
     }
 
   ],
@@ -398,6 +597,22 @@
         "refresh": 2,
         "sort": 0,
         "type": "query"
+      },
+      {
+        "current": { "selected": true, "text": "1 day", "value": "1d" },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Aggregate By",
+        "name": "grain",
+        "options": [
+          { "selected": false, "text": "30 minutes", "value": "30m" },
+          { "selected": false, "text": "1 hour",     "value": "1h" },
+          { "selected": true,  "text": "1 day",      "value": "1d" },
+          { "selected": false, "text": "1 week",     "value": "1w" },
+          { "selected": false, "text": "1 month",    "value": "1M" }
+        ],
+        "query": "30m,1h,1d,1w,1M",
+        "type": "custom"
       }
     ]
   },
@@ -406,5 +621,5 @@
   "timezone": "Europe/Dublin",
   "title": "Household Intelligence",
   "uid": "sparc-household-intelligence",
-  "version": 1
+  "version": 2
 }

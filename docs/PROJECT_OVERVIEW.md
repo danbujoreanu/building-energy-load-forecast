@@ -1,6 +1,6 @@
 # EnergyOS — Project Overview
 *Residential AI Energy Optimisation for the Irish Smart Meter Market*
-*Dan Alexandru Bujoreanu — April 2026*
+*Dan Alexandru Bujoreanu — April 2026 (updated 28 April 2026)*
 
 ---
 
@@ -113,8 +113,10 @@ EnergyOS is a three-layer system:
 │  CONTROL LAYER                                               │
 │  myenergi Eddi API (hot water scheduling)                    │
 │  EV charger scheduling (Zappi / OCPP)                        │
+│  LLM advisory layer — plain-English reasoning per decision   │
+│  n8n automation — morning brief + alert relay (live)        │
+│  Push notifications via Pushover (live); WhatsApp (roadmap) │
 │  Battery charge/discharge optimisation (roadmap)            │
-│  Morning brief push notification (WhatsApp / SMS roadmap)   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -147,7 +149,11 @@ FastAPI `/control` endpoint validates `target_hours` bounds, connects to myenerg
 
 - **API:** FastAPI (`deployment/app.py`) — `/predict`, `/control`, `/health` endpoints
 - **Model:** LightGBM serialised to pickle; `/health` shows real vs mock model status
-- **Infrastructure:** Docker container → AWS ECR → AWS App Runner (eu-west-1, Irish data residency)
+- **LLM advisory layer:** Claude API (claude-haiku-4-5) — structured context → plain-English recommendation + audit log; integrated into `/control` response *(DAN-118 — Done)*
+- **CI pipeline:** GitHub Actions — lint (ruff + black), type check (mypy), pytest (Python 3.10 + 3.11 matrix), Docker smoke test; 4 required checks, all green *(live)*
+- **Infrastructure:** Docker container → AWS ECR → AWS App Runner (eu-west-1, Irish data residency) — Dockerfile + apprunner.yaml complete; ECR push pending *(DAN-49, due May 2026)*
+- **CD pipeline:** GitHub Actions automated deploy on green main *(DAN-123 — Backlog, unblocks after DAN-49)*
+- **Automation:** n8n workflow hub — Sparc Morning Brief (daily 08:00), Weekly Drift Check, Grafana alert relay → Pushover push notifications *(live)*
 - **Hardware MVP:** Raspberry Pi Zero 2W (€15) + DSMR P1 USB adapter (€8–12) + case
 - **Makefile targets:** `make docker-build` / `make ecr-push` / `make apprunner-deploy`
 
@@ -287,24 +293,27 @@ Bord Gáis has no incentive to tell you that Energia's night rate is better for 
 - Section 7: Responsible AI, Ethics, and Deployment Governance (added Session 32)
 - Status: Draft complete in `docs/JOURNAL_PAPER_DRAFT.md`; submission pending final review
 
-### Potential Paper 3 — RENEW Collaboration
+### Potential Paper 3 — Irish Residential Validation
 
-Target output from a proposed research collaboration with Prof. Fabiano Pallonetto (IRESI / Maynooth University, RENEW project):
+Target output from a research collaboration with an Irish academic institution:
 *"AI-driven household load forecasting for demand flexibility under dynamic electricity pricing: an Irish residential validation"*
 
 - Validates residential generalisation (vs current commercial buildings dataset)
-- Real Irish household HDF data from RENEW pilot network
+- Real Irish household HDF data from a pilot network
 - Connects academic pipeline to live product deployment
-- Collaboration email ready to send: `docs/PALLONETTO_EMAIL.md`
 
 ### PhD Route
 
-Based in Maynooth, the strongest PhD pathway is:
-- **Primary supervisor:** Prof. Fabiano Pallonetto (IRESI, Maynooth / DCU)
+**Active application — Decarb-AI CDT (UCD-led, 7 Irish institutions):**
+- Round 2 panel interview: **1 May 2026** with Fiachra O'Loughlin (Programme Director) + second panellist
+- Track: AI-Optimised Energy Systems
+- 300+ original applicants; 2 spots remaining at R2 stage
+- Full prep brief: `Career/Applications/Pipeline/PhD - Decarb-AI Energy/prep_brief_R2_2026-05-01.md`
+
+**Parallel pathway — Irish university research collaboration:**
 - **Topic:** *"Consumer Flexibility Under Dynamic Electricity Pricing: Stochastic Modelling and Behavioural Response"*
-- **Funding route:** RENEW Phase 2 PhD capacity, NexSys SFI studentship, or GOIPG 2026
-- **Strategy:** Establish RENEW research collaboration first → PhD emerges naturally from collaboration
-- Full supervisor intelligence: `Personal Projects/Cognitive Focus/HAMILTON_INSTITUTE_RESEARCH.md`
+- **Strategy:** Establish Irish residential dataset collaboration → PhD emerges from joint paper
+- **Funding route:** NexSys SFI studentship or GOIPG 2026
 
 ---
 
@@ -323,9 +332,6 @@ EnergyOS is not a hardware company. myenergi makes the best solar diversion and 
 - myenergi hardware handles physical switching; EnergyOS handles the intelligence
 - This is faster to market than custom hardware
 
-### RENEW / IRESI (Maynooth)
-Proposed research collaboration with Prof. Pallonetto. RENEW is building an AI-enabled HEMS; we provide the forecasting module. They provide household pilot data. Joint journal paper output.
-
 ### SEAI (potential)
 SEAI's Heat Pump Support Scheme (HPSS) is the primary acquisition channel for the highest-value user segment. A device that optimises heat pump operating costs directly improves the economics of SEAI's flagship scheme. Potential for SEAI channel partnership or grant-in-aid.
 
@@ -338,7 +344,6 @@ SEAI's Heat Pump Support Scheme (HPSS) is the primary acquisition channel for th
 | Item | Priority | Status | Estimated effort |
 |------|----------|--------|-----------------|
 | Journal paper submission | Critical | Draft complete; final review needed | 1 session |
-| RENEW collaboration initiation | High | Email ready to send | Send today |
 | Primary consumer survey (willingness-to-pay) | High | Not started | 1 session to design + €200–400 to run |
 | CER Irish residential dataset validation | Medium | Access not confirmed | 3–4 sessions once confirmed |
 | BTM asset detection (Kazempour approach) | High | Not started | 3–4 sessions |
@@ -348,35 +353,39 @@ SEAI's Heat Pump Support Scheme (HPSS) is the primary acquisition channel for th
 
 | Item | Priority | Status | Estimated effort |
 |------|----------|--------|-----------------|
-| Phase 7 AWS deployment | High | Dockerfile + apprunner.yaml exist; ECR push pending | 1–2 sessions |
-| WhatsApp Business API push | High | Phase 6 content exists; delivery channel missing | 1 session |
+| GitHub Actions CI | ✅ Done | 4 checks live: lint, type check, tests (3.10+3.11), Docker smoke | — |
+| LLM advisory layer (DAN-118) | ✅ Done | Claude API integrated into `/control`; plain-English reasoning + audit log | — |
+| n8n automation workflows | ✅ Done | Morning Brief, Weekly Drift Check, Grafana alert relay → Pushover | — |
+| Phase 7 AWS deployment (DAN-49) | High | Dockerfile + apprunner.yaml complete; ECR push + App Runner setup pending | 1 session — due May 2026 |
+| GitHub Actions CD (DAN-123) | High | Sub-issue of DAN-49; OIDC + deploy.yml; blocked until DAN-49 done | 0.5 sessions |
+| POST /upload — ESB CSV ingest (DAN-96) | 🔴 Critical | Unblocks Grafana panels + alert rules | 1–2 sessions |
+| GET /forecast/{household_id} (DAN-97) | High | Serve stored predictions | 1 session |
+| Grafana alert rules (DAN-101) | High | Blocked by DAN-96 | 1 session |
 | DAM/SEMO price ingestion | High — blocked until June 2026 | SEMOConnector stub exists | 2 sessions |
 | Dynamic tariff optimisation loop | Critical — June 2026 | Architecture designed; implementation pending | 3–4 sessions |
 | BTM asset inference module | High | Design phase | 3–4 sessions |
-| Heat pump BTM detection | High | Dependent on BTM module | 1–2 sessions |
-| Consumer survey + in-app onboarding | Medium | Not started | 2 sessions |
-| Social comparison features | Medium | Blocked until multi-household data | Post-RENEW |
-| P1 hardware MVP (Pi Zero 2W + adapter) | Medium | BOM identified; assembly manual | 1 session setup |
+| WhatsApp Business API push | Medium | Pushover live as primary; WhatsApp as backup channel | 1 session |
+| P1 hardware MVP (Pi Zero 2W + adapter) | Medium | BOM identified | 1 session setup |
 | Battery storage scheduling | Medium | Forecast exists; control logic needed | 2–3 sessions |
 
 ### Commercial / Regulatory
 
 | Item | Priority | Status |
 |------|----------|--------|
-| AWS Activate application | Critical | Apply immediately — no company required |
+| AWS Activate application (DAN-69) | Critical | Submitted April 2026 (deadline Apr 25) — awaiting response |
 | ESCO Appendix A draft | High | Template exists in `docs/regulatory/`; file when SMDS opens |
 | saveon.ie referral agreement | High | Agreed in principle; formalise in writing |
 | SEAI RD&D application (May–July 2026) | High | Needs NCI or Maynooth academic partner confirmed first |
 | EI HPSU Feasibility Grant | Medium | Q3 2026 — needs 6 weeks of product demo evidence |
 | New Frontiers application | Medium | Q4 2026 — requires 1-page business concept |
 
-### Immediate Next Actions (in order)
+### Immediate Next Actions (as of April 2026)
 
-1. **Send journal paper** — final check + submit to Applied Energy
-2. **Send Pallonetto email** — `docs/PALLONETTO_EMAIL.md` is ready
-3. **Apply for AWS Activate** — takes 20 minutes; no company required
-4. **Push Phase 7 Docker container to ECR** — the deployment exists; needs ECR push + apprunner config
-5. **Design BTM inference module** — highest-leverage engineering task for product
+1. **Decarb-AI PhD R2 interview** — 1 May 2026, panel interview, UCD. Prep brief: `Career/Applications/Pipeline/PhD - Decarb-AI Energy/prep_brief_R2_2026-05-01.md`
+2. **Submit journal paper** — DAN-5, target Applied Energy / Energy and Buildings, due May 31
+3. **DAN-49: ECR push + App Runner deploy** — due May 2026; unblocks CD pipeline and first public URL
+4. **DAN-96: POST /upload ESB CSV endpoint** — highest-leverage engineering task; unblocks Grafana + alert rules
+5. **Irish residential dataset collaboration** — initiate contact with Irish academic institution for paper 3
 
 ---
 
@@ -387,14 +396,17 @@ RESEARCH TRACK                         COMMERCIAL TRACK
 ──────────────                         ────────────────
 AICS 2025 (published)          →       Technical credibility established
 Journal paper (in prep)        →       Peer-reviewed validation for SFI/EI
-RENEW collaboration            →       Real household data + journal paper 3
-PhD (Pallonetto, 2026–)        →       Structured research programme
+Irish residential collaboration →       Real household data + journal paper 3
+PhD (Decarb-AI, 2026–)         →       Structured research programme
 
 PIPELINE (built)               →       Production-ready backend
 Phase 6 control layer (built)  →       Eddi/EV scheduling works today
-Phase 7 deployment (WIP)       →       Live service endpoint
+LLM advisory layer (built)     →       Plain-English reasoning per decision
+n8n automation (live)          →       Daily briefings + alert relay
+Phase 7 deployment (WIP)       →       Public URL — DAN-49 due May 2026
+GitHub Actions CI (live)       →       4 checks green on every PR
 BTM inference (roadmap)        →       Frictionless onboarding
-WhatsApp push (roadmap)        →       Cost-Driven segment served
+Pushover push (live)           →       Cost-Driven segment notified
 
 JUNE 2026: CRU dynamic pricing mandate
   └── 5 obligated suppliers
