@@ -23,9 +23,12 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from energy_forecast.api import schemas as _feature_schemas
 from energy_forecast.api.esb_parser import ESBParseError, parse_esb_csv
+from deployment.morning_advisory import SolarAdvisory, build_advisory, send_pushover
 from energy_forecast.api.meter_store import (
     fetch_forecasts,
+    fetch_recent_advisories,
     household_exists,
+    log_advisory,
     resolve_or_create_household,
     upsert_meter_readings,
 )
@@ -172,6 +175,22 @@ async def _run_scheduled_inference() -> None:
         logger.error("[scheduler] Scheduled inference run failed: %s", exc)
 
 
+async def _run_morning_advisory() -> None:
+    """06:30 job — fetch tomorrow's solar forecast, log to DB, push to Pushover."""
+    import asyncio
+    pool = getattr(app.state, "db_pool", None)
+    try:
+        advisory: SolarAdvisory = await asyncio.to_thread(build_advisory)
+        if pool is not None:
+            async with pool.acquire() as conn:
+                households = await conn.fetch("SELECT id FROM households")
+            for row in households:
+                await log_advisory(pool, str(row["id"]), advisory)
+        await asyncio.to_thread(send_pushover, advisory)
+    except Exception as exc:
+        logger.error("[advisory] Morning advisory failed: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ── 1. Load ML models ────────────────────────────────────────────────────
@@ -225,8 +244,14 @@ async def lifespan(app: FastAPI):
         id="daily_inference",
         replace_existing=True,
     )
+    scheduler.add_job(
+        _run_morning_advisory,
+        CronTrigger(hour=6, minute=30),
+        id="morning_advisory",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("APScheduler started — daily inference at 16:00 Europe/Dublin.")
+    logger.info("APScheduler started — inference 16:00, advisory 06:30 Europe/Dublin.")
 
     yield
 

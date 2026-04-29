@@ -416,31 +416,27 @@
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  LPAD(EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')::TEXT, 2, '0') || ':00' AS hour_label,\n  COUNT(*) AS \"High-Power Events (>0.3 kWh/30min)\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND import_kwh > 0.3\n  AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
+          "rawSql": "SELECT\n  LPAD(EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')::TEXT, 2, '0') || ':00' AS hour_label,\n  COUNT(*)::INTEGER AS events,\n  CASE\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 7  THEN 'Eddi morning boost'\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 19 THEN 'Eddi evening boost'\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 10 AND 16 THEN 'Daytime load'\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 19 THEN 'Evening peak'\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 6  THEN 'Night baseload'\n    ELSE 'Other'\n  END AS load_group\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND import_kwh > 0.3\n  AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "High-Power Events by Hour (import > 0.3 kWh per 30 min)",
+      "title": "High-Power Events by Hour (import > 0.3 kWh per 30 min) — labelled by inferred load group",
       "type": "barchart"
     },
 
     {
       "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Weekday vs weekend average load profile. Weekday peaks reveal commute/work patterns. Weekend lower peak = Saturday Free window being used by Eddi.",
+      "description": "Weekday vs weekend average 30-min consumption by hour of day. Saturday Free window (09-17) suppresses weekend peak. Eddi evening boost shows Mon-Fri 19:00-20:00.",
       "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "lineWidth": 2, "fillOpacity": 15, "spanNulls": false },
-          "unit": "kwatth"
-        },
+        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Weekday Avg" },
+            "matcher": { "id": "byName", "options": "Weekday (Mon-Fri)" },
             "properties": [{ "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }]
           },
           {
-            "matcher": { "id": "byName", "options": "Weekend Avg" },
+            "matcher": { "id": "byName", "options": "Weekend (Sat-Sun)" },
             "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
           }
         ]
@@ -448,19 +444,22 @@
       "gridPos": { "h": 9, "w": 12, "x": 12, "y": 42 },
       "id": 14,
       "options": {
+        "xField": "hour_label",
+        "barWidth": 0.6,
+        "groupWidth": 0.7,
         "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
         "tooltip": { "mode": "multi" }
       },
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  '2000-01-01T' || LPAD(EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')::TEXT, 2, '0') || ':00:00Z' AS time,\n  ROUND(AVG(CASE WHEN EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n                 THEN import_kwh END)::NUMERIC, 4) AS \"Weekday Avg\",\n  ROUND(AVG(CASE WHEN EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') IN (0, 6)\n                 THEN import_kwh END)::NUMERIC, 4) AS \"Weekend Avg\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
-          "format": "time_series",
+          "rawSql": "SELECT\n  LPAD(EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')::TEXT, 2, '0') || ':00' AS hour_label,\n  ROUND(AVG(CASE WHEN EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n                 THEN import_kwh END)::NUMERIC, 4) AS \"Weekday (Mon-Fri)\",\n  ROUND(AVG(CASE WHEN EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') IN (0, 6)\n                 THEN import_kwh END)::NUMERIC, 4) AS \"Weekend (Sat-Sun)\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
+          "format": "table",
           "refId": "A"
         }
       ],
-      "title": "Weekday vs Weekend Load Profile",
-      "type": "timeseries"
+      "title": "Weekday vs Weekend Load Profile (avg kWh per 30 min)",
+      "type": "barchart"
     },
 
     {
@@ -525,23 +524,35 @@
 
     {
       "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Daily solar advisory log. SKIP_BOOST = solar forecast strong enough to defer 07:00 Eddi boost. Sent to Pushover at 06:30. Compare recommendation vs actual next-day export to validate calibration.",
       "fieldConfig": {
-        "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "text" } },
-        "overrides": []
+        "defaults": { "custom": { "displayMode": "color-background" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "recommendation" },
+            "properties": [
+              { "id": "mappings", "value": [
+                { "type": "value", "options": { "SKIP_BOOST":  { "color": "green",  "index": 0 } } },
+                { "type": "value", "options": { "PARTIAL":     { "color": "yellow", "index": 1 } } },
+                { "type": "value", "options": { "KEEP_BOOST":  { "color": "blue",   "index": 2 } } }
+              ]}
+            ]
+          }
+        ]
       },
       "gridPos": { "h": 5, "w": 8, "x": 16, "y": 52 },
       "id": 17,
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "none", "graphMode": "none", "textMode": "name", "justifyMode": "center" },
+      "options": { "sortBy": [{ "desc": true, "displayName": "advisory_date" }], "footer": { "show": false } },
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT 1 AS \"Next: Wire Open Meteo sunny-day forecast → suppress 07:00 grid boost notification (DAN-107)\"",
+          "rawSql": "SELECT\n  advisory_date::TEXT AS advisory_date,\n  recommendation,\n  ghi_forecast AS \"GHI kWh/m²\",\n  peak_sun_hours AS \"Peak h\",\n  estimated_solar_kwh AS \"Est kWh\"\nFROM advisory_log\nWHERE household_id = '$household_id'::uuid\nORDER BY advisory_date DESC\nLIMIT 14",
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "Open Meteo Integration — Next Step",
-      "type": "stat"
+      "title": "Solar Advisory Log (last 14 days) — 06:30 Pushover",
+      "type": "table"
     },
 
     {
@@ -621,5 +632,5 @@
   "timezone": "Europe/Dublin",
   "title": "Household Intelligence",
   "uid": "sparc-household-intelligence",
-  "version": 2
+  "version": 3
 }
