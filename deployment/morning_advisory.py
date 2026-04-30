@@ -37,6 +37,10 @@ PANEL_FACTOR = 1.6  # kWh solar per kWh/m² GHI (live-calibrated 2026-04-29: low
 SKIP_BOOST_THRESHOLD  = 5  # peak sun hours (GHI > 200 W/m²) → solar fills tank
 KEEP_BOOST_THRESHOLD  = 2  # below this → insufficient solar
 
+# DAN-141: Hot water tank sizing (2-person household, 150L cylinder)
+TANK_DAILY_KWH = 3.5   # kWh needed to heat tank from cold to 60°C
+BOOST_KWH      = 0.55  # kWh consumed by Eddi 07:00 + 30-min grid boost
+
 
 @dataclass
 class SolarAdvisory:
@@ -44,10 +48,12 @@ class SolarAdvisory:
     ghi_forecast_kwh_m2: float
     peak_sun_hours: int
     estimated_solar_kwh: float
-    recommendation: str          # "SKIP_BOOST" | "PARTIAL" | "KEEP_BOOST"
+    expected_diversion_kwh: float  # DAN-141: min(estimated_solar, TANK_DAILY_KWH)
+    recommendation: str            # "SKIP_BOOST" | "PARTIAL" | "KEEP_BOOST"
     pushover_title: str
     pushover_message: str
     issued_at: datetime
+    daily_cost_eur: float | None = None  # DAN-143: tomorrow's predicted cost in €
 
 
 def _fetch_ghi(target_date: date) -> tuple[float, int]:
@@ -74,8 +80,18 @@ def _fetch_ghi(target_date: date) -> tuple[float, int]:
     return round(total_kwh_m2, 3), peak_hours
 
 
-def build_advisory(target_date: date | None = None) -> SolarAdvisory:
-    """Fetch forecast and build advisory. Synchronous — wrap in asyncio.to_thread()."""
+def build_advisory(
+    target_date: date | None = None,
+    daily_cost_eur: float | None = None,
+) -> SolarAdvisory:
+    """Fetch GHI forecast and build advisory.  Synchronous — wrap in asyncio.to_thread().
+
+    Args:
+        target_date:    Date to advise for (defaults to tomorrow Dublin time).
+        daily_cost_eur: Optional predicted cost for target_date in €. When provided,
+                        appended to the Pushover message. Computed by caller from the
+                        16:00 LightGBM forecast × tariff slot rates (DAN-143).
+    """
     import pytz
     dublin = pytz.timezone("Europe/Dublin")
     if target_date is None:
@@ -84,51 +100,69 @@ def build_advisory(target_date: date | None = None) -> SolarAdvisory:
     ghi, peak_hours = _fetch_ghi(target_date)
     est_solar = round(ghi * PANEL_FACTOR, 1)
 
+    # DAN-141: explicit diversion estimate — capped at tank daily need
+    expected_diversion = round(min(est_solar, TANK_DAILY_KWH), 1)
+    tank_met = expected_diversion >= TANK_DAILY_KWH * 0.9  # within 10% = "met"
+    diversion_line = (
+        f"Expected solar diversion: ~{expected_diversion:.1f} kWh "
+        f"({'tank fully met ✅' if tank_met else f'of {TANK_DAILY_KWH:.1f} kWh needed'})."
+    )
+
+    # DAN-143: optional cost forecast line
+    cost_line = ""
+    if daily_cost_eur is not None:
+        cost_line = f"\nForecast cost tomorrow: ~€{daily_cost_eur:.2f} (incl. standing charge)."
+
     if peak_hours >= SKIP_BOOST_THRESHOLD:
         rec = "SKIP_BOOST"
-        title = f"☀️ Skip 07:00 Eddi boost tomorrow ({target_date})"
+        title = f"☀️ Skip 07:00 Eddi boost — {target_date}"
         msg = (
-            f"{peak_hours}h of productive sun forecast "
-            f"(GHI {ghi:.1f} kWh/m², est. ~{est_solar:.0f} kWh panel output).\n"
-            f"Solar diversion should fill the tank by midday.\n"
-            f"Consider skipping 07:00 grid boost → save ~13c "
-            f"(0.55 kWh × 23.72c night rate).\n"
+            f"{peak_hours}h productive sun (GHI {ghi:.1f} kWh/m², ~{est_solar:.0f} kWh panel output).\n"
+            f"{diversion_line}\n"
+            f"Solar will fill the tank by midday — 07:00 grid boost not needed.\n"
+            f"Consider skipping → save ~{BOOST_KWH * 23.72:.0f}c "
+            f"({BOOST_KWH} kWh × 23.72c night rate)."
+            f"{cost_line}\n"
             f"✅ Advisory only — Eddi schedule unchanged."
         )
     elif peak_hours >= KEEP_BOOST_THRESHOLD:
         rec = "PARTIAL"
-        title = f"⛅ Partial sun tomorrow — keep 07:00 boost ({target_date})"
+        title = f"⛅ Partial sun — keep 07:00 boost ({target_date})"
         msg = (
-            f"{peak_hours}h of sun forecast "
-            f"(GHI {ghi:.1f} kWh/m², est. ~{est_solar:.0f} kWh panel output).\n"
-            f"Solar will warm but may not fully fill tank — 07:00 boost is the safe call.\n"
-            f"Solar diversion will top up during the day regardless.\n"
+            f"{peak_hours}h sun forecast (GHI {ghi:.1f} kWh/m², ~{est_solar:.0f} kWh panel output).\n"
+            f"{diversion_line}\n"
+            f"Solar will warm but may not fully heat tank — 07:00 boost is the safe call.\n"
+            f"Solar diversion will top up during the day regardless."
+            f"{cost_line}\n"
             f"ℹ️ Advisory only — Eddi schedule unchanged."
         )
     else:
         rec = "KEEP_BOOST"
-        title = f"☁️ Keep 07:00 boost — low sun tomorrow ({target_date})"
+        title = f"☁️ Keep 07:00 boost — low sun ({target_date})"
         msg = (
-            f"Only {peak_hours}h of productive sun forecast "
-            f"(GHI {ghi:.1f} kWh/m², est. ~{est_solar:.0f} kWh panel output).\n"
-            f"Insufficient solar to heat tank — 07:00 boost needed.\n"
-            f"No action required.\n"
+            f"Only {peak_hours}h productive sun (GHI {ghi:.1f} kWh/m², ~{est_solar:.0f} kWh panel output).\n"
+            f"{diversion_line}\n"
+            f"Insufficient solar — 07:00 grid boost needed. No action required."
+            f"{cost_line}\n"
             f"ℹ️ Advisory only — Eddi schedule unchanged."
         )
 
     logger.info(
-        "Solar advisory for %s: %s (GHI=%.2f kWh/m², peak=%dh, est=%.1f kWh)",
-        target_date, rec, ghi, peak_hours, est_solar,
+        "Solar advisory for %s: %s (GHI=%.2f, peak=%dh, est=%.1f kWh, diversion=%.1f kWh%s)",
+        target_date, rec, ghi, peak_hours, est_solar, expected_diversion,
+        f", cost=€{daily_cost_eur:.2f}" if daily_cost_eur is not None else "",
     )
     return SolarAdvisory(
         target_date=target_date,
         ghi_forecast_kwh_m2=ghi,
         peak_sun_hours=peak_hours,
         estimated_solar_kwh=est_solar,
+        expected_diversion_kwh=expected_diversion,
         recommendation=rec,
         pushover_title=title,
         pushover_message=msg,
         issued_at=datetime.now(timezone.utc),
+        daily_cost_eur=daily_cost_eur,
     )
 
 

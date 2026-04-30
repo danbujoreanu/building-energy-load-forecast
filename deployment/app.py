@@ -4,9 +4,10 @@ import math
 import os
 import sys
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import asyncpg
 import joblib
@@ -38,6 +39,7 @@ from energy_forecast.control.actions import EnvironmentState, ForecastBundle
 from energy_forecast.control.controller import ControlEngine
 from deployment.connectors import MockDeviceConnector, MockPriceConnector
 from deployment.mock_data import MOCK_SOLAR_24H
+from energy_forecast.api.plan_comparison import PLANS, compare_plans
 
 logger = logging.getLogger(__name__)
 
@@ -77,11 +79,13 @@ class PredictionRequest(BaseModel):
 
 
 class PredictionResponse(BaseModel):
+    request_id: str
     building_id: str
     timestamp: str
     horizon: int
     predictions: list[float]
     inference_mode: str  # "real" or "mock"
+    warnings: list[str] = []  # DAN-116: prediction sanity warnings (empty = OK)
 
 
 _KNOWN_CITIES = {"drammen", "oslo", "dublin"}
@@ -114,6 +118,7 @@ class HourDecision(BaseModel):
 
 
 class ControlResponse(BaseModel):
+    request_id: str
     building_id: str
     city: str
     forecast_origin: str
@@ -140,6 +145,50 @@ class ForecastEntry(BaseModel):
 class ForecastResponse(BaseModel):
     household_id: str
     forecasts: list[ForecastEntry]
+
+
+class ComparePlansRequest(BaseModel):
+    household_id: str
+    date_from: str | None = None   # ISO date string, e.g. "2024-03-15"
+    date_to: str | None = None
+    plan_keys: list[str] | None = None  # defaults to all plans
+
+
+class SlotBreakdownResponse(BaseModel):
+    day_kwh: float
+    night_kwh: float
+    peak_kwh: float
+    free_kwh: float
+    free_cap_exceeded_kwh: float
+
+
+class PlanResultResponse(BaseModel):
+    plan_key: str
+    plan_name: str
+    supplier: str
+    notes: str
+    days_analysed: int
+    total_import_kwh: float
+    total_export_kwh: float
+    import_cost_eur: float
+    export_credit_eur: float
+    standing_charge_eur: float
+    net_cost_eur: float
+    annualised_cost_eur: float
+    slots: SlotBreakdownResponse
+
+
+class ComparePlansResponse(BaseModel):
+    household_id: str
+    date_from: str
+    date_to: str
+    days_analysed: int
+    total_import_kwh: float
+    total_export_kwh: float
+    results: list[PlanResultResponse]   # sorted cheapest first
+    cheapest_plan: str
+    current_plan: str = "BGE_FTS_AFFINITY"
+    savings_vs_current_eur: float       # annual savings if switching to cheapest
 
 
 # ---------------------------------------------------------------------------
@@ -189,14 +238,27 @@ async def _run_myenergi_poll() -> None:
 
 
 async def _run_morning_advisory() -> None:
-    """20:00 job — fetch next-day solar forecast, log to DB, push to Pushover."""
+    """20:00 job — fetch next-day solar forecast + predicted cost, log to DB, push to Pushover."""
     import asyncio
+    import pytz
+    dublin = pytz.timezone("Europe/Dublin")
     pool = getattr(app.state, "db_pool", None)
     try:
-        advisory: SolarAdvisory = await asyncio.to_thread(build_advisory)
+        tomorrow = (datetime.now(dublin) + __import__("datetime").timedelta(days=1)).date()
+
+        # DAN-143: attempt to compute tomorrow's predicted cost from the 16:00 LightGBM forecast
+        daily_cost = None
         if pool is not None:
             async with pool.acquire() as conn:
                 households = await conn.fetch("SELECT id FROM households")
+            for row in households:
+                daily_cost = await _compute_tomorrow_cost(pool, str(row["id"]), tomorrow)
+                break  # single-household MVP; extend when multi-household is needed
+
+        advisory: SolarAdvisory = await asyncio.to_thread(
+            build_advisory, tomorrow, daily_cost
+        )
+        if pool is not None:
             for row in households:
                 await log_advisory(pool, str(row["id"]), advisory)
         await asyncio.to_thread(send_pushover, advisory)
@@ -359,6 +421,70 @@ def _load_latest_drift_report(city: str) -> dict:
 # Endpoints
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# DAN-116: Prediction sanity checks
+# ---------------------------------------------------------------------------
+
+def _sanity_check_predictions(request_id: str, preds: list[float]) -> list[str]:
+    """Return list of warning strings. Empty list means predictions look sane."""
+    warnings: list[str] = []
+    if any(math.isnan(v) or math.isinf(v) for v in preds):
+        warnings.append("NaN or Inf values detected in predictions")
+    if any(v < 0 for v in preds):
+        warnings.append(f"Negative predictions detected: min={min(preds):.3f}")
+    if any(v > 500 for v in preds):
+        warnings.append(f"Implausibly large predictions: max={max(preds):.1f} kWh/h")
+    if len(preds) > 1 and len(set(round(v, 3) for v in preds)) == 1:
+        warnings.append(f"All predictions identical ({preds[0]:.3f}) — possible stuck model")
+    for w in warnings:
+        logger.warning("[sanity|%s] %s", request_id, w)
+    return warnings
+
+
+# ---------------------------------------------------------------------------
+# DAN-143: Compute tomorrow's predicted cost from stored forecast
+# ---------------------------------------------------------------------------
+
+async def _compute_tomorrow_cost(pool, household_id: str, target_date: date) -> float | None:
+    """Fetch the latest H+24 P50 forecast for target_date and apply BGE tariff rates."""
+    try:
+        from energy_forecast.tariff import rate_for_slot
+        import pytz
+        dublin = pytz.timezone("Europe/Dublin")
+
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT p50_kwh, issued_at FROM predictions
+                WHERE household_id = $1
+                  AND forecast_date = $2
+                ORDER BY issued_at DESC LIMIT 1
+                """,
+                household_id,
+                target_date,
+            )
+        if not row or not row["p50_kwh"]:
+            return None
+
+        p50: list[float] = list(row["p50_kwh"])
+        cost = 0.0
+        for hour_idx, kwh in enumerate(p50[:24]):
+            ts = pd.Timestamp(
+                dublin.localize(
+                    datetime(target_date.year, target_date.month, target_date.day, hour_idx)
+                )
+            )
+            _, rate = rate_for_slot(ts)
+            cost += kwh * rate
+
+        from energy_forecast.tariff import BGE
+        cost += BGE["standing_daily"]
+        return round(cost, 2)
+    except Exception as exc:
+        logger.debug("Could not compute tomorrow cost: %s", exc)
+        return None
+
+
 @app.get("/health")
 def health_check():
     """Liveness check — returns model status (real or mock) for each loaded model."""
@@ -374,6 +500,84 @@ def health_check():
         "inference_ready": any(v == "real" for v in model_status.values()),
         "drift": drift_status,
         "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.get("/metrics")
+async def get_metrics():
+    """DAN-115: Structured MLOps health KPIs — data freshness, model health, advisory delivery.
+
+    Returns 200 with partial data even if DB is unavailable (degrades gracefully).
+    """
+    pool = getattr(app.state, "db_pool", None)
+    model_status = {
+        name: ("mock" if isinstance(obj, str) and obj.startswith("MOCK") else "real")
+        for name, obj in models.items()
+    }
+    alerts: list[str] = []
+
+    data_metrics: dict = {"available": False}
+    if pool is not None:
+        try:
+            async with pool.acquire() as conn:
+                hh_row = await conn.fetchrow("SELECT COUNT(*) AS n FROM households")
+                mr_row = await conn.fetchrow("SELECT COUNT(*) AS n, MAX(recorded_at) AS last_ts FROM meter_readings")
+                me_row = await conn.fetchrow(
+                    """SELECT COUNT(DISTINCT DATE(interval_start AT TIME ZONE 'Europe/Dublin')) AS days
+                       FROM myenergi_readings
+                       WHERE interval_start >= NOW() - INTERVAL '30 days'"""
+                )
+                missing_days = 30 - int(me_row["days"] or 0)
+                pred_row = await conn.fetchrow(
+                    "SELECT COUNT(*) AS n, MAX(issued_at) AS last_ts FROM predictions "
+                    "WHERE issued_at >= NOW() - INTERVAL '7 days'"
+                )
+                adv_row = await conn.fetchrow(
+                    "SELECT COUNT(*) AS n, MAX(issued_at) AS last_ts FROM advisory_log "
+                    "WHERE issued_at >= NOW() - INTERVAL '7 days'"
+                )
+
+            last_upload = mr_row["last_ts"].isoformat() if mr_row["last_ts"] else None
+            stale_hours = None
+            if mr_row["last_ts"]:
+                stale_hours = round((datetime.now(timezone.utc) - mr_row["last_ts"].replace(tzinfo=timezone.utc)).total_seconds() / 3600, 1)
+
+            data_metrics = {
+                "available": True,
+                "active_households": int(hh_row["n"] or 0),
+                "meter_readings_total": int(mr_row["n"] or 0),
+                "last_upload_ts": last_upload,
+                "stale_upload_hours": stale_hours,
+                "myenergi_days_last_30d": int(me_row["days"] or 0),
+                "missing_myenergi_days_30d": missing_days,
+                "predictions_last_7d": int(pred_row["n"] or 0),
+                "last_inference_ts": pred_row["last_ts"].isoformat() if pred_row["last_ts"] else None,
+                "advisories_last_7d": int(adv_row["n"] or 0),
+                "last_advisory_ts": adv_row["last_ts"].isoformat() if adv_row["last_ts"] else None,
+            }
+
+            # Alert thresholds
+            if missing_days > 3:
+                alerts.append(f"WARN: {missing_days} missing myenergi days in last 30d")
+            if stale_hours is not None and stale_hours > 7 * 24:
+                alerts.append(f"WARN: No ESB upload in {stale_hours:.0f}h")
+            if int(pred_row["n"] or 0) == 0:
+                alerts.append("CRITICAL: No predictions generated in last 7 days")
+            if int(adv_row["n"] or 0) == 0:
+                alerts.append("WARN: No advisories sent in last 7 days")
+        except Exception as exc:
+            data_metrics = {"available": False, "error": str(exc)}
+            alerts.append(f"CRITICAL: DB metrics query failed: {exc}")
+
+    if not any(v == "real" for v in model_status.values()):
+        alerts.append("WARN: All models are mocked — running without real ML inference")
+
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "status": "degraded" if alerts else "healthy",
+        "models": model_status,
+        "data": data_metrics,
+        "alerts": alerts,
     }
 
 
@@ -395,17 +599,20 @@ def predict(request: PredictionRequest, model_name: str = "LightGBM"):
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Invalid feature format: {exc}")
 
+    request_id = str(uuid4())
+    logger.info("[predict|%s] building_id=%s model=%s", request_id, request.building_id, model_name)
+
     is_mock = isinstance(model, str) and model.startswith("MOCK")
     try:
         if is_mock:
-            logger.info("Using mocked inference for %s", model_name)
+            logger.info("[predict|%s] Using mocked inference", request_id)
             preds = [150.0 + i for i in range(24)]
         else:
             raw = model.predict(df_features)
             preds = raw[0].tolist() if hasattr(raw[0], "__len__") else [float(raw[0])] * 24
 
     except Exception as exc:
-        logger.error("Inference failed: %s", exc)
+        logger.error("[predict|%s] Inference failed: %s", request_id, exc)
         exc_str = str(exc)
         # Detect feature-count / feature-name mismatch — give a helpful 422 rather than 500
         if "number of features" in exc_str or "feature names" in exc_str.lower():
@@ -427,6 +634,9 @@ def predict(request: PredictionRequest, model_name: str = "LightGBM"):
             raise HTTPException(status_code=422, detail=detail)
         raise HTTPException(status_code=500, detail=f"Model inference failed: {exc_str}")
 
+    # DAN-116: sanity check before persisting
+    warnings = _sanity_check_predictions(request_id, preds)
+
     # E-27: persist prediction to history store (JSONL + optional PostgreSQL)
     store_prediction(
         building_id=request.building_id,
@@ -438,11 +648,13 @@ def predict(request: PredictionRequest, model_name: str = "LightGBM"):
     )
 
     return PredictionResponse(
+        request_id=request_id,
         building_id=request.building_id,
         timestamp=request.timestamp,
         horizon=len(preds),
         predictions=preds,
         inference_mode="mock" if is_mock else "real",
+        warnings=warnings,
     )
 
 
@@ -524,7 +736,11 @@ def control(request: ControlRequest):
         if a.action.value in {"DEFER_HEATING", "ALERT_HIGH_DEMAND"}:
             device.send_command(a.action.value, building_id=request.building_id)
 
+    ctrl_request_id = str(uuid4())
+    logger.info("[control|%s] building_id=%s city=%s", ctrl_request_id, request.building_id, request.city)
+
     return ControlResponse(
+        request_id=ctrl_request_id,
         building_id=request.building_id,
         city=request.city,
         forecast_origin=datetime.now(timezone.utc).isoformat(),
@@ -633,4 +849,93 @@ async def get_forecast(
     return ForecastResponse(
         household_id=household_id,
         forecasts=[ForecastEntry(**f) for f in forecasts],
+    )
+
+
+@app.post("/compare-plans", response_model=ComparePlansResponse)
+async def compare_tariff_plans(request: ComparePlansRequest):
+    """DAN-131: Replay meter_readings history against multiple tariff plans.
+
+    Answers: "Which plan would have been cheapest given my actual consumption?"
+    Results are sorted by annualised net cost (cheapest first).
+
+    Available plan keys:
+      BGE_FTS_AFFINITY    — current BGE Free Time Saturday with 20% Affinity discount
+      BGE_FTS_STANDARD    — BGE FTS without discount (post-June-15 scenario)
+      BGE_STANDARD_NOSAT  — BGE with discount but no free Saturday (shows Saturday value)
+      ENERGIA_NIGHT_BOOST — Energia Night Boost (approx Q1 2026 rates)
+      SSE_ONE_RATE        — SSE Airtricity flat single rate
+      ELECTRIC_IRELAND_SMART — Electric Ireland Smart TOU (approx)
+
+    Note: Non-BGE rates are approximate. Verify at supplier websites before contract decisions.
+    """
+    pool = getattr(app.state, "db_pool", None)
+    if pool is None:
+        raise HTTPException(status_code=503, detail="Database not available.")
+
+    date_from = None
+    date_to = None
+    try:
+        if request.date_from:
+            date_from = date.fromisoformat(request.date_from)
+        if request.date_to:
+            date_to = date.fromisoformat(request.date_to)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid date format: {exc}")
+
+    plan_keys = request.plan_keys or list(PLANS.keys())
+    unknown = [k for k in plan_keys if k not in PLANS]
+    if unknown:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown plan keys: {unknown}. Valid: {list(PLANS.keys())}",
+        )
+
+    try:
+        results, meta = await compare_plans(pool, request.household_id, date_from, date_to, plan_keys)
+    except Exception as exc:
+        logger.error("Plan comparison failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Comparison failed: {exc}")
+
+    if not results:
+        raise HTTPException(status_code=404, detail="No meter readings found for this household and date range.")
+
+    cheapest = results[0].plan_key
+    current_result = next((r for r in results if r.plan_key == "BGE_FTS_AFFINITY"), results[-1])
+    cheapest_result = results[0]
+    savings = round(current_result.annualised_cost_eur - cheapest_result.annualised_cost_eur, 2)
+
+    return ComparePlansResponse(
+        household_id=request.household_id,
+        date_from=meta.get("date_from", ""),
+        date_to=meta.get("date_to", ""),
+        days_analysed=meta.get("days_analysed", 0),
+        total_import_kwh=meta.get("total_import_kwh", 0.0),
+        total_export_kwh=meta.get("total_export_kwh", 0.0),
+        cheapest_plan=cheapest,
+        savings_vs_current_eur=savings,
+        results=[
+            PlanResultResponse(
+                plan_key=r.plan_key,
+                plan_name=r.plan_name,
+                supplier=r.supplier,
+                notes=r.notes,
+                days_analysed=r.days_analysed,
+                total_import_kwh=r.total_import_kwh,
+                total_export_kwh=r.total_export_kwh,
+                import_cost_eur=r.import_cost_eur,
+                export_credit_eur=r.export_credit_eur,
+                standing_charge_eur=r.standing_charge_eur,
+                net_cost_eur=r.net_cost_eur,
+                annualised_cost_eur=r.annualised_cost_eur,
+                slots=SlotBreakdownResponse(
+                    day_kwh=r.slots.day_kwh,
+                    night_kwh=r.slots.night_kwh,
+                    peak_kwh=r.slots.peak_kwh,
+                    free_kwh=r.slots.free_kwh,
+                    free_cap_exceeded_kwh=r.slots.free_cap_exceeded_kwh,
+                ),
+            )
+            for r in results
+        ],
     )
