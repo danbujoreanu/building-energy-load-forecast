@@ -201,19 +201,115 @@
       ],
       "title": "Solar Actuals — Last 30 Days",
       "type": "table"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 37 },
+      "id": 10,
+      "title": "Data Quality — ESB vs MyEnergi Import Reconciliation (DAN-147)",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Both ESB (meter_readings) and MyEnergi (myenergi_readings) independently measure grid import at 30-min resolution. Daily sums should be near-identical (±5%). Systematic divergence indicates a timezone mismatch or data quality issue. Difference = ESB minus MyEnergi.",
+      "fieldConfig": {
+        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "ESB Import (kWh)" }, "properties": [{ "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "MyEnergi Import (kWh)" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Difference (kWh)" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }, { "id": "custom.lineStyle", "value": { "dash": [6, 4], "fill": "dash" } }] }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 38 },
+      "id": 11,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  esb.day AS time,\n  esb.daily_import_kwh::FLOAT8 AS \"ESB Import (kWh)\",\n  COALESCE(me.daily_import_kwh, 0)::FLOAT8 AS \"MyEnergi Import (kWh)\",\n  ROUND((esb.daily_import_kwh - COALESCE(me.daily_import_kwh, 0))::NUMERIC, 3)::FLOAT8 AS \"Difference (kWh)\"\nFROM (\n  SELECT\n    DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS day,\n    ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM meter_readings\n  WHERE household_id = 'a998f9b7-f207-4131-bb4e-5137ebd7190c'\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n) esb\nLEFT JOIN (\n  SELECT\n    DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n    ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM myenergi_readings\n  WHERE hub_serial = '21509692'\n  GROUP BY 1\n) me ON me.day = esb.day\nORDER BY esb.day",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "title": "ESB vs MyEnergi Daily Import Reconciliation",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Percentage difference between ESB and MyEnergi daily import totals. Values near 0% = good agreement. Consistent positive % means ESB reads higher than MyEnergi (expected — ESB is the official meter, MyEnergi measures at the hub which may miss some circuits).",
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "color": { "mode": "palette-classic" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "orange", "value": 15 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 48 },
+      "id": 12,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  esb.day AS time,\n  CASE WHEN me.daily_import_kwh > 0\n    THEN ROUND(((esb.daily_import_kwh - me.daily_import_kwh) / me.daily_import_kwh * 100)::NUMERIC, 1)::FLOAT8\n    ELSE NULL\n  END AS \"Diff % (ESB vs MyEnergi)\"\nFROM (\n  SELECT DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM meter_readings\n  WHERE household_id = 'a998f9b7-f207-4131-bb4e-5137ebd7190c'\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n) esb\nJOIN (\n  SELECT DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM myenergi_readings\n  WHERE hub_serial = '21509692'\n  GROUP BY 1\n) me ON me.day = esb.day\nWHERE me.daily_import_kwh > 0.5\nORDER BY esb.day",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "title": "ESB vs MyEnergi Import % Difference (< 5% = good)",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Summary stats for reconciliation. Mean diff near 0 = good. Consistent positive bias = ESB reads more (normal — MyEnergi hub may only monitor certain circuits). Large outliers = investigate specific dates.",
+      "fieldConfig": {
+        "defaults": { "unit": "kwatth", "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 0.5 }, { "color": "red", "value": 2.0 }
+          ]}
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "mean_diff_kwh" }, "properties": [{ "id": "displayName", "value": "Mean daily diff (kWh)" }] },
+          { "matcher": { "id": "byName", "options": "max_diff_kwh" }, "properties": [{ "id": "displayName", "value": "Max daily diff (kWh)" }] },
+          { "matcher": { "id": "byName", "options": "days_compared" }, "properties": [{ "id": "displayName", "value": "Days compared" }, { "id": "unit", "value": "short" }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 48 },
+      "id": 13,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  ROUND(AVG(ABS(esb.daily_import_kwh - me.daily_import_kwh))::NUMERIC, 3)::FLOAT8 AS mean_diff_kwh,\n  ROUND(MAX(ABS(esb.daily_import_kwh - me.daily_import_kwh))::NUMERIC, 3)::FLOAT8 AS max_diff_kwh,\n  COUNT(*)::FLOAT8 AS days_compared\nFROM (\n  SELECT DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM meter_readings\n  WHERE household_id = 'a998f9b7-f207-4131-bb4e-5137ebd7190c'\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n) esb\nJOIN (\n  SELECT DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM myenergi_readings\n  WHERE hub_serial = '21509692'\n  GROUP BY 1\n) me ON me.day = esb.day\nWHERE me.daily_import_kwh > 0.5",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Reconciliation Summary Stats",
+      "type": "stat"
     }
 
   ],
   "refresh": "5m",
   "schemaVersion": 39,
-  "tags": ["sparc", "solar", "pipeline"],
+  "tags": ["sparc", "solar", "pipeline", "data-quality"],
   "templating": {
     "list": []
   },
-  "time": { "from": "now-7d", "to": "now" },
+  "time": { "from": "now-30d", "to": "now" },
   "timepicker": {},
   "timezone": "Europe/Dublin",
   "title": "Solar Data Pipeline",
   "uid": "sparc-solar-pipeline",
-  "version": 1
+  "version": 2
 }

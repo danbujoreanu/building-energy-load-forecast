@@ -650,6 +650,76 @@
       ],
       "title": "Monthly: Solar Days vs Morning Boost Overlap",
       "type": "barchart"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 65 },
+      "id": 100,
+      "title": "Tariff Cost Intelligence — DAN-129, DAN-132, DAN-133",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Monthly solar export revenue at 18.5c/kWh (ESB export rate). Based on ESB net export — does not include solar used by house or Eddi (those are free). Requires solar panels and export_kwh data in meter_readings.",
+      "fieldConfig": {
+        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "export_kwh" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }, { "id": "displayName", "value": "Export (kWh)" }] },
+          { "matcher": { "id": "byName", "options": "export_revenue_eur" }, "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }, { "id": "unit", "value": "currencyEUR" }, { "id": "displayName", "value": "Revenue (€)" }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 66 },
+      "id": 21,
+      "options": {
+        "xField": "month",
+        "barWidth": 0.6,
+        "groupWidth": 0.7,
+        "legend": { "calcs": ["sum", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  TO_CHAR(DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin'), 'Mon YY') AS month,\n  ROUND(SUM(export_kwh)::NUMERIC, 2)::FLOAT8 AS export_kwh,\n  ROUND(SUM(export_kwh)::NUMERIC * 0.185, 2)::FLOAT8 AS export_revenue_eur\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND $__timeFilter(recorded_at)\n  AND export_kwh > 0\nGROUP BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Monthly Solar Export Revenue (18.5c/kWh) — DAN-133",
+      "type": "barchart"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Monthly Free Saturday utilisation. BGE Free Time Saturday = 09:00-17:00 (slots at 09:00 to 16:30), up to 100 kWh/month at €0. Unused = lost saving vs day rate (32.27c/kWh with 20% Affinity discount). Bar shows how much of the 100 kWh cap was consumed.",
+      "fieldConfig": {
+        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "free_sat_kwh" }, "properties": [{ "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }, { "id": "displayName", "value": "Free Sat Used (kWh)" }] },
+          { "matcher": { "id": "byName", "options": "cap_100kwh" }, "properties": [{ "id": "color", "value": { "fixedColor": "dark-grey", "mode": "fixed" } }, { "id": "displayName", "value": "Monthly Cap (100 kWh)" }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 66 },
+      "id": 22,
+      "options": {
+        "xField": "month",
+        "barWidth": 0.6,
+        "groupWidth": 0.7,
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  TO_CHAR(DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin'), 'Mon YY') AS month,\n  ROUND(SUM(import_kwh) FILTER (\n    WHERE EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6\n      AND EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16\n  )::NUMERIC, 2)::FLOAT8 AS free_sat_kwh,\n  100.0::FLOAT8 AS cap_100kwh\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND $__timeFilter(recorded_at)\nGROUP BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Free Saturday Utilisation vs 100 kWh Monthly Cap — DAN-132",
+      "type": "barchart"
     }
 
   ],
@@ -693,5 +763,5 @@
   "timezone": "Europe/Dublin",
   "title": "Household Intelligence",
   "uid": "sparc-household-intelligence",
-  "version": 10
+  "version": 11
 }
