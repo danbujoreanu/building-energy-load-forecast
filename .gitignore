@@ -184,3 +184,6 @@ HDF_kW*.csv
 # ChromaDB vector store (large binaries, machine-specific)
 data/chromadb/
 !outputs/models/.gitkeep
+
+# High Signal Conversations — transcripts, gitignored already but explicit entry
+Claude High Signal Conversations/

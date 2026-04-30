@@ -319,11 +319,11 @@ Target output from a research collaboration with an Irish academic institution:
 
 ## Key Partnerships
 
-### saveon.ie
-Dan's friend has built a polished Irish PCW with HDF upload and tariff comparison. Collaboration agreed in principle:
-- saveon.ie = Step 1: "Which tariff should I be on?"
+### Irish PCW Partnership
+Collaboration agreed in principle with an Irish price comparison website (PCW) with HDF upload and tariff comparison:
+- PCW = Step 1: "Which tariff should I be on?"
 - EnergyOS = Step 2: "Now optimise within it"
-- Proposed: referral CTA from saveon.ie results page → EnergyOS onboarding
+- Proposed: referral CTA from PCW results page → EnergyOS onboarding
 - Formalise with a written agreement; confirm no forecasting/control plans on their side
 
 ### myenergi (Eddi / Zappi)
@@ -374,7 +374,7 @@ SEAI's Heat Pump Support Scheme (HPSS) is the primary acquisition channel for th
 |------|----------|--------|
 | AWS Activate application (DAN-69) | Critical | Submitted April 2026 (deadline Apr 25) — awaiting response |
 | ESCO Appendix A draft | High | Template exists in `docs/regulatory/`; file when SMDS opens |
-| saveon.ie referral agreement | High | Agreed in principle; formalise in writing |
+| PCW referral agreement | High | Agreed in principle; formalise in writing |
 | SEAI RD&D application (May–July 2026) | High | Needs NCI or Maynooth academic partner confirmed first |
 | EI HPSU Feasibility Grant | Medium | Q3 2026 — needs 6 weeks of product demo evidence |
 | New Frontiers application | Medium | Q4 2026 — requires 1-page business concept |

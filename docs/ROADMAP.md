@@ -55,7 +55,7 @@
 | Issue | Feature | Size |
 |-------|---------|------|
 | — | CRU ESCO registration research + timeline | M |
-| — | saveon.ie collaboration agreement | S |
+| — | PCW partnership collaboration agreement | S |
 | — | New Frontiers / SEAI RD&D application | L |
 
 ### Research / Intel
@@ -110,7 +110,7 @@
 | P1 port, SMDS, CSV onboarding | Channels (data access path) |
 | Consumer app, website | Channels (customer acquisition) |
 | Eddi, dynamic pricing, Homey | Key Activities (device control) |
-| saveon.ie, SEAI, ESB Networks | Key Partnerships |
+| PCW partner, SEAI, ESB Networks | Key Partnerships |
 | AWS Activate, SEAI RD&D | Cost Structure / Funding |
 
 *Full BMC: `docs/STRATEGY.md`*

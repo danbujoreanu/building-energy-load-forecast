@@ -466,34 +466,69 @@
 
     {
       "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Rule-based BTM asset inference at 30-min resolution. Eddi signatures are high-confidence (known schedule). 'High Power' events (>0.6 kWh/slot) suggest washing machine, dishwasher, oven, or immersion. Works best with time range set to 7–30 days.",
+      "description": "Daily energy decomposition via JOIN of ESB meter_readings × MyEnergi myenergi_readings. Eddi = exact measurement from MyEnergi API. House Load = ESB import minus Eddi (residual household consumption). Solar Export = net export to grid. Requires backfill data in myenergi_readings.",
       "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false }, "lineWidth": 0, "fillOpacity": 70 }
-        },
-        "overrides": []
+        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Eddi (kWh)" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }, { "id": "displayName", "value": "Eddi Hot Water (kWh)" }] },
+          { "matcher": { "id": "byName", "options": "House Load (kWh)" }, "properties": [{ "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }, { "id": "displayName", "value": "House Residual Load (kWh)" }] },
+          { "matcher": { "id": "byName", "options": "Solar Export (kWh)" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }, { "id": "displayName", "value": "Solar Export to Grid (kWh)" }] }
+        ]
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 51 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 52 },
       "id": 19,
       "options": {
-        "fillOpacity": 70,
-        "rowHeight": 0.9,
-        "showValue": "auto",
-        "mergeValues": true,
-        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "xField": "day",
+        "barWidth": 0.7,
+        "groupWidth": 0.8,
+        "stacking": { "mode": "normal", "group": "A" },
+        "legend": { "calcs": ["mean", "max", "sum"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
       },
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  recorded_at AS time,\n  CASE\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 7\n         AND import_kwh > 0.25 THEN 'Eddi Morning (07:00)'\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') IN (19,20)\n         AND import_kwh > 0.25\n         AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5 THEN 'Eddi Evening (19:45)'\n    WHEN EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6\n         AND EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 17\n         AND import_kwh > 0.15 THEN 'Eddi Saturday (Free)'\n    WHEN import_kwh > 0.6 THEN 'High Power — Appliance?'\n    WHEN import_kwh > 0.15 THEN 'Moderate Load'\n    ELSE 'Baseload'\n  END AS \"Inferred Load\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND $__timeFilter(recorded_at)\nORDER BY recorded_at",
+          "rawSql": "SELECT\n  TO_CHAR(esb.day, 'DD Mon YY') AS day,\n  COALESCE(me.daily_eddi_kwh, 0)::FLOAT8 AS \"Eddi (kWh)\",\n  GREATEST(0, esb.daily_import_kwh - COALESCE(me.daily_eddi_kwh, 0))::FLOAT8 AS \"House Load (kWh)\",\n  esb.daily_export_kwh::FLOAT8 AS \"Solar Export (kWh)\"\nFROM (\n  SELECT\n    DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS day,\n    ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh,\n    ROUND(SUM(export_kwh)::NUMERIC, 3) AS daily_export_kwh\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n) esb\nLEFT JOIN (\n  SELECT\n    DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n    ROUND(SUM(eddi_kwh)::NUMERIC, 3) AS daily_eddi_kwh\n  FROM myenergi_readings\n  WHERE hub_serial = '21509692'\n  GROUP BY 1\n) me ON me.day = esb.day\nORDER BY esb.day",
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "BTM Asset Activity — Inferred Load (Eddi, High-Power Events)",
-      "type": "state-timeline"
+      "title": "Daily Load Decomposition: Eddi + House Load + Solar Export (ESB × MyEnergi)",
+      "type": "barchart"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Daily energy cost breakdown by BGE tariff window (20% Affinity discount applied). Night 23:00-08:00 = 23.72c/kWh. Peak Mon-Fri 17:00-19:00 = 39.42c/kWh. Free Saturday 09:00-17:00 = 0c. Day (all other) = 32.27c/kWh. Export credit = 18.5c/kWh earned. Standing charge (61.52c/day) excluded — applies equally every day.",
+      "fieldConfig": {
+        "defaults": { "unit": "currencyEUR", "color": { "mode": "palette-classic" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Night (€)" }, "properties": [{ "id": "color", "value": { "fixedColor": "dark-blue", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Peak (€)" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Day (€)" }, "properties": [{ "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Export credit (€)" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 62 },
+      "id": 20,
+      "options": {
+        "xField": "day",
+        "barWidth": 0.7,
+        "groupWidth": 0.8,
+        "stacking": { "mode": "normal", "group": "A" },
+        "legend": { "calcs": ["mean", "max", "sum"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  TO_CHAR(DATE(recorded_at AT TIME ZONE 'Europe/Dublin'), 'DD Mon YY') AS day,\n  ROUND(SUM(import_kwh) FILTER (\n    WHERE EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23\n       OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8\n  )::NUMERIC * 0.2372, 3)::FLOAT8 AS \"Night (€)\",\n  ROUND(SUM(import_kwh) FILTER (\n    WHERE EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n      AND EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') IN (17, 18)\n  )::NUMERIC * 0.3942, 3)::FLOAT8 AS \"Peak (€)\",\n  ROUND(SUM(import_kwh) FILTER (\n    WHERE NOT (EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23\n           OR  EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8)\n      AND NOT (EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n           AND EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') IN (17, 18))\n      AND NOT (EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6\n           AND EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16)\n  )::NUMERIC * 0.3227, 3)::FLOAT8 AS \"Day (€)\",\n  ROUND(SUM(export_kwh)::NUMERIC * 0.185, 3)::FLOAT8 AS \"Export credit (€)\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND $__timeFilter(recorded_at)\nGROUP BY DATE(recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY DATE(recorded_at AT TIME ZONE 'Europe/Dublin')",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Daily Tariff Cost Breakdown — Night / Peak / Day / Export Credit (BGE + 20% Affinity)",
+      "type": "barchart"
     },
 
     {
@@ -658,5 +693,5 @@
   "timezone": "Europe/Dublin",
   "title": "Household Intelligence",
   "uid": "sparc-household-intelligence",
-  "version": 9
+  "version": 10
 }

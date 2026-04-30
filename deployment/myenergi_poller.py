@@ -53,12 +53,8 @@ def _fetch_day_minutes(target_date: date) -> list[dict]:
     resp = requests.get(url, auth=_auth(), timeout=20)
     resp.raise_for_status()
     data = resp.json()
-    # Response is a list; the first item with key matching "U{serial}" contains minute data
-    for item in data:
-        key = f"U{HUB_SERIAL}"
-        if key in item:
-            return item[key]
-    return []
+    # Response is a dict: {"U{serial}": [minute_entries...], ...}
+    return data.get(f"U{HUB_SERIAL}", [])
 
 
 def _aggregate_to_30min(
