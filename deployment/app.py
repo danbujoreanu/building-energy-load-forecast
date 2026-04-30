@@ -237,6 +237,48 @@ async def _run_myenergi_poll() -> None:
         logger.error("[myenergi_poller] Daily poll failed: %s", exc)
 
 
+async def _sync_solar_actuals() -> None:
+    """23:45 job — aggregate daily export_kwh from meter_readings into solar_actuals.
+
+    Runs after the 23:30 MyEnergi poll so eddi_kwh is fresh before
+    panel_factor_obs is recomputed by calibrate_panel_factor.py.
+    Updates the last 90 days to catch any late ESB CSV uploads.
+    """
+    pool = getattr(app.state, "db_pool", None)
+    if pool is None:
+        logger.warning("[solar_actuals_sync] DB pool not available — skipping.")
+        return
+    try:
+        async with pool.acquire() as conn:
+            households = await conn.fetch("SELECT id FROM households")
+        if not households:
+            logger.info("[solar_actuals_sync] No households registered — nothing to sync.")
+            return
+        for row in households:
+            household_id = str(row["id"])
+            async with pool.acquire() as conn:
+                status = await conn.execute(
+                    """
+                    INSERT INTO solar_actuals (solar_date, export_kwh)
+                    SELECT
+                      DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS solar_date,
+                      ROUND(SUM(export_kwh)::NUMERIC, 3)              AS export_kwh
+                    FROM meter_readings
+                    WHERE household_id = $1
+                      AND export_kwh IS NOT NULL
+                      AND DATE(recorded_at AT TIME ZONE 'Europe/Dublin')
+                          >= CURRENT_DATE - INTERVAL '90 days'
+                    GROUP BY 1
+                    ON CONFLICT (solar_date)
+                    DO UPDATE SET export_kwh = EXCLUDED.export_kwh
+                    """,
+                    household_id,
+                )
+            logger.info("[solar_actuals_sync] household=%s %s", household_id, status)
+    except Exception as exc:
+        logger.error("[solar_actuals_sync] Sync failed: %s", exc)
+
+
 async def _run_morning_advisory() -> None:
     """20:00 job — fetch next-day solar forecast + predicted cost, log to DB, push to Pushover."""
     import asyncio
@@ -331,8 +373,17 @@ async def lifespan(app: FastAPI):
         id="myenergi_poll",
         replace_existing=True,
     )
+    scheduler.add_job(
+        _sync_solar_actuals,
+        CronTrigger(hour=23, minute=45),
+        id="solar_actuals_sync",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("APScheduler started — inference 16:00, advisory 20:00, myenergi poll 23:30 Europe/Dublin.")
+    logger.info(
+        "APScheduler started — inference 16:00, advisory 20:00, "
+        "myenergi poll 23:30, solar_actuals sync 23:45 Europe/Dublin."
+    )
 
     yield
 

@@ -150,11 +150,14 @@
 
     {
       "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "panel_factor_obs = (export_kwh + eddi_kwh) / ghi_actual. This is a LOWER BOUND — excludes house self-consumption (requires Harvi CT clamp). Target: ~1.6. Once Harvi installed, becomes exact. Calibration: 2026-04-29 = 1.418.",
+      "description": "panel_factor_obs = (export_kwh + eddi_kwh) / ghi_actual. LOWER BOUND — excludes house self-consumption (Harvi CT not installed). Target: ~1.6. Green = 1.0–2.8 (normal). Yellow = 0.5–1.0 (below expected — check ESB data). Red = below 0.5 (data gap). NOTE: panel_factor_obs will remain blank until ESB export data is uploaded via /upload and the daily aggregation job has run.",
       "fieldConfig": {
         "defaults": { "unit": "none", "color": { "mode": "palette-classic" },
           "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null }, { "color": "yellow", "value": 1.3 }, { "color": "orange", "value": 2.0 }
+            { "color": "red",    "value": null },
+            { "color": "yellow", "value": 0.5  },
+            { "color": "green",  "value": 1.0  },
+            { "color": "yellow", "value": 2.8  }
           ]}
         },
         "overrides": []
@@ -168,7 +171,7 @@
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  solar_date AS time,\n  panel_factor_obs::FLOAT8 AS panel_factor_obs,\n  1.6::FLOAT8 AS current_model_factor\nFROM solar_actuals\nWHERE ghi_actual > 0.5\n  AND $__timeFilter(solar_date)\nORDER BY solar_date",
+          "rawSql": "SELECT\n  solar_date::TIMESTAMPTZ AS time,\n  panel_factor_obs::FLOAT8 AS panel_factor_obs,\n  1.6::FLOAT8 AS current_model_factor\nFROM solar_actuals\nWHERE ghi_actual > 0.5\n  AND solar_date BETWEEN ($__timeFrom())::date AND ($__timeTo())::date\nORDER BY solar_date",
           "format": "time_series",
           "refId": "A"
         }
@@ -179,7 +182,7 @@
 
     {
       "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Daily solar actuals. export_kwh from ESB CSV uploads; eddi_kwh from MyEnergi API; ghi_actual from Open-Meteo archive. panel_factor_obs = lower bound (excludes house SC).",
+      "description": "Daily solar actuals. export_kwh from ESB CSV uploads (populated by daily aggregation from meter_readings); eddi_kwh from MyEnergi API; ghi_actual from Open-Meteo archive. panel_factor_obs = lower bound (excludes house SC). '—' = not yet populated.",
       "fieldConfig": {
         "defaults": { "color": { "mode": "thresholds" } },
         "overrides": []
@@ -194,7 +197,7 @@
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  solar_date,\n  COALESCE(export_kwh::TEXT, '—') AS export_kwh,\n  COALESCE(eddi_kwh::TEXT, '—') AS eddi_kwh,\n  COALESCE(ghi_actual::TEXT, '—') AS ghi_actual,\n  COALESCE(ghi_forecast::TEXT, '—') AS ghi_forecast,\n  COALESCE(panel_factor_obs::TEXT, '—') AS panel_factor_obs\nFROM solar_actuals\nWHERE $__timeFilter(solar_date)\nORDER BY solar_date DESC\nLIMIT 30",
+          "rawSql": "SELECT\n  solar_date,\n  COALESCE(export_kwh::TEXT, '—') AS export_kwh,\n  COALESCE(eddi_kwh::TEXT, '—') AS eddi_kwh,\n  COALESCE(ghi_actual::TEXT, '—') AS ghi_actual,\n  COALESCE(ghi_forecast::TEXT, '—') AS ghi_forecast,\n  COALESCE(panel_factor_obs::TEXT, '—') AS panel_factor_obs\nFROM solar_actuals\nWHERE solar_date BETWEEN ($__timeFrom())::date AND ($__timeTo())::date\nORDER BY solar_date DESC\nLIMIT 30",
           "format": "table",
           "refId": "A"
         }
@@ -231,7 +234,7 @@
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  esb.day AS time,\n  esb.daily_import_kwh::FLOAT8 AS \"ESB Import (kWh)\",\n  COALESCE(me.daily_import_kwh, 0)::FLOAT8 AS \"MyEnergi Import (kWh)\",\n  ROUND((esb.daily_import_kwh - COALESCE(me.daily_import_kwh, 0))::NUMERIC, 3)::FLOAT8 AS \"Difference (kWh)\"\nFROM (\n  SELECT\n    DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS day,\n    ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM meter_readings\n  WHERE household_id = 'a998f9b7-f207-4131-bb4e-5137ebd7190c'\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n) esb\nLEFT JOIN (\n  SELECT\n    DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n    ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM myenergi_readings\n  WHERE hub_serial = '21509692'\n  GROUP BY 1\n) me ON me.day = esb.day\nORDER BY esb.day",
+          "rawSql": "SELECT\n  esb.day AS time,\n  esb.daily_import_kwh::FLOAT8 AS \"ESB Import (kWh)\",\n  COALESCE(me.daily_import_kwh, 0)::FLOAT8 AS \"MyEnergi Import (kWh)\",\n  ROUND((esb.daily_import_kwh - COALESCE(me.daily_import_kwh, 0))::NUMERIC, 3)::FLOAT8 AS \"Difference (kWh)\"\nFROM (\n  SELECT\n    DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS day,\n    ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n) esb\nLEFT JOIN (\n  SELECT\n    DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n    ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM myenergi_readings\n  WHERE hub_serial = '21509692'\n  GROUP BY 1\n) me ON me.day = esb.day\nORDER BY esb.day",
           "format": "time_series",
           "refId": "A"
         }
@@ -260,7 +263,7 @@
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  esb.day AS time,\n  CASE WHEN me.daily_import_kwh > 0\n    THEN ROUND(((esb.daily_import_kwh - me.daily_import_kwh) / me.daily_import_kwh * 100)::NUMERIC, 1)::FLOAT8\n    ELSE NULL\n  END AS \"Diff % (ESB vs MyEnergi)\"\nFROM (\n  SELECT DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM meter_readings\n  WHERE household_id = 'a998f9b7-f207-4131-bb4e-5137ebd7190c'\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n) esb\nJOIN (\n  SELECT DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM myenergi_readings\n  WHERE hub_serial = '21509692'\n  GROUP BY 1\n) me ON me.day = esb.day\nWHERE me.daily_import_kwh > 0.5\nORDER BY esb.day",
+          "rawSql": "SELECT\n  esb.day AS time,\n  CASE WHEN me.daily_import_kwh > 0\n    THEN ROUND(((esb.daily_import_kwh - me.daily_import_kwh) / me.daily_import_kwh * 100)::NUMERIC, 1)::FLOAT8\n    ELSE NULL\n  END AS \"Diff % (ESB vs MyEnergi)\"\nFROM (\n  SELECT DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n) esb\nJOIN (\n  SELECT DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM myenergi_readings\n  WHERE hub_serial = '21509692'\n  GROUP BY 1\n) me ON me.day = esb.day\nWHERE me.daily_import_kwh > 0.5\nORDER BY esb.day",
           "format": "time_series",
           "refId": "A"
         }
@@ -290,7 +293,7 @@
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  ROUND(AVG(ABS(esb.daily_import_kwh - me.daily_import_kwh))::NUMERIC, 3)::FLOAT8 AS mean_diff_kwh,\n  ROUND(MAX(ABS(esb.daily_import_kwh - me.daily_import_kwh))::NUMERIC, 3)::FLOAT8 AS max_diff_kwh,\n  COUNT(*)::FLOAT8 AS days_compared\nFROM (\n  SELECT DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM meter_readings\n  WHERE household_id = 'a998f9b7-f207-4131-bb4e-5137ebd7190c'\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n) esb\nJOIN (\n  SELECT DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM myenergi_readings\n  WHERE hub_serial = '21509692'\n  GROUP BY 1\n) me ON me.day = esb.day\nWHERE me.daily_import_kwh > 0.5",
+          "rawSql": "SELECT\n  ROUND(AVG(ABS(esb.daily_import_kwh - me.daily_import_kwh))::NUMERIC, 3)::FLOAT8 AS mean_diff_kwh,\n  ROUND(MAX(ABS(esb.daily_import_kwh - me.daily_import_kwh))::NUMERIC, 3)::FLOAT8 AS max_diff_kwh,\n  COUNT(*)::FLOAT8 AS days_compared\nFROM (\n  SELECT DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n) esb\nJOIN (\n  SELECT DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM myenergi_readings\n  WHERE hub_serial = '21509692'\n  GROUP BY 1\n) me ON me.day = esb.day\nWHERE me.daily_import_kwh > 0.5",
           "format": "table",
           "refId": "A"
         }
@@ -304,12 +307,28 @@
   "schemaVersion": 39,
   "tags": ["sparc", "solar", "pipeline", "data-quality"],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {},
+        "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+        "definition": "SELECT id FROM households ORDER BY created_at",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Household",
+        "multi": false,
+        "name": "household_id",
+        "options": [],
+        "query": "SELECT id FROM households ORDER BY created_at",
+        "refresh": 2,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
   },
   "time": { "from": "now-30d", "to": "now" },
   "timepicker": {},
   "timezone": "Europe/Dublin",
   "title": "Solar Data Pipeline",
   "uid": "sparc-solar-pipeline",
-  "version": 2
+  "version": 3
 }

@@ -79,7 +79,9 @@ def _aggregate_to_30min(
             continue
 
         avg_import_cw = sum(s.get("imp", 0) for s in slot_samples) / len(slot_samples)
-        avg_eddi_cw   = sum(s.get("hsk", 0) for s in slot_samples) / len(slot_samples)
+        # h1b = grid boost (centi-Watts), h1d = solar diversion (centi-Watts).
+        # hsk is a heat-sink status counter, NOT energy — do not use it here.
+        avg_eddi_cw   = sum(s.get("h1b", 0) + s.get("h1d", 0) for s in slot_samples) / len(slot_samples)
 
         # cW avg → kWh for 30-min slot: avg_cW * 0.5h / 100 / 1000
         import_kwh = round(avg_import_cw * 0.5 / 100 / 1000, 6)
