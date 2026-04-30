@@ -266,6 +266,104 @@ Workaround: Use `log_eddi.py --once` via nightly cron to bypass API and log dire
 
 ---
 
+## API Inconsistencies Observed
+
+This section documents discrepancies between official documentation, community sources, and live production data. Each was discovered during development of `myenergi_poller.py` and `scripts/backfill_myenergi_eddi.py`.
+
+---
+
+### I-1: "J × 15" Unit Label is Misleading (Critical)
+
+**Community docs state:** Fields `imp`, `exp`, `h1b`, `h1d`, `gen` are in "Joules × 15."  
+**Observed in production:** Values are **instantaneous centi-Watts**, not cumulative Joules.
+
+Evidence:
+- An Eddi boost at ~1,700 W shows `h1b ≈ 170,000` per minute snapshot — consistent with 1,700 × 100 (cW), not 1,700 J × 15 = 25,500
+- Aggregating across 1440 minutes using the "J × 15" formula produces physically impossible daily totals (>100 kWh on a low-use day)
+- Cross-validated: summing `h1b + h1d` converted as `avg_cW × 0.5 / 100 / 1000` (30-min kWh) matches `che` (daily kWh total) to within ~5%
+
+**Conclusion:** Treat all power fields in `cgi-jday` as **instantaneous centi-Watts**. The "J × 15" label in community docs is incorrect or refers to an older firmware encoding.
+
+---
+
+### I-2: `hsk` Labelled as Energy but is a Thermal Counter (Critical)
+
+**Community docs state:** `hsk` = "Heat Sink" — some sources imply it tracks heating energy alongside `h1d`.  
+**Observed in production:** `hsk` is a **cumulative thermal state counter** that rises monotonically throughout the day (~373–503 increments/day, context-dependent). It is NOT correlated with diversion energy.
+
+Evidence:
+- Days with no Eddi activity show `hsk` still rising steadily to ~400
+- Substituting `hsk` for `h1d + h1b` as energy yielded `panel_factor_obs = 0.37` vs the physically expected 1.6
+- After correcting to `h1b + h1d`, 846 days of history produced `mean panel_factor_obs = 1.62` — consistent with the physical constant
+
+**Conclusion:** Never use `hsk` as an energy metric. Its purpose appears to be internal thermal management, possibly linked to heatsink temperature monitoring for device shutdown protection.
+
+---
+
+### I-3: `cgi-jday` Response Wrapped in Hub Serial Key (Production Bug)
+
+**Community docs and twonk GitHub state:** Response is a JSON array of minute entries.  
+**Observed in production:** Response is `{"U{hub_serial}": [...]}` — the array is nested under a hub-keyed object.
+
+Evidence:
+- Bug in `_fetch_day_minutes()`: iterating over `data` (a dict) instead of `data.get(f"U{HUB_SERIAL}", [])` caused `"string indices must be integers"` error at runtime
+- Fix: `data.get(f"U21509692", [])` → returns the 1441-entry list correctly
+
+**Conclusion:** Always extract the array via `data.get(f"U{serial}", [])`. The top-level key format is `U` + hub serial number (NOT device serial).
+
+---
+
+### I-4: `bdd` Day Indexing Inconsistency
+
+**Community sources disagree** on the `bdd` field (boost day description) indexing:
+- Some sources: position 0 = Sunday, positions 1–6 = Mon–Sat
+- Other sources: position 0 = unused, positions 1–7 = Mon–Sun
+
+**Observed in production:** Cross-referencing the MyEnergi app UI schedule against the raw `bdd` string:
+- `bdd` = `"01111100"` → app shows Mon–Fri active (not including weekend)
+- Position 0 is **unused** (always `0`); positions 1–7 = Mon–Sun
+
+**Conclusion:** Use positions 1–7 for Mon–Sun. Position 0 has no meaning. This is consistent with the Sparc `get_schedule()` parser.
+
+---
+
+### I-5: `che` is a Daily Total, NOT a Per-Session Total
+
+**Field name:** "Charge Session Total" — implies it resets per boost session.  
+**Observed in production:** `che` resets at **00:00 local time**, not per boost session.
+
+Evidence:
+- Two boost sessions in a single day both contribute to `che` (it accumulates across sessions)
+- `che` seen at 3.2 kWh when both a 07:00 boost and a solar diversion occurred the same day
+- After midnight `che` = 0.0 regardless of previous session state
+
+**Conclusion:** `che` is the best field for "how much energy did Eddi use today?" but cannot distinguish grid boost energy from solar diversion energy. Use `cgi-jday h1b/h1d` for that breakdown.
+
+---
+
+### I-6: `exp`, `gen`, `gep` Absent from Official Documentation
+
+**Official MyEnergi API docs** (scraped in `docs/api/MyEnergi_API_Docs/`) do not document: `exp` (grid export), `gen` (generation), `gep` (generation export positive).
+
+**Community sources** (twonk, myenergi.info) document these fields as present in cgi-jday responses when a CT clamp or Harvi is installed.
+
+**Implication for Sparc:** Dan's setup has no CT clamp, so these fields return 0 or are absent. Export energy is sourced from ESB meter data (more accurate). If a CT clamp is installed in future, `exp` and `gen` will populate and should be reconciled against ESB export readings.
+
+---
+
+### I-7: Hub Serial vs Device Serial in Endpoint Paths
+
+**Community docs** sometimes use device serial (e.g., Eddi serial `22XXXXXXX`) in endpoint paths.  
+**Observed in production:** `cgi-jday` and `cgi-boost-time` require the **hub serial** (`21509692`), prefixed with `E`.
+
+Evidence:
+- `GET /cgi-jday-E21509692-2026-04-30` → returns data
+- `GET /cgi-jday-E22XXXXXXX-2026-04-30` → returns empty or error
+
+**Conclusion:** Use hub serial (`sno` from `cgi-jstatus-*` root object) for all `cgi-jday` calls. Eddi device serial is only needed for `cgi-boost-time-E{eddi_serial}`.
+
+---
+
 ## References
 
 **Official Documentation:**
@@ -283,6 +381,6 @@ Workaround: Use `log_eddi.py --once` via nightly cron to bypass API and log dire
 
 ---
 
-**Document Version:** 1.0  
+**Document Version:** 1.1 (API Inconsistencies section added)  
 **Validation Date:** 2026-04-30  
-**Compiler:** Claude Code (Session 38)
+**Compiler:** Claude Code (Sessions 38 + 51)
