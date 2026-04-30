@@ -300,6 +300,90 @@
       ],
       "title": "Reconciliation Summary Stats",
       "type": "stat"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 56 },
+      "id": 14,
+      "title": "Solar Self-Sufficiency",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "% of total household energy supplied by solar panels each month. Formula: (export_kwh + eddi_kwh) / (import_kwh + export_kwh + eddi_kwh). Requires ESB CSV upload + MyEnergi nightly poll.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",    "value": null },
+              { "color": "yellow", "value": 15 },
+              { "color": "green",  "value": 30 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 57 },
+      "id": 15,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.7,
+        "groupWidth": 0.7,
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 0
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "WITH monthly AS (\n  SELECT\n    DATE_TRUNC('month', solar_date) AS month,\n    SUM(export_kwh) AS export_kwh,\n    SUM(eddi_kwh)   AS eddi_kwh\n  FROM solar_actuals\n  WHERE export_kwh IS NOT NULL\n    AND eddi_kwh IS NOT NULL\n    AND solar_date BETWEEN ($__timeFrom())::date AND ($__timeTo())::date\n  GROUP BY 1\n),\nimport_monthly AS (\n  SELECT\n    DATE_TRUNC('month', DATE(recorded_at AT TIME ZONE 'Europe/Dublin')) AS month,\n    SUM(import_kwh) AS import_kwh\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n)\nSELECT\n  m.month AS time,\n  ROUND(\n    100.0 * (m.export_kwh + m.eddi_kwh) /\n    NULLIF(im.import_kwh + m.export_kwh + m.eddi_kwh, 0)\n  , 1)::FLOAT8 AS self_sufficiency_pct\nFROM monthly m\nJOIN import_monthly im ON m.month = im.month\nORDER BY 1",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "title": "Monthly Solar Self-Sufficiency (%)",
+      "type": "barchart"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Current month solar self-sufficiency at a glance. Green = ≥30%, yellow = 15–30%, red = <15% (winter baseline).",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",    "value": null },
+              { "color": "yellow", "value": 15 },
+              { "color": "green",  "value": 30 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 57 },
+      "id": 16,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "orientation": "auto" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "WITH monthly AS (\n  SELECT\n    SUM(export_kwh) AS export_kwh,\n    SUM(eddi_kwh)   AS eddi_kwh\n  FROM solar_actuals\n  WHERE solar_date >= DATE_TRUNC('month', CURRENT_DATE)\n    AND export_kwh IS NOT NULL\n    AND eddi_kwh IS NOT NULL\n),\nimport_monthly AS (\n  SELECT SUM(import_kwh) AS import_kwh\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid\n    AND recorded_at >= DATE_TRUNC('month', CURRENT_DATE)\n)\nSELECT\n  NOW() AS time,\n  ROUND(100.0 * (m.export_kwh + m.eddi_kwh) / NULLIF(im.import_kwh + m.export_kwh + m.eddi_kwh, 0), 1)::FLOAT8 AS \"Self-Sufficiency (this month)\",\n  ROUND(m.export_kwh::NUMERIC, 2)::FLOAT8 AS \"Export kWh\",\n  ROUND(m.eddi_kwh::NUMERIC, 2)::FLOAT8 AS \"Eddi kWh\"\nFROM monthly m CROSS JOIN import_monthly im",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Self-Sufficiency — This Month",
+      "type": "stat"
     }
 
   ],
@@ -330,5 +414,5 @@
   "timezone": "Europe/Dublin",
   "title": "Solar Data Pipeline",
   "uid": "sparc-solar-pipeline",
-  "version": 3
+  "version": 4
 }

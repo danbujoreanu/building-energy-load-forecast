@@ -1,0 +1,35 @@
+{
+  "ServiceName": "sparc-energy-api",
+  "SourceConfiguration": {
+    "ImageRepository": {
+      "ImageIdentifier": "${AWS_ACCOUNT_ID}.dkr.ecr.eu-west-1.amazonaws.com/energy-forecast-api:latest",
+      "ImageConfiguration": {
+        "Port": "8080",
+        "RuntimeEnvironmentVariables": {
+          "LOG_LEVEL": "INFO",
+          "PYTHONUNBUFFERED": "1",
+          "PYTHONPATH": "/app/src"
+        },
+        "StartCommand": "uvicorn deployment.app:app --host 0.0.0.0 --port 8080"
+      },
+      "ImageRepositoryType": "ECR"
+    },
+    "AutoDeploymentsEnabled": true
+  },
+  "InstanceConfiguration": {
+    "Cpu": "0.25 vCPU",
+    "Memory": "0.5 GB"
+  },
+  "HealthCheckConfiguration": {
+    "Protocol": "HTTP",
+    "Path": "/health",
+    "Interval": 10,
+    "Timeout": 5,
+    "HealthyThreshold": 1,
+    "UnhealthyThreshold": 5
+  },
+  "Tags": [
+    { "Key": "project", "Value": "sparc-energy" },
+    { "Key": "env", "Value": "production" }
+  ]
+}
