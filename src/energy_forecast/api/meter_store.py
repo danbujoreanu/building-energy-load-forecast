@@ -57,20 +57,21 @@ SELECT 1 FROM households WHERE id = $1 LIMIT 1
 _UPSERT_ADVISORY = """
 INSERT INTO advisory_log
   (household_id, advisory_date, recommendation, ghi_forecast,
-   peak_sun_hours, estimated_solar_kwh, issued_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+   peak_sun_hours, estimated_solar_kwh, expected_diversion_kwh, issued_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (household_id, advisory_date)
 DO UPDATE SET
-  recommendation      = EXCLUDED.recommendation,
-  ghi_forecast        = EXCLUDED.ghi_forecast,
-  peak_sun_hours      = EXCLUDED.peak_sun_hours,
-  estimated_solar_kwh = EXCLUDED.estimated_solar_kwh,
-  issued_at           = EXCLUDED.issued_at
+  recommendation         = EXCLUDED.recommendation,
+  ghi_forecast           = EXCLUDED.ghi_forecast,
+  peak_sun_hours         = EXCLUDED.peak_sun_hours,
+  estimated_solar_kwh    = EXCLUDED.estimated_solar_kwh,
+  expected_diversion_kwh = EXCLUDED.expected_diversion_kwh,
+  issued_at              = EXCLUDED.issued_at
 """
 
 _FETCH_RECENT_ADVISORIES = """
 SELECT advisory_date, recommendation, ghi_forecast, peak_sun_hours,
-       estimated_solar_kwh, issued_at
+       estimated_solar_kwh, expected_diversion_kwh, issued_at
 FROM advisory_log
 WHERE household_id = $1
 ORDER BY advisory_date DESC
@@ -163,6 +164,7 @@ async def log_advisory(pool, household_id: str, advisory) -> None:
             advisory.ghi_forecast_kwh_m2,
             advisory.peak_sun_hours,
             advisory.estimated_solar_kwh,
+            advisory.expected_diversion_kwh,   # DAN-144
             advisory.issued_at,
         )
 
@@ -173,12 +175,13 @@ async def fetch_recent_advisories(pool, household_id: str, days: int = 14) -> li
         rows = await conn.fetch(_FETCH_RECENT_ADVISORIES, household_id, days)
     return [
         {
-            "advisory_date":       str(row["advisory_date"]),
-            "recommendation":      row["recommendation"],
-            "ghi_forecast":        float(row["ghi_forecast"]) if row["ghi_forecast"] else None,
-            "peak_sun_hours":      row["peak_sun_hours"],
-            "estimated_solar_kwh": float(row["estimated_solar_kwh"]) if row["estimated_solar_kwh"] else None,
-            "issued_at":           row["issued_at"].isoformat() if row["issued_at"] else None,
+            "advisory_date":           str(row["advisory_date"]),
+            "recommendation":          row["recommendation"],
+            "ghi_forecast":            float(row["ghi_forecast"]) if row["ghi_forecast"] else None,
+            "peak_sun_hours":          row["peak_sun_hours"],
+            "estimated_solar_kwh":     float(row["estimated_solar_kwh"]) if row["estimated_solar_kwh"] else None,
+            "expected_diversion_kwh":  float(row["expected_diversion_kwh"]) if row["expected_diversion_kwh"] else None,  # DAN-144
+            "issued_at":               row["issued_at"].isoformat() if row["issued_at"] else None,
         }
         for row in rows
     ]

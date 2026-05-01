@@ -436,6 +436,58 @@
       ],
       "title": "Seasonal Panel Factor — Monthly Average (min 10 days/month)",
       "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 74 },
+      "id": 19,
+      "title": "Eddi Solar Diversion — Forecast vs Actual (DAN-144)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 8, "lineWidth": 2 },
+          "unit": "kwatth",
+          "decimals": 2
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "forecast_diversion_kwh" },
+            "properties": [
+              { "id": "displayName", "value": "Forecast diversion (kWh)" },
+              { "id": "color", "value": { "fixedColor": "#FF9830", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [8, 4], "fill": "dash" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "actual_eddi_kwh" },
+            "properties": [
+              { "id": "displayName", "value": "Actual Eddi diversion (kWh)" },
+              { "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 75 },
+      "id": 20,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  al.advisory_date::TIMESTAMPTZ AS time,\n  al.expected_diversion_kwh::FLOAT8  AS forecast_diversion_kwh,\n  sa.eddi_kwh::FLOAT8                AS actual_eddi_kwh\nFROM advisory_log al\nLEFT JOIN solar_actuals sa ON sa.solar_date = al.advisory_date\nWHERE al.household_id = '$household_id'::uuid\n  AND al.advisory_date >= CURRENT_DATE - INTERVAL '90 days'\n  AND al.expected_diversion_kwh IS NOT NULL\nORDER BY 1",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "title": "Eddi Solar Diversion — Forecast (dashed) vs Actual (DAN-144)",
+      "type": "timeseries"
     }
 
   ],
