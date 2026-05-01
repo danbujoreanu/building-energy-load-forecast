@@ -185,6 +185,16 @@ HDF_kW*.csv
 data/chromadb/
 !outputs/models/.gitkeep
 
-# High Signal Conversations — transcripts, gitignored already but explicit entry
-Claude High Signal Conversations/
+# ── Personal / session artifacts (not for public repo) ──────────────────────
 MASTER_ROADMAP.md
+CAREER_CONTEXT.md
+docs/JOURNAL_PAPER_DRAFT.md
+docs/REVIEWER_RESPONSE_MATRIX.md
+docs/FUNDING_AND_MONETISATION.md
+docs/CAREER_PORTFOLIO_TECH.md
+docs/linkedin_posts.md
+docs/PERSONAL_OS_ARCHITECTURE.md
+docs/SESSION_LOG.md
+docs/SESSION_OVERVIEW.md
+docs/ACTION_PLAN_2026-03-01.md
+Claude High Signal Conversations/
