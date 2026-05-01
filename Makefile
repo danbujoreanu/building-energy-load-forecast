@@ -10,7 +10,8 @@ ECR_REPO    ?= $(AWS_ACCOUNT_ID).dkr.ecr.eu-west-1.amazonaws.com/$(IMAGE_NAME)
 PORT        := 8000
 
 .PHONY: help install test lint train docker-build docker-run docker-stop \
-        ecr-login ecr-push apprunner-deploy live-demo sprint3
+        ecr-login ecr-push apprunner-deploy live-demo sprint3 \
+        rag-status rag-ingest-engineering rag-ingest-market rag-ingest-regulatory rag-ingest-all rag-query
 
 # ── Help ──────────────────────────────────────────────────────────────────────
 help:
@@ -32,6 +33,14 @@ help:
 	@echo "  make ecr-login      Authenticate Docker with ECR (eu-west-1)"
 	@echo "  make ecr-push       Build + push to ECR (requires AWS_ACCOUNT_ID env var)"
 	@echo "  make apprunner-deploy  Deploy to AWS App Runner (requires apprunner service ARN)"
+	@echo ""
+	@echo "Intelligence RAG:"
+	@echo "  make rag-status              Show doc/chunk counts per tier"
+	@echo "  make rag-ingest-engineering  Ingest engineering docs + MyEnergi API reference"
+	@echo "  make rag-ingest-market       Ingest intel/docs/market/ (supplier, PCW intel)"
+	@echo "  make rag-ingest-regulatory   Ingest intel/docs/regulatory/ (CRU, ESB Networks)"
+	@echo "  make rag-ingest-all          Ingest all tiers at once"
+	@echo "  make rag-query tier=X q='?'  Query a single tier"
 	@echo ""
 	@echo "Dev:"
 	@echo "  make install        Install package in editable mode"
@@ -98,6 +107,31 @@ docker-test:
 	curl -s -X POST http://localhost:$(PORT)/control \
 	  -H "Content-Type: application/json" \
 	  -d '{"building_id":"B001","city":"drammen","dry_run":true}' | python3 -m json.tool
+
+# ── Intelligence RAG ─────────────────────────────────────────────────────────
+
+rag-status:
+	$(PYTHON) scripts/intel_ingest.py --status
+
+rag-ingest-engineering:
+	$(PYTHON) scripts/intel_ingest.py --tier engineering
+	$(PYTHON) scripts/intel_ingest.py --file docs/api/MYENERGI_FIELD_REFERENCE.md --force-tier engineering
+	$(PYTHON) scripts/intel_ingest.py --file docs/explainers/MYENERGI_POLLER_EXPLAINED.md --force-tier engineering
+
+rag-ingest-market:
+	$(PYTHON) scripts/intel_ingest.py --tier market
+
+rag-ingest-regulatory:
+	$(PYTHON) scripts/intel_ingest.py --tier regulatory
+
+rag-ingest-all:
+	$(PYTHON) scripts/intel_ingest.py --all
+
+# Usage: make rag-query tier=engineering q="what is hsk field"
+rag-query:
+	@test -n "$(tier)" || (echo "Usage: make rag-query tier=<tier> q='your question'" && exit 1)
+	@test -n "$(q)"    || (echo "Usage: make rag-query tier=<tier> q='your question'" && exit 1)
+	$(PYTHON) scripts/rag_query.py --tier $(tier) --q "$(q)"
 
 # ── AWS ECR + App Runner ──────────────────────────────────────────────────────
 ecr-login:

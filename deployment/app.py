@@ -279,6 +279,100 @@ async def _sync_solar_actuals() -> None:
         logger.error("[solar_actuals_sync] Sync failed: %s", exc)
 
 
+def _send_alert_pushover(title: str, message: str, priority: int = -1) -> None:
+    """Send a plain-text Pushover alert (not a SolarAdvisory object).
+
+    priority: -2 = lowest, -1 = low, 0 = normal, 1 = high, 2 = emergency.
+    Synchronous — wrap in asyncio.to_thread() when calling from async context.
+    """
+    import requests as _requests
+
+    token = os.environ.get("PUSHOVER_APP_TOKEN", "")
+    user = os.environ.get("PUSHOVER_USER_KEY", "")
+    if not token or not user:
+        logger.warning("[pushover_alert] PUSHOVER_APP_TOKEN or PUSHOVER_USER_KEY not set — skipping.")
+        return
+    resp = _requests.post(
+        "https://api.pushover.net/1/messages.json",
+        data={"token": token, "user": user, "title": title, "message": message, "priority": priority},
+        timeout=10,
+    )
+    resp.raise_for_status()
+    logger.info("[pushover_alert] Sent: %s", title)
+
+
+async def _check_data_gaps() -> None:
+    """09:00 job — DAN-148: alert if ESB meter readings are stale (>72h) or missing days streak.
+
+    Two checks per household:
+    1. Recency: MAX(recorded_at) > 72h ago → WARN upload overdue
+    2. Gap streak: any run of 3+ consecutive calendar days with zero readings in last 30d
+
+    Fires a Pushover priority=0 (normal) alert so it shows as a persistent notification.
+    """
+    pool = getattr(app.state, "db_pool", None)
+    if pool is None:
+        return
+
+    try:
+        async with pool.acquire() as conn:
+            households = await conn.fetch("SELECT id FROM households")
+        if not households:
+            return
+
+        for row in households:
+            hid = str(row["id"])
+            async with pool.acquire() as conn:
+                rec = await conn.fetchrow(
+                    """
+                    SELECT
+                        MAX(recorded_at) AS last_ts,
+                        COUNT(DISTINCT DATE(recorded_at AT TIME ZONE 'Europe/Dublin')) AS days_with_data,
+                        30 - COUNT(DISTINCT DATE(recorded_at AT TIME ZONE 'Europe/Dublin')) AS missing_days_30d
+                    FROM meter_readings
+                    WHERE household_id = $1
+                      AND recorded_at >= NOW() - INTERVAL '30 days'
+                    """,
+                    hid,
+                )
+
+            if rec is None or rec["last_ts"] is None:
+                await asyncio.to_thread(
+                    _send_alert_pushover,
+                    "⚡ Sparc: No meter data",
+                    f"Household {hid[:8]}: no readings found at all. Upload ESB CSV at http://localhost:8000/upload",
+                    0,
+                )
+                continue
+
+            stale_h = (datetime.now(timezone.utc) - rec["last_ts"].replace(tzinfo=timezone.utc)).total_seconds() / 3600
+            missing_days = int(rec["missing_days_30d"] or 0)
+
+            if stale_h > 72:
+                await asyncio.to_thread(
+                    _send_alert_pushover,
+                    "⚡ Sparc: Upload overdue",
+                    f"No new ESB readings for {stale_h:.0f}h. Last reading: {rec['last_ts'].date()}. "
+                    f"Upload at http://localhost:8000/upload",
+                    0,
+                )
+                logger.warning("[data_gap] household=%s stale %.0fh", hid, stale_h)
+            elif missing_days >= 3:
+                await asyncio.to_thread(
+                    _send_alert_pushover,
+                    "⚡ Sparc: Data gaps detected",
+                    f"{missing_days} missing days in last 30d for household {hid[:8]}. "
+                    f"Upload latest ESB CSV to fill gaps.",
+                    -1,
+                )
+                logger.warning("[data_gap] household=%s missing_days_30d=%d", hid, missing_days)
+            else:
+                logger.info("[data_gap] household=%s OK — stale=%.1fh missing_30d=%d", hid, stale_h, missing_days)
+
+    except Exception as exc:
+        logger.error("[data_gap] Gap check failed: %s", exc)
+
+
 async def _run_morning_advisory() -> None:
     """20:00 job — fetch next-day solar forecast + predicted cost, log to DB, push to Pushover."""
     import asyncio
@@ -353,7 +447,29 @@ async def lifespan(app: FastAPI):
         app.state.db_pool = None
         logger.warning("DATABASE_URL not set — DB endpoints disabled.")
 
-    # ── 3. APScheduler — daily inference at 16:00 Europe/Dublin ─────────────
+    # ── 3. Startup catchup — run inference if 16:00 job was missed today ────
+    # Fires once on container start. If it's past 16:00 Dublin and no
+    # prediction is stored for today, runs inference immediately so the user
+    # doesn't wait until tomorrow after a laptop restart.
+    if db_pool:
+        try:
+            import pytz as _pytz
+            _dublin = _pytz.timezone("Europe/Dublin")
+            _now_dublin = datetime.now(_dublin)
+            if _now_dublin.hour >= 16:
+                async with db_pool.acquire() as _conn:
+                    _today_count = await _conn.fetchval(
+                        "SELECT COUNT(*) FROM predictions WHERE forecast_date = CURRENT_DATE"
+                    )
+                if not _today_count:
+                    logger.info("[startup_catchup] Past 16:00, no prediction for today — running catchup inference.")
+                    asyncio.create_task(_run_scheduled_inference())
+                else:
+                    logger.info("[startup_catchup] Today's predictions already stored (%d rows) — no catchup needed.", _today_count)
+        except Exception as _exc:
+            logger.warning("[startup_catchup] Catchup check failed: %s", _exc)
+
+    # ── 4. APScheduler — daily inference at 16:00 Europe/Dublin ─────────────
     scheduler = AsyncIOScheduler(timezone="Europe/Dublin")
     scheduler.add_job(
         _run_scheduled_inference,
@@ -365,6 +481,12 @@ async def lifespan(app: FastAPI):
         _run_morning_advisory,
         CronTrigger(hour=20, minute=0),
         id="morning_advisory",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _check_data_gaps,
+        CronTrigger(hour=9, minute=0),
+        id="data_gap_check",
         replace_existing=True,
     )
     scheduler.add_job(
@@ -381,7 +503,7 @@ async def lifespan(app: FastAPI):
     )
     scheduler.start()
     logger.info(
-        "APScheduler started — inference 16:00, advisory 20:00, "
+        "APScheduler started — gap check 09:00, inference 16:00, advisory 20:00, "
         "myenergi poll 23:30, solar_actuals sync 23:45 Europe/Dublin."
     )
 

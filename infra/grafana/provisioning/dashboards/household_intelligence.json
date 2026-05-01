@@ -1,48 +1,128 @@
 {
   "__requires": [
-    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "11.0.0" },
-    { "type": "datasource", "id": "postgres", "name": "PostgreSQL", "version": "1.0.0" },
-    { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
-    { "type": "panel", "id": "barchart", "name": "Bar chart", "version": "" },
-    { "type": "panel", "id": "piechart", "name": "Pie chart", "version": "" },
-    { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
-    { "type": "panel", "id": "table", "name": "Table", "version": "" },
-    { "type": "panel", "id": "heatmap", "name": "Heatmap", "version": "" }
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "11.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "barchart",
+      "name": "Bar chart",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "piechart",
+      "name": "Pie chart",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "heatmap",
+      "name": "Heatmap",
+      "version": ""
+    }
   ],
-  "annotations": { "list": [] },
-  "description": "Household energy intelligence — Layer 0 diagnosis, BTM asset signals, tariff slot analysis, shifting opportunities. See docs/APP_PRODUCT_SPEC.md §Home Energy Diagnostic Pathway.",
+  "annotations": {
+    "list": []
+  },
+  "description": "Household energy intelligence \u2014 Layer 0 diagnosis, BTM asset signals, tariff slot analysis, shifting opportunities. See docs/APP_PRODUCT_SPEC.md \u00a7Home Energy Diagnostic Pathway.",
   "editable": true,
   "graphTooltip": 1,
   "id": null,
   "links": [],
   "panels": [
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "id": 100,
-      "title": "Layer 0 — Household Summary",
+      "title": "Layer 0 \u2014 Household Summary",
       "type": "row"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null },
-            { "color": "yellow", "value": 200 },
-            { "color": "red", "value": 400 }
-          ]}
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 200
+              },
+              {
+                "color": "red",
+                "value": 400
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
       "id": 1,
-      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT SUM(import_kwh) FROM meter_readings WHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)",
           "format": "table",
           "refId": "A"
@@ -51,23 +131,55 @@
       "title": "Total Import (kWh)",
       "type": "stat"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null }, { "color": "yellow", "value": 50 }
-          ]}
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
       "id": 2,
-      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT SUM(export_kwh) FROM meter_readings WHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)",
           "format": "table",
           "refId": "A"
@@ -76,24 +188,60 @@
       "title": "Total Export / Solar (kWh)",
       "type": "stat"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
-        "defaults": { "unit": "currencyEUR", "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null }, { "color": "yellow", "value": 100 }, { "color": "red", "value": 200 }
-          ]}
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 100
+              },
+              {
+                "color": "red",
+                "value": 200
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
       "id": 3,
-      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "background", "graphMode": "none" },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  ROUND((\n    -- Night rate (23:00-08:00): 29.65c × 0.8 discount = 23.72c\n    SUM(CASE\n      WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23\n        OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8\n      THEN import_kwh * 0.2372\n    END)\n    -- Peak rate Mon-Fri 17:00-19:00: 49.28c × 0.8 = 39.42c\n    + SUM(CASE\n      WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 18\n        AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n      THEN import_kwh * 0.3942\n    END)\n    -- Free Saturday 09:00-17:00: 0c\n    + SUM(CASE\n      WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16\n        AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6\n      THEN 0\n    END)\n    -- Day rate (everything else): 40.34c × 0.8 = 32.27c\n    + SUM(CASE\n      WHEN NOT (\n        EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23\n        OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8\n      ) AND NOT (\n        EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 18\n        AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n      ) AND NOT (\n        EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16\n        AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6\n      )\n      THEN import_kwh * 0.3227\n    END)\n  )::NUMERIC, 2) AS est_cost_eur\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)",
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "rawSql": "SELECT\n  ROUND((\n    -- Night rate (23:00-08:00): 29.65c \u00d7 0.8 discount = 23.72c\n    SUM(CASE\n      WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23\n        OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8\n      THEN import_kwh * 0.2372\n    END)\n    -- Peak rate Mon-Fri 17:00-19:00: 49.28c \u00d7 0.8 = 39.42c\n    + SUM(CASE\n      WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 18\n        AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n      THEN import_kwh * 0.3942\n    END)\n    -- Free Saturday 09:00-17:00: 0c\n    + SUM(CASE\n      WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16\n        AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6\n      THEN 0\n    END)\n    -- Day rate (everything else): 40.34c \u00d7 0.8 = 32.27c\n    + SUM(CASE\n      WHEN NOT (\n        EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23\n        OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8\n      ) AND NOT (\n        EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 18\n        AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n      ) AND NOT (\n        EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16\n        AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6\n      )\n      THEN import_kwh * 0.3227\n    END)\n  )::NUMERIC, 2) AS est_cost_eur\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)",
           "format": "table",
           "refId": "A"
         }
@@ -101,23 +249,56 @@
       "title": "Est. Cost (BGE Affinity rates)",
       "type": "stat"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
-        "defaults": { "unit": "short", "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null }, { "color": "yellow", "value": 0 }
-          ]}
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
       "id": 4,
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  ROUND(100.0 * SUM(CASE WHEN export_kwh > 0.001 THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0), 1) AS solar_intervals_pct,\n  ROUND(MAX(import_kwh) * 2, 2) AS peak_power_kw,\n  COUNT(DISTINCT DATE(recorded_at AT TIME ZONE 'Europe/Dublin')) AS days_of_data\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)",
           "format": "table",
           "refId": "A"
@@ -126,43 +307,95 @@
       "title": "Data Quality / Coverage",
       "type": "table"
     },
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
       "id": 101,
-      "title": "Layer 0 — BTM Asset Signals (Solar · Eddi · Usage Behaviour)",
+      "title": "Layer 0 \u2014 BTM Asset Signals (Solar \u00b7 Eddi \u00b7 Usage Behaviour)",
       "type": "row"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "lineWidth": 1, "fillOpacity": 20, "spanNulls": false },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 20,
+            "spanNulls": false
+          },
           "unit": "kwatth"
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Export kWh (Solar)" },
-            "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+            "matcher": {
+              "id": "byName",
+              "options": "Export kWh (Solar)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
           },
           {
-            "matcher": { "id": "byName", "options": "Import kWh" },
-            "properties": [{ "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }]
+            "matcher": {
+              "id": "byName",
+              "options": "Import kWh"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#5794F2",
+                  "mode": "fixed"
+                }
+              }
+            ]
           }
         ]
       },
-      "gridPos": { "h": 9, "w": 16, "x": 0, "y": 6 },
+      "gridPos": {
+        "h": 9,
+        "w": 16,
+        "x": 0,
+        "y": 6
+      },
       "id": 5,
       "options": {
-        "legend": { "calcs": ["mean", "max", "sum"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  $__timeGroup(recorded_at, '$grain') AS time,\n  ROUND(SUM(import_kwh)::NUMERIC, 3) AS \"Import kWh\",\n  ROUND(SUM(export_kwh)::NUMERIC, 3) AS \"Export kWh (Solar)\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\nGROUP BY 1\nORDER BY 1",
           "format": "time_series",
           "refId": "A"
@@ -171,62 +404,114 @@
       "title": "Import vs Solar Export",
       "type": "timeseries"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "description": "Monthly solar export kWh + avg daily export. Shows seasonal south-facing roof pattern. Total period shown = all available history (not filtered to dashboard time range).",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": []
       },
-      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 6 },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 6
+      },
       "id": 6,
       "options": {
         "xField": "month",
         "barWidth": 0.6,
         "groupWidth": 0.7,
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  TO_CHAR(DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin'), 'Mon YY') AS month,\n  ROUND(SUM(export_kwh)::NUMERIC, 1)::FLOAT8 AS total_kwh,\n  ROUND(SUM(export_kwh)::NUMERIC / NULLIF(COUNT(DISTINCT DATE(recorded_at AT TIME ZONE 'Europe/Dublin')), 0), 2)::FLOAT8 AS avg_daily_kwh\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND export_kwh > 0.001\nGROUP BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "Monthly Solar Export (kWh) — seasonal south-facing roof pattern",
+      "title": "Monthly Solar Export (kWh) \u2014 seasonal south-facing roof pattern",
       "type": "barchart"
     },
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
       "id": 102,
-      "title": "Layer 1 — When Do You Use Energy? (Supplier-Agnostic)",
+      "title": "Layer 1 \u2014 When Do You Use Energy? (Supplier-Agnostic)",
       "type": "row"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "description": "Average 30-min consumption by hour of day. Peaks reveal Eddi boosts (07:00, 19:45), cooking patterns, showers.",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
       "id": 7,
       "options": {
         "xField": "hour_label",
         "barWidth": 0.6,
         "groupWidth": 0.7,
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  LPAD(EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')::TEXT, 2, '0') || ':00' AS hour_label,\n  ROUND(AVG(import_kwh)::NUMERIC, 4)::FLOAT8 AS avg_kwh,\n  ROUND(PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY import_kwh)::NUMERIC, 4)::FLOAT8 AS p90_kwh\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
@@ -235,26 +520,50 @@
       "title": "Average Load Profile (hour of day)",
       "type": "barchart"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "description": "Average consumption by day of week. Saturday = free window (BGE). Sunday higher = Eddi day rate.",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
       "id": 8,
       "options": {
         "xField": "day_name",
         "barWidth": 0.6,
         "groupWidth": 0.7,
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  CASE EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin')\n    WHEN 0 THEN '0-Sun' WHEN 1 THEN '1-Mon' WHEN 2 THEN '2-Tue'\n    WHEN 3 THEN '3-Wed' WHEN 4 THEN '4-Thu' WHEN 5 THEN '5-Fri'\n    WHEN 6 THEN '6-Sat'\n  END AS day_name,\n  ROUND(SUM(import_kwh)::NUMERIC / NULLIF(COUNT(DISTINCT DATE(recorded_at AT TIME ZONE 'Europe/Dublin')), 0), 2)::FLOAT8 AS avg_daily_kwh,\n  ROUND(MAX(import_kwh)::NUMERIC, 4)::FLOAT8 AS peak_30min_kwh\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
@@ -263,33 +572,118 @@
       "title": "Average Daily Consumption by Day of Week",
       "type": "barchart"
     },
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
       "id": 103,
-      "title": "Layer 2 — Tariff Slot Analysis (BGE Free Time Saturday rates with 20% Affinity)",
+      "title": "Layer 2 \u2014 Tariff Slot Analysis (BGE Free Time Saturday rates with 20% Affinity)",
       "type": "row"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "description": "How much of your consumption falls in each tariff slot. Ideal: maximise Night + Free Saturday, minimise Peak.",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "Peak (Mon-Fri 17-19)" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "Free Saturday (09-17)" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "Night (23-08)" }, "properties": [{ "id": "color", "value": { "fixedColor": "#1F78C1", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "Day (other)" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Peak (Mon-Fri 17-19)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Free Saturday (09-17)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Night (23-08)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#1F78C1",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Day (other)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
         ]
       },
-      "gridPos": { "h": 8, "w": 10, "x": 0, "y": 25 },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 0,
+        "y": 25
+      },
       "id": 9,
-      "options": { "pieType": "donut", "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] } },
+      "options": {
+        "pieType": "donut",
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value",
+            "percent"
+          ]
+        }
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  ROUND(SUM(CASE\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23\n      OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8\n    THEN import_kwh ELSE 0 END)::NUMERIC, 1) AS \"Night (23-08)\",\n  ROUND(SUM(CASE\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 18\n      AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n    THEN import_kwh ELSE 0 END)::NUMERIC, 1) AS \"Peak (Mon-Fri 17-19)\",\n  ROUND(SUM(CASE\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16\n      AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6\n    THEN import_kwh ELSE 0 END)::NUMERIC, 1) AS \"Free Saturday (09-17)\",\n  ROUND(SUM(CASE\n    WHEN NOT (\n      EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23\n      OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8\n    ) AND NOT (\n      EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 18\n      AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n    ) AND NOT (\n      EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16\n      AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6\n    )\n    THEN import_kwh ELSE 0 END)::NUMERIC, 1) AS \"Day (other)\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)",
           "format": "table",
           "refId": "A"
@@ -298,24 +692,77 @@
       "title": "Consumption by Tariff Slot",
       "type": "piechart"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "description": "Monthly cost breakdown by tariff slot. Shows whether plan is being used optimally.",
       "fieldConfig": {
-        "defaults": { "unit": "currencyEUR", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "Peak €" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "Free Sat €" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Peak \u20ac"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Free Sat \u20ac"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
         ]
       },
-      "gridPos": { "h": 8, "w": 14, "x": 10, "y": 25 },
+      "gridPos": {
+        "h": 8,
+        "w": 14,
+        "x": 10,
+        "y": 25
+      },
       "id": 10,
-      "options": { "xField": "month", "stacking": { "mode": "value", "group": "A" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "options": {
+        "xField": "month",
+        "stacking": {
+          "mode": "value",
+          "group": "A"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  TO_CHAR(DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin'), 'Mon YY') AS month,\n  ROUND(SUM(CASE WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23 OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8 THEN import_kwh * 0.2372 ELSE 0 END)::NUMERIC, 2) AS \"Night €\",\n  ROUND(SUM(CASE WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 18 AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5 THEN import_kwh * 0.3942 ELSE 0 END)::NUMERIC, 2) AS \"Peak €\",\n  ROUND(SUM(CASE WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16 AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6 THEN 0 ELSE 0 END)::NUMERIC, 2) AS \"Free Sat €\",\n  ROUND(SUM(CASE WHEN NOT (EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23 OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8) AND NOT (EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 18 AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5) AND NOT (EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16 AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6) THEN import_kwh * 0.3227 ELSE 0 END)::NUMERIC, 2) AS \"Day €\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\nGROUP BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')",
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "rawSql": "SELECT\n  TO_CHAR(DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin'), 'Mon YY') AS month,\n  ROUND(SUM(CASE WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23 OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8 THEN import_kwh * 0.2372 ELSE 0 END)::NUMERIC, 2) AS \"Night \u20ac\",\n  ROUND(SUM(CASE WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 18 AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5 THEN import_kwh * 0.3942 ELSE 0 END)::NUMERIC, 2) AS \"Peak \u20ac\",\n  ROUND(SUM(CASE WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16 AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6 THEN 0 ELSE 0 END)::NUMERIC, 2) AS \"Free Sat \u20ac\",\n  ROUND(SUM(CASE WHEN NOT (EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23 OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8) AND NOT (EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 18 AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5) AND NOT (EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16 AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6) THEN import_kwh * 0.3227 ELSE 0 END)::NUMERIC, 2) AS \"Day \u20ac\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\nGROUP BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
         }
@@ -323,57 +770,133 @@
       "title": "Monthly Cost by Tariff Slot",
       "type": "barchart"
     },
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
       "id": 104,
-      "title": "Layer 1 — Shifting Opportunity",
+      "title": "Layer 1 \u2014 Shifting Opportunity",
       "type": "row"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "How much monthly peak-rate consumption could theoretically be shifted to night or free Saturday. This is the addressable saving from behaviour change alone — no hardware needed.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "How much monthly peak-rate consumption could theoretically be shifted to night or free Saturday. This is the addressable saving from behaviour change alone \u2014 no hardware needed.",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth" },
+        "defaults": {
+          "unit": "kwatth"
+        },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 34 },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 34
+      },
       "id": 11,
-      "options": { "reduceOptions": { "calcs": ["sum"] }, "orientation": "auto", "colorMode": "value", "graphMode": "area", "textMode": "value_and_name" },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ]
+        },
+        "orientation": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value_and_name"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  ROUND(SUM(CASE\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 18\n      AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n    THEN import_kwh ELSE 0 END)::NUMERIC, 1) AS \"Peak kWh (shiftable)\",\n  ROUND(SUM(CASE\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 18\n      AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n    THEN import_kwh * (0.3942 - 0.2372) ELSE 0 END)::NUMERIC, 2) AS \"Saving if shifted to Night €\",\n  ROUND(SUM(CASE\n    WHEN (\n      NOT (EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23\n        OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8)\n      AND NOT (EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16\n        AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6)\n    ) THEN import_kwh ELSE 0 END)::NUMERIC, 1) AS \"Day Rate kWh (review)\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)",
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "rawSql": "SELECT\n  ROUND(SUM(CASE\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 18\n      AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n    THEN import_kwh ELSE 0 END)::NUMERIC, 1) AS \"Peak kWh (shiftable)\",\n  ROUND(SUM(CASE\n    WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 17 AND 18\n      AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n    THEN import_kwh * (0.3942 - 0.2372) ELSE 0 END)::NUMERIC, 2) AS \"Saving if shifted to Night \u20ac\",\n  ROUND(SUM(CASE\n    WHEN (\n      NOT (EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23\n        OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8)\n      AND NOT (EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16\n        AND EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6)\n    ) THEN import_kwh ELSE 0 END)::NUMERIC, 1) AS \"Day Rate kWh (review)\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)",
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "Shifting Opportunity — Peak → Night",
+      "title": "Shifting Opportunity \u2014 Peak \u2192 Night",
       "type": "stat"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "description": "Monthly trend: import, export, and net. Falling net = good (more solar self-consumption or reduced usage).",
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "lineWidth": 2 },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2
+          },
           "unit": "kwatth"
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "Net (Import - Export)" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "Export" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Net (Import - Export)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Export"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
         ]
       },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 34 },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 34
+      },
       "id": 12,
-      "options": { "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom" } },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin') AS time,\n  ROUND(SUM(import_kwh)::NUMERIC, 1) AS \"Import\",\n  ROUND(SUM(export_kwh)::NUMERIC, 1) AS \"Export\",\n  ROUND((SUM(import_kwh) - SUM(export_kwh))::NUMERIC, 1) AS \"Net (Import - Export)\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\nGROUP BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "time_series",
           "refId": "A"
@@ -382,71 +905,145 @@
       "title": "Monthly Consumption Trend",
       "type": "timeseries"
     },
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 41 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 41
+      },
       "id": 105,
-      "title": "BTM Load Events — Identify Shiftable Loads (Eddi, Appliances)",
+      "title": "BTM Load Events \u2014 Identify Shiftable Loads (Eddi, Appliances)",
       "type": "row"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "description": "Count of 30-min intervals with import > 0.3 kWh by hour of day. Peaks at 07:00 and 19:45 are the Eddi hot-water boosts. Other spikes may indicate shiftable appliances.",
       "fieldConfig": {
-        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": []
       },
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 42 },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 42
+      },
       "id": 13,
       "options": {
         "xField": "hour_label",
         "barWidth": 0.6,
         "groupWidth": 0.7,
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  LPAD(EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')::TEXT, 2, '0') || ':00' AS hour_label,\n  COUNT(*)::FLOAT8 AS events,\n  ROUND(AVG(import_kwh)::NUMERIC, 4)::FLOAT8 AS avg_event_kwh\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND import_kwh > 0.3\n  AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "High-Power Events by Hour (import > 0.3 kWh per 30 min) — labelled by inferred load group",
+      "title": "High-Power Events by Hour (import > 0.3 kWh per 30 min) \u2014 labelled by inferred load group",
       "type": "barchart"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "description": "Weekday vs weekend average 30-min consumption by hour of day. Saturday Free window (09-17) suppresses weekend peak. Eddi evening boost shows Mon-Fri 19:00-20:00.",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Weekday (Mon-Fri)" },
-            "properties": [{ "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }]
+            "matcher": {
+              "id": "byName",
+              "options": "Weekday (Mon-Fri)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#5794F2",
+                  "mode": "fixed"
+                }
+              }
+            ]
           },
           {
-            "matcher": { "id": "byName", "options": "Weekend (Sat-Sun)" },
-            "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+            "matcher": {
+              "id": "byName",
+              "options": "Weekend (Sat-Sun)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
           }
         ]
       },
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 42 },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 42
+      },
       "id": 14,
       "options": {
         "xField": "hour_label",
         "barWidth": 0.6,
         "groupWidth": 0.7,
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  LPAD(EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')::TEXT, 2, '0') || ':00' AS hour_label,\n  ROUND(AVG(CASE WHEN EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n                 THEN import_kwh END)::NUMERIC, 4) AS \"Weekday (Mon-Fri)\",\n  ROUND(AVG(CASE WHEN EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') IN (0, 6)\n                 THEN import_kwh END)::NUMERIC, 4) AS \"Weekend (Sat-Sun)\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\nGROUP BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
@@ -455,99 +1052,306 @@
       "title": "Weekday vs Weekend Load Profile (avg kWh per 30 min)",
       "type": "barchart"
     },
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 51 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 51
+      },
       "id": 106,
-      "title": "Solar Self-Consumption — Opportunity to Reduce Grid Import (18.5c export vs 23.7c night import)",
+      "title": "Solar Self-Consumption \u2014 Opportunity to Reduce Grid Import (18.5c export vs 23.7c night import)",
       "type": "row"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Daily energy decomposition via JOIN of ESB meter_readings × MyEnergi myenergi_readings. Eddi = exact measurement from MyEnergi API. House Load = ESB import minus Eddi (residual household consumption). Solar Export = net export to grid. Requires backfill data in myenergi_readings.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Daily energy decomposition via JOIN of ESB meter_readings \u00d7 MyEnergi myenergi_readings. Eddi = exact measurement from MyEnergi API. House Load = ESB import minus Eddi (residual household consumption). Solar Export = net export to grid. Requires backfill data in myenergi_readings.",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "Eddi (kWh)" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }, { "id": "displayName", "value": "Eddi Hot Water (kWh)" }] },
-          { "matcher": { "id": "byName", "options": "House Load (kWh)" }, "properties": [{ "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }, { "id": "displayName", "value": "House Residual Load (kWh)" }] },
-          { "matcher": { "id": "byName", "options": "Solar Export (kWh)" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }, { "id": "displayName", "value": "Solar Export to Grid (kWh)" }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Eddi (kWh)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "Eddi Hot Water (kWh)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "House Load (kWh)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#5794F2",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "House Residual Load (kWh)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Solar Export (kWh)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "Solar Export to Grid (kWh)"
+              }
+            ]
+          }
         ]
       },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 52 },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 52
+      },
       "id": 19,
       "options": {
         "xField": "day",
         "barWidth": 0.7,
         "groupWidth": 0.8,
-        "stacking": { "mode": "normal", "group": "A" },
-        "legend": { "calcs": ["mean", "max", "sum"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "stacking": {
+          "mode": "normal",
+          "group": "A"
+        },
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  TO_CHAR(esb.day, 'DD Mon YY') AS day,\n  COALESCE(me.daily_eddi_kwh, 0)::FLOAT8 AS \"Eddi (kWh)\",\n  GREATEST(0, esb.daily_import_kwh - COALESCE(me.daily_eddi_kwh, 0))::FLOAT8 AS \"House Load (kWh)\",\n  esb.daily_export_kwh::FLOAT8 AS \"Solar Export (kWh)\"\nFROM (\n  SELECT\n    DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS day,\n    ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh,\n    ROUND(SUM(export_kwh)::NUMERIC, 3) AS daily_export_kwh\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n) esb\nLEFT JOIN (\n  SELECT\n    DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n    ROUND(SUM(eddi_kwh)::NUMERIC, 3) AS daily_eddi_kwh\n  FROM myenergi_readings\n  WHERE hub_serial = '21509692'\n  GROUP BY 1\n) me ON me.day = esb.day\nORDER BY esb.day",
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "Daily Load Decomposition: Eddi + House Load + Solar Export (ESB × MyEnergi)",
+      "title": "Daily Load Decomposition: Eddi + House Load + Solar Export (ESB \u00d7 MyEnergi)",
       "type": "barchart"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Daily energy cost breakdown by BGE tariff window (20% Affinity discount applied). Night 23:00-08:00 = 23.72c/kWh. Peak Mon-Fri 17:00-19:00 = 39.42c/kWh. Free Saturday 09:00-17:00 = 0c. Day (all other) = 32.27c/kWh. Export credit = 18.5c/kWh earned. Standing charge (61.52c/day) excluded — applies equally every day.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Daily energy cost breakdown by BGE tariff window (20% Affinity discount applied). Night 23:00-08:00 = 23.72c/kWh. Peak Mon-Fri 17:00-19:00 = 39.42c/kWh. Free Saturday 09:00-17:00 = 0c. Day (all other) = 32.27c/kWh. Export credit = 18.5c/kWh earned. Standing charge (61.52c/day) excluded \u2014 applies equally every day.",
       "fieldConfig": {
-        "defaults": { "unit": "currencyEUR", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "Night (€)" }, "properties": [{ "id": "color", "value": { "fixedColor": "dark-blue", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "Peak (€)" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "Day (€)" }, "properties": [{ "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "Export credit (€)" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Night (\u20ac)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Peak (\u20ac)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Day (\u20ac)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#5794F2",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Export credit (\u20ac)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
         ]
       },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 62 },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 62
+      },
       "id": 20,
       "options": {
         "xField": "day",
         "barWidth": 0.7,
         "groupWidth": 0.8,
-        "stacking": { "mode": "normal", "group": "A" },
-        "legend": { "calcs": ["mean", "max", "sum"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "stacking": {
+          "mode": "normal",
+          "group": "A"
+        },
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  TO_CHAR(DATE(recorded_at AT TIME ZONE 'Europe/Dublin'), 'DD Mon YY') AS day,\n  ROUND(SUM(import_kwh) FILTER (\n    WHERE EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23\n       OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8\n  )::NUMERIC * 0.2372, 3)::FLOAT8 AS \"Night (€)\",\n  ROUND(SUM(import_kwh) FILTER (\n    WHERE EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n      AND EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') IN (17, 18)\n  )::NUMERIC * 0.3942, 3)::FLOAT8 AS \"Peak (€)\",\n  ROUND(SUM(import_kwh) FILTER (\n    WHERE NOT (EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23\n           OR  EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8)\n      AND NOT (EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n           AND EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') IN (17, 18))\n      AND NOT (EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6\n           AND EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16)\n  )::NUMERIC * 0.3227, 3)::FLOAT8 AS \"Day (€)\",\n  ROUND(SUM(export_kwh)::NUMERIC * 0.185, 3)::FLOAT8 AS \"Export credit (€)\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND $__timeFilter(recorded_at)\nGROUP BY DATE(recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY DATE(recorded_at AT TIME ZONE 'Europe/Dublin')",
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "rawSql": "SELECT\n  TO_CHAR(DATE(recorded_at AT TIME ZONE 'Europe/Dublin'), 'DD Mon YY') AS day,\n  ROUND(SUM(import_kwh) FILTER (\n    WHERE EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23\n       OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8\n  )::NUMERIC * 0.2372, 3)::FLOAT8 AS \"Night (\u20ac)\",\n  ROUND(SUM(import_kwh) FILTER (\n    WHERE EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n      AND EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') IN (17, 18)\n  )::NUMERIC * 0.3942, 3)::FLOAT8 AS \"Peak (\u20ac)\",\n  ROUND(SUM(import_kwh) FILTER (\n    WHERE NOT (EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23\n           OR  EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8)\n      AND NOT (EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 1 AND 5\n           AND EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') IN (17, 18))\n      AND NOT (EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6\n           AND EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16)\n  )::NUMERIC * 0.3227, 3)::FLOAT8 AS \"Day (\u20ac)\",\n  ROUND(SUM(export_kwh)::NUMERIC * 0.185, 3)::FLOAT8 AS \"Export credit (\u20ac)\"\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND $__timeFilter(recorded_at)\nGROUP BY DATE(recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY DATE(recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "Daily Tariff Cost Breakdown — Night / Peak / Day / Export Credit (BGE + 20% Affinity)",
+      "title": "Daily Tariff Cost Breakdown \u2014 Night / Peak / Day / Export Credit (BGE + 20% Affinity)",
       "type": "barchart"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Days where solar generated enough to have deferred the 07:00 Eddi grid boost. Each such day saves ~13c (0.55 kWh × 23.72c night rate). Requires Open Meteo integration to act on in real-time — see DAN-107.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Days where solar generated enough to have deferred the 07:00 Eddi grid boost. Each such day saves ~13c (0.55 kWh \u00d7 23.72c night rate). Requires Open Meteo integration to act on in real-time \u2014 see DAN-107.",
       "fieldConfig": {
-        "defaults": { "unit": "short", "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null }, { "color": "orange", "value": 30 }, { "color": "red", "value": 60 }
-          ]}
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 30
+              },
+              {
+                "color": "red",
+                "value": 60
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 52 },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 0,
+        "y": 52
+      },
       "id": 15,
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "WITH daily AS (\n  SELECT\n    DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS d,\n    SUM(CASE WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 7\n              AND import_kwh > 0.3 THEN 1 ELSE 0 END) AS boost_fired,\n    SUM(export_kwh) AS daily_export\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\n  GROUP BY 1\n)\nSELECT\n  COUNT(*) FILTER (WHERE daily_export > 0.5) AS \"Solar-Rich Days (export > 0.5 kWh)\",\n  COUNT(*) FILTER (WHERE boost_fired > 0 AND daily_export > 0.5) AS \"Overlap: 07:00 boost + solar same day\"\nFROM daily",
           "format": "table",
           "refId": "A"
@@ -556,25 +1360,61 @@
       "title": "Morning Boost vs Solar Overlap",
       "type": "stat"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Estimated annual saving if the 07:00 Eddi grid boost is deferred to solar diversion on overlap days. Saving = 0.55 kWh × 23.72c (night rate avoided). Open Meteo forecast would trigger this recommendation automatically.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Estimated annual saving if the 07:00 Eddi grid boost is deferred to solar diversion on overlap days. Saving = 0.55 kWh \u00d7 23.72c (night rate avoided). Open Meteo forecast would trigger this recommendation automatically.",
       "fieldConfig": {
-        "defaults": { "unit": "currencyEUR", "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "orange", "value": 15 }
-          ]}
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 5
+              },
+              {
+                "color": "orange",
+                "value": 15
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 52 },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 8,
+        "y": 52
+      },
       "id": 16,
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "WITH daily AS (\n  SELECT\n    DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS d,\n    MIN(recorded_at) AS min_ts, MAX(recorded_at) AS max_ts,\n    SUM(CASE WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 7\n              AND import_kwh > 0.3 THEN 1 ELSE 0 END) AS boost_fired,\n    SUM(export_kwh) AS daily_export\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\n  GROUP BY 1\n),\noverlap AS (\n  SELECT\n    COUNT(*) AS n,\n    COUNT(*) * 0.55 * 0.2372 AS total_eur,\n    MAX(max_ts) - MIN(min_ts) AS span\n  FROM daily WHERE boost_fired > 0 AND daily_export > 0.5\n)\nSELECT ROUND((total_eur * 365.0 / NULLIF(EXTRACT(DAY FROM span), 0))::NUMERIC, 2) AS \"Est. Annual Saving €\"\nFROM overlap",
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "rawSql": "WITH daily AS (\n  SELECT\n    DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS d,\n    MIN(recorded_at) AS min_ts, MAX(recorded_at) AS max_ts,\n    SUM(CASE WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 7\n              AND import_kwh > 0.3 THEN 1 ELSE 0 END) AS boost_fired,\n    SUM(export_kwh) AS daily_export\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\n  GROUP BY 1\n),\noverlap AS (\n  SELECT\n    COUNT(*) AS n,\n    COUNT(*) * 0.55 * 0.2372 AS total_eur,\n    MAX(max_ts) - MIN(min_ts) AS span\n  FROM daily WHERE boost_fired > 0 AND daily_export > 0.5\n)\nSELECT ROUND((total_eur * 365.0 / NULLIF(EXTRACT(DAY FROM span), 0))::NUMERIC, 2) AS \"Est. Annual Saving \u20ac\"\nFROM overlap",
           "format": "table",
           "refId": "A"
         }
@@ -582,67 +1422,163 @@
       "title": "Est. Annual Saving (defer 07:00 boost to solar)",
       "type": "stat"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "description": "Daily solar advisory log. SKIP_BOOST = solar forecast strong enough to defer 07:00 Eddi boost. Sent to Pushover at 06:30. Compare recommendation vs actual next-day export to validate calibration.",
       "fieldConfig": {
-        "defaults": { "custom": { "displayMode": "color-background" } },
+        "defaults": {
+          "custom": {
+            "displayMode": "color-background"
+          }
+        },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "recommendation" },
+            "matcher": {
+              "id": "byName",
+              "options": "recommendation"
+            },
             "properties": [
-              { "id": "mappings", "value": [
-                { "type": "value", "options": { "SKIP_BOOST":  { "color": "green",  "index": 0 } } },
-                { "type": "value", "options": { "PARTIAL":     { "color": "yellow", "index": 1 } } },
-                { "type": "value", "options": { "KEEP_BOOST":  { "color": "blue",   "index": 2 } } }
-              ]}
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "SKIP_BOOST": {
+                        "color": "green",
+                        "index": 0
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "PARTIAL": {
+                        "color": "yellow",
+                        "index": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "KEEP_BOOST": {
+                        "color": "blue",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              }
             ]
           }
         ]
       },
-      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 52 },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 16,
+        "y": 52
+      },
       "id": 17,
-      "options": { "sortBy": [{ "desc": true, "displayName": "advisory_date" }], "footer": { "show": false } },
+      "options": {
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "advisory_date"
+          }
+        ],
+        "footer": {
+          "show": false
+        }
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  advisory_date::TEXT AS advisory_date,\n  recommendation,\n  ghi_forecast AS \"GHI kWh/m²\",\n  peak_sun_hours AS \"Peak h\",\n  estimated_solar_kwh AS \"Est kWh\"\nFROM advisory_log\nWHERE household_id = '$household_id'::uuid\nORDER BY advisory_date DESC\nLIMIT 14",
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "rawSql": "SELECT\n  advisory_date::TEXT AS advisory_date,\n  recommendation,\n  ghi_forecast AS \"GHI kWh/m\u00b2\",\n  peak_sun_hours AS \"Peak h\",\n  estimated_solar_kwh AS \"Est kWh\"\nFROM advisory_log\nWHERE household_id = '$household_id'::uuid\nORDER BY advisory_date DESC\nLIMIT 14",
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "Solar Advisory Log (last 14 days) — 06:30 Pushover",
+      "title": "Solar Advisory Log (last 14 days) \u2014 06:30 Pushover",
       "type": "table"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "description": "Monthly breakdown: solar-productive days vs days where 07:00 boost fired AND solar was available. Gap = potential saving. Summer months should show highest overlap.",
       "fieldConfig": {
-        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Boost + Solar Overlap" },
-            "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
+            "matcher": {
+              "id": "byName",
+              "options": "Boost + Solar Overlap"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
           },
           {
-            "matcher": { "id": "byName", "options": "Solar Days" },
-            "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+            "matcher": {
+              "id": "byName",
+              "options": "Solar Days"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 57 },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 57
+      },
       "id": 18,
       "options": {
         "xField": "month",
         "barWidth": 0.7,
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "WITH daily AS (\n  SELECT\n    DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS d,\n    DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin') AS month,\n    SUM(CASE WHEN EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 7\n              AND import_kwh > 0.3 THEN 1 ELSE 0 END) AS boost_fired,\n    SUM(export_kwh) AS daily_export\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid AND $__timeFilter(recorded_at)\n  GROUP BY 1, 2\n)\nSELECT\n  TO_CHAR(month, 'Mon YY') AS month,\n  COUNT(*) FILTER (WHERE daily_export > 0.5) AS \"Solar Days\",\n  COUNT(*) FILTER (WHERE boost_fired > 0 AND daily_export > 0.5) AS \"Boost + Solar Overlap\"\nFROM daily\nGROUP BY month\nORDER BY MIN(d)",
           "format": "table",
           "refId": "A"
@@ -651,85 +1587,429 @@
       "title": "Monthly: Solar Days vs Morning Boost Overlap",
       "type": "barchart"
     },
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 65 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 65
+      },
       "id": 100,
-      "title": "Tariff Cost Intelligence — DAN-129, DAN-132, DAN-133",
+      "title": "Tariff Cost Intelligence \u2014 DAN-129, DAN-132, DAN-133",
       "type": "row"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Monthly solar export revenue at 18.5c/kWh (ESB export rate). Based on ESB net export — does not include solar used by house or Eddi (those are free). Requires solar panels and export_kwh data in meter_readings.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Monthly solar export revenue at 18.5c/kWh (ESB export rate). Based on ESB net export \u2014 does not include solar used by house or Eddi (those are free). Requires solar panels and export_kwh data in meter_readings.",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "export_kwh" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }, { "id": "displayName", "value": "Export (kWh)" }] },
-          { "matcher": { "id": "byName", "options": "export_revenue_eur" }, "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }, { "id": "unit", "value": "currencyEUR" }, { "id": "displayName", "value": "Revenue (€)" }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "export_kwh"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "Export (kWh)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "export_revenue_eur"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "currencyEUR"
+              },
+              {
+                "id": "displayName",
+                "value": "Revenue (\u20ac)"
+              }
+            ]
+          }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 66 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 66
+      },
       "id": 21,
       "options": {
         "xField": "month",
         "barWidth": 0.6,
         "groupWidth": 0.7,
-        "legend": { "calcs": ["sum", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "calcs": [
+            "sum",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  TO_CHAR(DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin'), 'Mon YY') AS month,\n  ROUND(SUM(export_kwh)::NUMERIC, 2)::FLOAT8 AS export_kwh,\n  ROUND(SUM(export_kwh)::NUMERIC * 0.185, 2)::FLOAT8 AS export_revenue_eur\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND $__timeFilter(recorded_at)\n  AND export_kwh > 0\nGROUP BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "Monthly Solar Export Revenue (18.5c/kWh) — DAN-133",
+      "title": "Monthly Solar Export Revenue (18.5c/kWh) \u2014 DAN-133",
       "type": "barchart"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Monthly Free Saturday utilisation. BGE Free Time Saturday = 09:00-17:00 (slots at 09:00 to 16:30), up to 100 kWh/month at €0. Unused = lost saving vs day rate (32.27c/kWh with 20% Affinity discount). Bar shows how much of the 100 kWh cap was consumed.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Monthly Free Saturday utilisation. BGE Free Time Saturday = 09:00-17:00 (slots at 09:00 to 16:30), up to 100 kWh/month at \u20ac0. Unused = lost saving vs day rate (32.27c/kWh with 20% Affinity discount). Bar shows how much of the 100 kWh cap was consumed.",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "free_sat_kwh" }, "properties": [{ "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }, { "id": "displayName", "value": "Free Sat Used (kWh)" }] },
-          { "matcher": { "id": "byName", "options": "cap_100kwh" }, "properties": [{ "id": "color", "value": { "fixedColor": "dark-grey", "mode": "fixed" } }, { "id": "displayName", "value": "Monthly Cap (100 kWh)" }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "free_sat_kwh"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#5794F2",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "Free Sat Used (kWh)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cap_100kwh"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-grey",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "Monthly Cap (100 kWh)"
+              }
+            ]
+          }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 66 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 66
+      },
       "id": 22,
       "options": {
         "xField": "month",
         "barWidth": 0.6,
         "groupWidth": 0.7,
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  TO_CHAR(DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin'), 'Mon YY') AS month,\n  ROUND(SUM(import_kwh) FILTER (\n    WHERE EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6\n      AND EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16\n  )::NUMERIC, 2)::FLOAT8 AS free_sat_kwh,\n  100.0::FLOAT8 AS cap_100kwh\nFROM meter_readings\nWHERE household_id = '$household_id'::uuid\n  AND $__timeFilter(recorded_at)\nGROUP BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY DATE_TRUNC('month', recorded_at AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "Free Saturday Utilisation vs 100 kWh Monthly Cap — DAN-132",
+      "title": "Free Saturday Utilisation vs 100 kWh Monthly Cap \u2014 DAN-132",
+      "type": "barchart"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 74
+      },
+      "id": 107,
+      "title": "Year-Over-Year Analysis \u2014 DAN-149 / DAN-130",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Monthly import kWh by year \u2014 DAN-149. Compares same month across consecutive years to reveal seasonal trends and annual consumption changes. Apr-Dec 2024 shown where data exists.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Apr-Dec 2024"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#808080",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "2025"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#5794F2",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "2026 (to date)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#73BF69",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 75
+      },
+      "id": 23,
+      "options": {
+        "xField": "month",
+        "barWidth": 0.6,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "rawSql": "SELECT\n  TO_CHAR(make_date(2000, EXTRACT(MONTH FROM recorded_at AT TIME ZONE 'Europe/Dublin')::int, 1), 'Mon') AS month,\n  EXTRACT(MONTH FROM recorded_at AT TIME ZONE 'Europe/Dublin')::int AS month_num,\n  ROUND(SUM(import_kwh) FILTER (WHERE EXTRACT(YEAR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 2024)::numeric, 1) AS \"Apr-Dec 2024\",\n  ROUND(SUM(import_kwh) FILTER (WHERE EXTRACT(YEAR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 2025)::numeric, 1) AS \"2025\",\n  ROUND(SUM(import_kwh) FILTER (WHERE EXTRACT(YEAR FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 2026)::numeric, 1) AS \"2026 (to date)\"\nFROM meter_readings\nWHERE household_id = '${household_id}'\n  AND recorded_at >= '2024-01-01'\nGROUP BY EXTRACT(MONTH FROM recorded_at AT TIME ZONE 'Europe/Dublin')\nORDER BY month_num",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Monthly Import kWh \u2014 Year-Over-Year (DAN-149)",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Estimated monthly electricity cost (\u20ac) by year \u2014 DAN-130. BGE Free Saturday rates with 20% Affinity discount applied. Excludes standing charge (\u20ac61.52/day). Approximate: IST/UTC offset not corrected.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 2
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Apr-Dec 2024 (EUR)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#808080",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "2025 (EUR)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#5794F2",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "2026 to date (EUR)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#73BF69",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 75
+      },
+      "id": 24,
+      "options": {
+        "xField": "month",
+        "barWidth": 0.6,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "rawSql": "WITH cost_data AS (\n  SELECT\n    EXTRACT(YEAR FROM recorded_at AT TIME ZONE 'Europe/Dublin') AS yr,\n    EXTRACT(MONTH FROM recorded_at AT TIME ZONE 'Europe/Dublin') AS mo,\n    SUM(import_kwh * CASE\n      WHEN EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') = 6\n           AND EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') BETWEEN 9 AND 16 THEN 0\n      WHEN (EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') >= 23\n           OR EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 8) THEN 0.2965\n      WHEN EXTRACT(DOW FROM recorded_at AT TIME ZONE 'Europe/Dublin') < 6\n           AND EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Dublin') IN (17, 18) THEN 0.4928\n      ELSE 0.4034\n    END * 0.80) AS cost_eur\n  FROM meter_readings\n  WHERE household_id = '${household_id}'\n    AND recorded_at >= '2024-01-01'\n  GROUP BY 1, 2\n)\nSELECT\n  TO_CHAR(make_date(2000, mo::int, 1), 'Mon') AS month,\n  mo::int AS month_num,\n  ROUND(SUM(cost_eur) FILTER (WHERE yr = 2024)::numeric, 2) AS \"Apr-Dec 2024 (EUR)\",\n  ROUND(SUM(cost_eur) FILTER (WHERE yr = 2025)::numeric, 2) AS \"2025 (EUR)\",\n  ROUND(SUM(cost_eur) FILTER (WHERE yr = 2026)::numeric, 2) AS \"2026 to date (EUR)\"\nFROM cost_data\nGROUP BY month, month_num\nORDER BY month_num",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Estimated Monthly Bill (\u20ac) \u2014 Year-Over-Year (DAN-130)",
       "type": "barchart"
     }
-
   ],
   "refresh": "5m",
   "schemaVersion": 38,
-  "tags": ["sparc", "household", "intelligence", "layer-0", "layer-1", "layer-2"],
+  "tags": [
+    "sparc",
+    "household",
+    "intelligence",
+    "layer-0",
+    "layer-1",
+    "layer-2"
+  ],
   "templating": {
     "list": [
       {
-        "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+        "datasource": {
+          "type": "postgres",
+          "uid": "sparc-postgres"
+        },
         "definition": "SELECT id::text || ' (' || COALESCE(tariff_name, city) || ')' FROM households ORDER BY onboarded_at DESC",
         "hide": 0,
         "includeAll": false,
@@ -741,24 +2021,51 @@
         "type": "query"
       },
       {
-        "current": { "selected": true, "text": "1 day", "value": "1d" },
+        "current": {
+          "selected": true,
+          "text": "1 day",
+          "value": "1d"
+        },
         "hide": 0,
         "includeAll": false,
         "label": "Aggregate By",
         "name": "grain",
         "options": [
-          { "selected": false, "text": "30 minutes", "value": "30m" },
-          { "selected": false, "text": "1 hour",     "value": "1h" },
-          { "selected": true,  "text": "1 day",      "value": "1d" },
-          { "selected": false, "text": "1 week",     "value": "1w" },
-          { "selected": false, "text": "1 month",    "value": "1M" }
+          {
+            "selected": false,
+            "text": "30 minutes",
+            "value": "30m"
+          },
+          {
+            "selected": false,
+            "text": "1 hour",
+            "value": "1h"
+          },
+          {
+            "selected": true,
+            "text": "1 day",
+            "value": "1d"
+          },
+          {
+            "selected": false,
+            "text": "1 week",
+            "value": "1w"
+          },
+          {
+            "selected": false,
+            "text": "1 month",
+            "value": "1M"
+          }
         ],
         "query": "30m,1h,1d,1w,1M",
         "type": "custom"
       }
     ]
   },
-  "time": { "from": "now-1y", "to": "now" },
+  "time": {
+    "from": "now-1y",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "Europe/Dublin",
   "title": "Household Intelligence",
