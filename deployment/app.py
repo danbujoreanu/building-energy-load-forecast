@@ -160,6 +160,7 @@ class SlotBreakdownResponse(BaseModel):
     peak_kwh: float
     free_kwh: float
     free_cap_exceeded_kwh: float
+    free_cap_months_affected: int = 0   # DAN-157
 
 
 class PlanResultResponse(BaseModel):
@@ -167,6 +168,8 @@ class PlanResultResponse(BaseModel):
     plan_name: str
     supplier: str
     notes: str
+    product_url: str = ""              # DAN-157
+    last_verified: str | None = None   # DAN-157: ISO date string
     days_analysed: int
     total_import_kwh: float
     total_export_kwh: float
@@ -175,6 +178,7 @@ class PlanResultResponse(BaseModel):
     standing_charge_eur: float
     net_cost_eur: float
     annualised_cost_eur: float
+    cap_impact_note: str = ""          # DAN-157
     slots: SlotBreakdownResponse
 
 
@@ -1188,6 +1192,8 @@ async def compare_tariff_plans(request: ComparePlansRequest):
                 plan_name=r.plan_name,
                 supplier=r.supplier,
                 notes=r.notes,
+                product_url=r.product_url,
+                last_verified=str(r.last_verified) if r.last_verified else None,
                 days_analysed=r.days_analysed,
                 total_import_kwh=r.total_import_kwh,
                 total_export_kwh=r.total_export_kwh,
@@ -1196,12 +1202,14 @@ async def compare_tariff_plans(request: ComparePlansRequest):
                 standing_charge_eur=r.standing_charge_eur,
                 net_cost_eur=r.net_cost_eur,
                 annualised_cost_eur=r.annualised_cost_eur,
+                cap_impact_note=r.cap_impact_note,
                 slots=SlotBreakdownResponse(
                     day_kwh=r.slots.day_kwh,
                     night_kwh=r.slots.night_kwh,
                     peak_kwh=r.slots.peak_kwh,
                     free_kwh=r.slots.free_kwh,
                     free_cap_exceeded_kwh=r.slots.free_cap_exceeded_kwh,
+                    free_cap_months_affected=r.slots.free_cap_months_affected,
                 ),
             )
             for r in results

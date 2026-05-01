@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from typing import Optional
 
 import pandas as pd
 
@@ -38,6 +39,8 @@ class TariffPlan:
     export_rate: float     # €/kWh received for export
     standing_daily: float  # €/day
     notes: str = ""
+    last_verified: Optional[date] = None    # DAN-157: date rates were last cross-checked at supplier website
+    product_url: str = ""                   # DAN-157: direct link to plan page
 
     def rate_for(self, dt: pd.Timestamp) -> float:
         h = dt.hour
@@ -73,7 +76,9 @@ PLANS: dict[str, TariffPlan] = {
         free_sat=True,
         export_rate=0.185,
         standing_daily=0.6152,
-        notes="Current plan. 20% Affinity discount. Valid to 15 June 2026.",
+        notes="Current plan. 20% Affinity discount on usage (BGE customers only). Valid to 15 June 2026.",
+        last_verified=date(2026, 4, 30),
+        product_url="https://www.bordgaisenergy.ie/home/our-plans/electricity",
     ),
     "BGE_FTS_STANDARD": TariffPlan(
         key="BGE_FTS_STANDARD",
@@ -85,7 +90,9 @@ PLANS: dict[str, TariffPlan] = {
         free_sat=True,
         export_rate=0.185,
         standing_daily=0.6152,
-        notes="Post-June-15 scenario if Affinity discount is not renewed. EXACT rates.",
+        notes="Post-June-15 scenario: no Affinity discount. EXACT rack rates verified 2026-04-30.",
+        last_verified=date(2026, 4, 30),
+        product_url="https://www.bordgaisenergy.ie/home/our-plans/electricity",
     ),
     "BGE_STANDARD_NOSAT": TariffPlan(
         key="BGE_STANDARD_NOSAT",
@@ -97,7 +104,9 @@ PLANS: dict[str, TariffPlan] = {
         free_sat=False,
         export_rate=0.185,
         standing_daily=0.6152,
-        notes="Hypothetical: same Affinity discount but no free Saturday window. Quantifies Saturday value.",
+        notes="Hypothetical: BGE rack rates with Affinity discount but no free Saturday window. Quantifies Saturday free-window value.",
+        last_verified=date(2026, 4, 30),
+        product_url="https://www.bordgaisenergy.ie/home/our-plans/electricity",
     ),
     "ENERGIA_NIGHT_BOOST": TariffPlan(
         key="ENERGIA_NIGHT_BOOST",
@@ -109,7 +118,9 @@ PLANS: dict[str, TariffPlan] = {
         free_sat=False,
         export_rate=0.180,
         standing_daily=0.6200,
-        notes="APPROXIMATE Q1 2026. No free Saturday. Verify at energia.ie before use.",
+        notes="APPROXIMATE Q1 2026. No free Saturday. Verify before use.",
+        last_verified=date(2026, 4, 30),
+        product_url="https://www.energia.ie/home/electricity-plans",
     ),
     "SSE_ONE_RATE": TariffPlan(
         key="SSE_ONE_RATE",
@@ -121,7 +132,9 @@ PLANS: dict[str, TariffPlan] = {
         free_sat=False,
         export_rate=0.185,
         standing_daily=0.6000,
-        notes="APPROXIMATE Q1 2026. Flat single rate — no TOU benefit at all. Verify at sseairtricity.ie.",
+        notes="APPROXIMATE Q1 2026. Flat single rate — no TOU benefit. Verify before use.",
+        last_verified=date(2026, 4, 30),
+        product_url="https://www.sseairtricity.com/ie/home/electricity-gas/electricity-plans/",
     ),
     "ELECTRIC_IRELAND_SMART": TariffPlan(
         key="ELECTRIC_IRELAND_SMART",
@@ -133,7 +146,9 @@ PLANS: dict[str, TariffPlan] = {
         free_sat=False,
         export_rate=0.185,
         standing_daily=0.6300,
-        notes="APPROXIMATE Q1 2026. No free Saturday. Verify at electricireland.ie.",
+        notes="APPROXIMATE Q1 2026. No free Saturday. Verify before use.",
+        last_verified=date(2026, 4, 30),
+        product_url="https://www.electricireland.ie/switch/home/electricity",
     ),
 }
 
@@ -146,7 +161,8 @@ class SlotBreakdown:
     night_kwh: float = 0.0
     peak_kwh: float = 0.0
     free_kwh: float = 0.0
-    free_cap_exceeded_kwh: float = 0.0  # kWh charged at day rate due to 100 kWh/month cap
+    free_cap_exceeded_kwh: float = 0.0    # kWh charged at day rate due to 100 kWh/month cap
+    free_cap_months_affected: int = 0     # DAN-157: number of months where cap was exceeded
 
 
 @dataclass
@@ -155,14 +171,17 @@ class PlanResult:
     plan_name: str
     supplier: str
     notes: str
+    product_url: str
+    last_verified: Optional[date]
     days_analysed: int
     total_import_kwh: float
     total_export_kwh: float
     import_cost_eur: float
     export_credit_eur: float
     standing_charge_eur: float
-    net_cost_eur: float         # import + standing - export
-    annualised_cost_eur: float  # net_cost scaled to 365 days
+    net_cost_eur: float           # import + standing - export
+    annualised_cost_eur: float    # net_cost scaled to 365 days
+    cap_impact_note: str = ""     # DAN-157: human-readable free-window cap impact
     slots: SlotBreakdown = field(default_factory=SlotBreakdown)
 
 
@@ -248,12 +267,12 @@ def _apply_plan(df: pd.DataFrame, plan: TariffPlan, days_analysed: int) -> PlanR
     """Apply tariff plan to meter readings DataFrame. Returns PlanResult."""
     slots = SlotBreakdown()
     import_cost = 0.0
+    monthly_free: dict[str, float] = {}   # month_key → free kWh used so far
 
     if plan.free_sat:
         # Track free kWh per month to enforce 100 kWh cap
         df = df.copy()
         df["year_month"] = df["ts"].dt.to_period("M")
-        monthly_free: dict = {}
 
         for _, row in df.iterrows():
             ts = row["ts"]
@@ -281,6 +300,11 @@ def _apply_plan(df: pd.DataFrame, plan: TariffPlan, days_analysed: int) -> PlanR
             else:
                 slots.day_kwh += kwh
                 import_cost += kwh * rate
+
+        # DAN-157: count months where cap was hit (free usage exceeded 100 kWh)
+        slots.free_cap_months_affected = sum(
+            1 for v in monthly_free.values() if v > MONTHLY_FREE_CAP_KWH
+        )
     else:
         for _, row in df.iterrows():
             ts = row["ts"]
@@ -303,11 +327,24 @@ def _apply_plan(df: pd.DataFrame, plan: TariffPlan, days_analysed: int) -> PlanR
     for attr in ("day_kwh", "night_kwh", "peak_kwh", "free_kwh", "free_cap_exceeded_kwh"):
         setattr(slots, attr, round(getattr(slots, attr), 3))
 
+    # DAN-157: human-readable free-window cap impact note
+    cap_note = ""
+    if plan.free_sat and slots.free_cap_months_affected > 0:
+        total_months = max(1, days_analysed // 30)
+        avg_over = round(slots.free_cap_exceeded_kwh / slots.free_cap_months_affected, 1)
+        cap_note = (
+            f"BGE Saturday 100 kWh/month cap hit in {slots.free_cap_months_affected} of "
+            f"~{total_months} months analysed (avg {avg_over} kWh over-cap/month, "
+            f"charged at day rate {plan.day_rate:.4f} €/kWh)."
+        )
+
     return PlanResult(
         plan_key=plan.key,
         plan_name=plan.name,
         supplier=plan.supplier,
         notes=plan.notes,
+        product_url=plan.product_url,
+        last_verified=plan.last_verified,
         days_analysed=days_analysed,
         total_import_kwh=round(float(df["import_kwh"].sum()), 3),
         total_export_kwh=round(float(df["export_kwh"].sum()), 3),
@@ -316,5 +353,6 @@ def _apply_plan(df: pd.DataFrame, plan: TariffPlan, days_analysed: int) -> PlanR
         standing_charge_eur=round(standing, 2),
         net_cost_eur=round(net, 2),
         annualised_cost_eur=round(annualised, 2),
+        cap_impact_note=cap_note,
         slots=slots,
     )
