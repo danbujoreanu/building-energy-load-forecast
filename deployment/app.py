@@ -375,6 +375,113 @@ async def _get_seasonal_panel_factor(pool, household_id: str) -> float:
         return _FALLBACK
 
 
+async def _run_data_quality_check() -> None:
+    """23:55 job — DAN-159 Layer 1+5: cross-validate MyEnergi vs ESB for yesterday.
+
+    For each household:
+    - Computes daily ESB import vs MyEnergi import for yesterday.
+    - Flags physical violations (myenergi > esb) and ratio anomalies (±2σ vs 30d mean).
+    - Updates rolling CT calibration factor on households table (Layer 5).
+    - Fires a Pushover alert on anomaly or violation.
+    """
+    from energy_forecast.monitoring.data_quality import run_cross_check
+
+    pool = getattr(app.state, "db_pool", None)
+    if pool is None:
+        logger.warning("[data_quality] DB pool not available — skipping.")
+        return
+
+    try:
+        async with pool.acquire() as conn:
+            households = await conn.fetch("SELECT id FROM households WHERE has_solar = TRUE OR TRUE")
+        if not households:
+            logger.info("[data_quality] No households registered — skipping.")
+            return
+
+        for row in households:
+            hid = str(row["id"])
+            result = await run_cross_check(pool, hid)
+
+            if result.get("physical_violation"):
+                await asyncio.to_thread(
+                    _send_alert_pushover,
+                    "⚡ Sparc: Data integrity issue",
+                    f"MyEnergi reading exceeds ESB meter for {result['check_date']} — "
+                    f"MyEnergi {result['me_kwh']:.2f} kWh vs ESB {result['esb_kwh']:.2f} kWh. "
+                    "Check hub serial / API connection.",
+                    0,
+                )
+            elif result.get("ratio_anomaly") and result.get("anomaly_detail"):
+                await asyncio.to_thread(
+                    _send_alert_pushover,
+                    "⚡ Sparc: CT clamp anomaly",
+                    f"{result['check_date']}: {result['anomaly_detail']}",
+                    -1,
+                )
+
+    except Exception as exc:
+        logger.error("[data_quality] Daily cross-check job failed: %s", exc)
+
+
+async def _run_weekly_quality_report() -> None:
+    """Mon 08:30 job — DAN-159 Layer 2: send weekly MyEnergi data quality Pushover report.
+
+    Summarises the past 7 days: mean ESB/MyEnergi ratio, anomaly count, CT factor.
+    """
+    from energy_forecast.monitoring.data_quality import weekly_summary
+
+    pool = getattr(app.state, "db_pool", None)
+    if pool is None:
+        return
+
+    try:
+        async with pool.acquire() as conn:
+            households = await conn.fetch("SELECT id FROM households")
+        if not households:
+            return
+
+        for row in households:
+            hid = str(row["id"])
+            summary = await weekly_summary(pool, hid, days=7)
+
+            if summary["days_checked"] == 0:
+                logger.info("[data_quality_weekly] household=%s — no events in last 7d.", hid[:8])
+                continue
+
+            ok_icon = "⚠️" if summary["anomaly_count"] > 0 else "✓"
+            anomaly_line = (
+                f"⚠️ {summary['anomaly_count']} anomaly day(s)"
+                if summary["anomaly_count"] > 0
+                else "✓ all normal"
+            )
+            ct_line = (
+                f"CT calibration factor: {summary['ct_calibration_factor']:.3f}"
+                if summary["ct_calibration_factor"]
+                else "CT factor: insufficient data"
+            )
+            ratio_line = (
+                f"Mean MyEnergi/ESB ratio: {summary['mean_ratio']:.3f} ±{summary['std_ratio']:.3f}"
+                if summary["mean_ratio"]
+                else "Ratio: no data"
+            )
+
+            msg = (
+                f"7-day data quality: {summary['days_checked']} days checked, "
+                f"{summary['days_missing']} missing.\n"
+                f"{ratio_line}\n{ct_line}\n{anomaly_line}"
+            )
+            await asyncio.to_thread(
+                _send_alert_pushover,
+                f"{ok_icon} Sparc: Weekly data quality",
+                msg,
+                -1,
+            )
+            logger.info("[data_quality_weekly] household=%s report sent: %s", hid[:8], anomaly_line)
+
+    except Exception as exc:
+        logger.error("[data_quality_weekly] Weekly report failed: %s", exc)
+
+
 def _send_alert_pushover(title: str, message: str, priority: int = -1) -> None:
     """Send a plain-text Pushover alert (not a SolarAdvisory object).
 
@@ -600,10 +707,23 @@ async def lifespan(app: FastAPI):
         id="solar_actuals_sync",
         replace_existing=True,
     )
+    scheduler.add_job(
+        _run_data_quality_check,
+        CronTrigger(hour=23, minute=55),
+        id="data_quality_check",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_weekly_quality_report,
+        CronTrigger(day_of_week="mon", hour=8, minute=30),
+        id="weekly_quality_report",
+        replace_existing=True,
+    )
     scheduler.start()
     logger.info(
         "APScheduler started — gap check 09:00, inference 16:00, advisory 20:00, "
-        "myenergi poll 23:30, solar_actuals sync 23:45 Europe/Dublin."
+        "myenergi poll 23:30, solar_actuals sync 23:45, "
+        "data quality check 23:55, weekly quality report Mon 08:30 Europe/Dublin."
     )
 
     yield

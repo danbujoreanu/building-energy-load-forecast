@@ -488,6 +488,101 @@
       ],
       "title": "Eddi Solar Diversion — Forecast (dashed) vs Actual (DAN-144)",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 83 },
+      "id": 21,
+      "title": "MyEnergi / ESB Cross-Validation (DAN-159)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          },
+          "unit": "short",
+          "min": 0.5,
+          "max": 1.2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",    "value": null },
+              { "color": "green",  "value": 0.80 },
+              { "color": "yellow", "value": 0.95 },
+              { "color": "red",    "value": 1.05 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "ratio" },
+            "properties": [
+              { "id": "displayName", "value": "MyEnergi / ESB ratio" },
+              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 9, "w": 18, "x": 0, "y": 84 },
+      "id": 22,
+      "options": {
+        "legend": { "calcs": ["mean", "min", "max"], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  check_date::TIMESTAMPTZ AS time,\n  ratio::FLOAT8            AS ratio\nFROM data_quality_events\nWHERE household_id = '$household_id'::uuid\n  AND check_date >= CURRENT_DATE - INTERVAL '30 days'\n  AND ratio IS NOT NULL\nORDER BY 1",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "title": "Daily MyEnergi / ESB import ratio — expected 0.80–0.95 (DAN-159)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",   "value": null },
+              { "color": "green", "value": 0.80 },
+              { "color": "red",   "value": 1.05 }
+            ]
+          },
+          "unit": "short",
+          "decimals": 3
+        }
+      },
+      "gridPos": { "h": 9, "w": 6, "x": 18, "y": 84 },
+      "id": 23,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT ct_calibration_factor::FLOAT8 AS \"CT calibration factor\"\nFROM households\nWHERE id = '$household_id'::uuid",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "CT Calibration Factor (30d mean ESB/MyEnergi)",
+      "type": "stat"
     }
 
   ],
@@ -518,5 +613,5 @@
   "timezone": "Europe/Dublin",
   "title": "Solar Data Pipeline",
   "uid": "sparc-solar-pipeline",
-  "version": 4
+  "version": 5
 }
