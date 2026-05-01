@@ -384,6 +384,58 @@
       ],
       "title": "Self-Sufficiency — This Month",
       "type": "stat"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 65 },
+      "id": 17,
+      "title": "Seasonal Panel Factor Calibration (DAN-160)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "unit": "short",
+          "decimals": 3
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "panel_factor_obs" },
+            "properties": [
+              { "id": "displayName", "value": "Monthly avg panel factor (obs)" },
+              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "fallback" },
+            "properties": [
+              { "id": "displayName", "value": "Static fallback (1.6)" },
+              { "id": "color", "value": { "fixedColor": "dark-grey", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [6, 6], "fill": "dash" } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 66 },
+      "id": 18,
+      "options": {
+        "legend": { "calcs": ["mean", "min", "max"], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  DATE_TRUNC('month', solar_date)::TIMESTAMPTZ AS time,\n  ROUND(AVG((export_kwh + COALESCE(eddi_kwh, 0.0)) / NULLIF(ghi_actual, 0))::NUMERIC, 4)::FLOAT8 AS panel_factor_obs,\n  1.6::FLOAT8 AS fallback\nFROM solar_actuals\nWHERE ghi_actual > 0\n  AND export_kwh IS NOT NULL\n  AND export_kwh > 0\nGROUP BY 1\nHAVING COUNT(*) >= 10\nORDER BY 1",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "title": "Seasonal Panel Factor — Monthly Average (min 10 days/month)",
+      "type": "timeseries"
     }
 
   ],

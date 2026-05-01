@@ -277,6 +277,98 @@ async def _sync_solar_actuals() -> None:
             logger.info("[solar_actuals_sync] household=%s %s", household_id, status)
     except Exception as exc:
         logger.error("[solar_actuals_sync] Sync failed: %s", exc)
+        return
+
+    # DAN-160: after export_kwh is fresh, recompute seasonal panel factors
+    await _recompute_panel_factor_seasonal(pool)
+
+
+async def _recompute_panel_factor_seasonal(pool) -> None:
+    """DAN-160: Recompute per-month panel_factor_seasonal JSONB on each household.
+
+    Computes panel_factor = (export_kwh + eddi_kwh) / ghi_actual per calendar month,
+    requiring ≥ 10 days of clean data per month. Stores as JSONB e.g.:
+      {"2026-02": 2.0330, "2026-03": 1.4868, "2026-04": 1.2214}
+
+    Called at end of _sync_solar_actuals (23:45 Dublin) so export_kwh is always fresh.
+    """
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT
+                    TO_CHAR(solar_date, 'YYYY-MM')                             AS month_key,
+                    ROUND(
+                        AVG(
+                            (export_kwh + COALESCE(eddi_kwh, 0.0))
+                            / NULLIF(ghi_actual, 0)
+                        )::NUMERIC, 4
+                    )                                                           AS pf
+                FROM solar_actuals
+                WHERE ghi_actual > 0
+                  AND export_kwh  IS NOT NULL
+                  AND export_kwh  > 0
+                GROUP BY 1
+                HAVING COUNT(*) >= 10
+                ORDER BY 1
+                """
+            )
+        if not rows:
+            logger.info("[panel_factor_seasonal] No months with ≥10 clean days — skipping.")
+            return
+
+        import json as _json
+        seasonal = {r["month_key"]: float(r["pf"]) for r in rows}
+        seasonal_json = _json.dumps(seasonal)
+        logger.info("[panel_factor_seasonal] Recomputed %d months: %s", len(seasonal), seasonal)
+
+        async with pool.acquire() as conn:
+            households = await conn.fetch("SELECT id FROM households")
+        for row in households:
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    "UPDATE households SET panel_factor_seasonal = $1::jsonb WHERE id = $2",
+                    seasonal_json,
+                    row["id"],
+                )
+            logger.info("[panel_factor_seasonal] Updated household=%s", row["id"])
+    except Exception as exc:
+        logger.error("[panel_factor_seasonal] Recompute failed: %s", exc)
+
+
+async def _get_seasonal_panel_factor(pool, household_id: str) -> float:
+    """DAN-160: Look up per-household monthly panel_factor_seasonal from DB.
+
+    Returns value for current month (e.g. '2026-05'). Falls back to 1.6 if:
+    - No row in DB
+    - Current month not yet in JSONB (not enough data)
+    - Any exception
+    """
+    _FALLBACK = 1.6
+    try:
+        import pytz as _pytz, json as _json
+        month_key = datetime.now(_pytz.timezone("Europe/Dublin")).strftime("%Y-%m")
+        async with pool.acquire() as conn:
+            result = await conn.fetchval(
+                "SELECT panel_factor_seasonal FROM households WHERE id = $1",
+                household_id,
+            )
+        if result is None:
+            logger.debug("[panel_factor_seasonal] No row for household=%s — fallback %.1f", household_id, _FALLBACK)
+            return _FALLBACK
+        seasonal = _json.loads(result) if isinstance(result, str) else result
+        pf = seasonal.get(month_key)
+        if pf is None:
+            logger.debug(
+                "[panel_factor_seasonal] household=%s month=%s not in JSONB — fallback %.1f",
+                household_id, month_key, _FALLBACK,
+            )
+            return _FALLBACK
+        logger.info("[panel_factor_seasonal] household=%s month=%s → pf=%.4f", household_id, month_key, pf)
+        return float(pf)
+    except Exception as exc:
+        logger.warning("[panel_factor_seasonal] Lookup failed (%s) — fallback %.1f", exc, _FALLBACK)
+        return _FALLBACK
 
 
 def _send_alert_pushover(title: str, message: str, priority: int = -1) -> None:
@@ -384,15 +476,18 @@ async def _run_morning_advisory() -> None:
 
         # DAN-143: attempt to compute tomorrow's predicted cost from the 16:00 LightGBM forecast
         daily_cost = None
+        panel_factor = None
         if pool is not None:
             async with pool.acquire() as conn:
                 households = await conn.fetch("SELECT id FROM households")
             for row in households:
-                daily_cost = await _compute_tomorrow_cost(pool, str(row["id"]), tomorrow)
+                hid = str(row["id"])
+                daily_cost = await _compute_tomorrow_cost(pool, hid, tomorrow)
+                panel_factor = await _get_seasonal_panel_factor(pool, hid)
                 break  # single-household MVP; extend when multi-household is needed
 
         advisory: SolarAdvisory = await asyncio.to_thread(
-            build_advisory, tomorrow, daily_cost
+            build_advisory, tomorrow, daily_cost, panel_factor
         )
         if pool is not None:
             for row in households:

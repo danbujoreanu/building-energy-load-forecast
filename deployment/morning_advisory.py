@@ -83,6 +83,7 @@ def _fetch_ghi(target_date: date) -> tuple[float, int]:
 def build_advisory(
     target_date: date | None = None,
     daily_cost_eur: float | None = None,
+    panel_factor: float | None = None,
 ) -> SolarAdvisory:
     """Fetch GHI forecast and build advisory.  Synchronous — wrap in asyncio.to_thread().
 
@@ -91,14 +92,17 @@ def build_advisory(
         daily_cost_eur: Optional predicted cost for target_date in €. When provided,
                         appended to the Pushover message. Computed by caller from the
                         16:00 LightGBM forecast × tariff slot rates (DAN-143).
+        panel_factor:   Per-household seasonal panel factor (DAN-160). Falls back to
+                        the module-level PANEL_FACTOR=1.6 constant if None.
     """
     import pytz
     dublin = pytz.timezone("Europe/Dublin")
     if target_date is None:
         target_date = (datetime.now(dublin) + timedelta(days=1)).date()
 
+    pf = panel_factor if panel_factor is not None else PANEL_FACTOR
     ghi, peak_hours = _fetch_ghi(target_date)
-    est_solar = round(ghi * PANEL_FACTOR, 1)
+    est_solar = round(ghi * pf, 1)
 
     # DAN-141: explicit diversion estimate — capped at tank daily need
     expected_diversion = round(min(est_solar, TANK_DAILY_KWH), 1)
@@ -148,8 +152,8 @@ def build_advisory(
         )
 
     logger.info(
-        "Solar advisory for %s: %s (GHI=%.2f, peak=%dh, est=%.1f kWh, diversion=%.1f kWh%s)",
-        target_date, rec, ghi, peak_hours, est_solar, expected_diversion,
+        "Solar advisory for %s: %s (GHI=%.2f, peak=%dh, pf=%.3f, est=%.1f kWh, diversion=%.1f kWh%s)",
+        target_date, rec, ghi, peak_hours, pf, est_solar, expected_diversion,
         f", cost=€{daily_cost_eur:.2f}" if daily_cost_eur is not None else "",
     )
     return SolarAdvisory(
