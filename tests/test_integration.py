@@ -369,3 +369,118 @@ class TestDriftDetectorIntegration:
         assert isinstance(parsed, dict), "to_json() must produce a JSON object"
         assert "overall_severity" in parsed, "JSON must contain 'overall_severity'"
         assert "recommended_action" in parsed, "JSON must contain 'recommended_action'"
+
+
+# ---------------------------------------------------------------------------
+# Test 6: DAN-77 — Stacking OOF NaN regression (BUG-01)
+# ---------------------------------------------------------------------------
+
+
+class TestStackingOOFRegression:
+    """Regression suite for BUG-01: OOF meta-feature matrix must never contain NaN.
+
+    Root cause: LightGBMQuantileForecaster has no ``.estimator`` attribute so
+    ``_clone_forecaster`` returns None for it, leaving its OOF column all-NaN.
+    Fixes applied:
+      - ``valid_mask`` in ``_oof_meta_features`` drops rows where any column is NaN.
+      - ``_UNSUPPORTED_STACKING`` in ``train_stage.py`` excludes ``LightGBM_Quantile``
+        from ``ensemble_base`` before it reaches ``StackingEnsemble``.
+    """
+
+    def _make_panel(self, n_timestamps: int = 1300) -> tuple:
+        """Synthetic (building_id, timestamp) MultiIndex DataFrame with 2 features.
+
+        n_timestamps ≥ 1008 required for TimeSeriesSplit(n_splits=2, gap=168):
+            2 * (n//3 + 168) ≤ n  →  n ≥ 1008.
+        Default 1300 leaves comfortable headroom.
+        """
+        rng = np.random.default_rng(77)
+        timestamps = pd.date_range("2022-01-01", periods=n_timestamps, freq="h", tz="UTC")
+        X = pd.DataFrame(
+            {
+                "feat_a": rng.normal(0, 1, n_timestamps),
+                "feat_b": rng.normal(0, 1, n_timestamps),
+            },
+            index=pd.MultiIndex.from_arrays(
+                [np.ones(n_timestamps, dtype=int), timestamps],
+                names=["building_id", "timestamp"],
+            ),
+        )
+        y = pd.Series(rng.normal(10, 2, n_timestamps), index=X.index)
+        return X, y
+
+    def test_oof_meta_features_no_nan(self):
+        """_oof_meta_features with two cloneable base models must return zero NaN."""
+        from lightgbm import LGBMRegressor
+
+        from energy_forecast.models.ensemble import StackingEnsemble
+        from energy_forecast.models.sklearn_models import SklearnForecaster
+
+        X, y = self._make_panel()
+
+        # Unfitted SklearnForecasters — _oof_meta_features clones and re-fits them per fold
+        model_a = SklearnForecaster(
+            LGBMRegressor(n_estimators=20, verbose=-1, random_state=0), name="LightGBM"
+        )
+        model_b = SklearnForecaster(
+            LGBMRegressor(n_estimators=20, verbose=-1, random_state=1), name="LightGBM2"
+        )
+
+        cfg = {"training": {"ensemble": {"meta_learner": "ridge", "ridge_alpha": 1.0}}}
+        ensemble = StackingEnsemble({"LightGBM": model_a, "LightGBM2": model_b}, cfg)
+
+        # oof_folds=2 so TimeSeriesSplit(n_splits=2, gap=168) fits within 1300 timestamps
+        meta_features, meta_targets = ensemble._oof_meta_features(X, y, oof_folds=2)
+
+        assert meta_features.shape[0] > 0, "OOF returned empty meta-feature matrix"
+        assert not np.isnan(meta_features).any(), (
+            "NaN values found in OOF meta-feature matrix — BUG-01 regression"
+        )
+        assert len(meta_targets) == meta_features.shape[0], (
+            "meta_features and meta_targets row counts must match"
+        )
+
+    def test_clone_forecaster_returns_none_for_quantile(self):
+        """_clone_forecaster must return None for LightGBMQuantileForecaster (no .estimator)."""
+        from energy_forecast.models.ensemble import _clone_forecaster
+        from energy_forecast.models.sklearn_models import LightGBMQuantileForecaster
+
+        quantile_model = LightGBMQuantileForecaster(lgbm_cfg={}, seed=42)
+        result = _clone_forecaster(quantile_model)
+        assert result is None, (
+            "_clone_forecaster must return None for LightGBMQuantileForecaster — "
+            "it has no .estimator attribute"
+        )
+
+    def test_lightgbm_quantile_excluded_from_stacking_base(self):
+        """_UNSUPPORTED_STACKING filter must remove LightGBM_Quantile from ensemble_base."""
+        from energy_forecast.models.sklearn_models import LightGBMQuantileForecaster
+
+        _UNSUPPORTED_STACKING = {"LightGBM_Quantile"}
+        _DL_NAMES = {"LSTM", "GRU", "CNN-LSTM", "TFT"}
+        _BASELINE_NAMES = {"Naive", "Seasonal Naive (24 h)", "Mean Baseline"}
+
+        # Simulate train_stage fitted_models dict containing a quantile forecaster
+        fitted_models = {
+            "LightGBM": object(),
+            "XGBoost": object(),
+            "LightGBM_Quantile": LightGBMQuantileForecaster(lgbm_cfg={}, seed=42),
+            "LSTM": object(),
+            "Naive": object(),
+        }
+
+        ensemble_base = {
+            k: v
+            for k, v in fitted_models.items()
+            if k not in _BASELINE_NAMES
+            and k not in _DL_NAMES
+            and k not in _UNSUPPORTED_STACKING
+        }
+
+        assert "LightGBM_Quantile" not in ensemble_base, (
+            "LightGBM_Quantile must be excluded from stacking via _UNSUPPORTED_STACKING"
+        )
+        assert "LSTM" not in ensemble_base, "DL model LSTM must be excluded from stacking"
+        assert "Naive" not in ensemble_base, "Baseline model must be excluded from stacking"
+        assert "LightGBM" in ensemble_base, "LightGBM must remain in stacking base models"
+        assert "XGBoost" in ensemble_base, "XGBoost must remain in stacking base models"
