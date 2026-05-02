@@ -40,10 +40,11 @@ docs/governance/AIIA.md               AI Impact Assessment
 docs/governance/SYSTEM_COMPONENT_MAP.md  Component diagram in markdown
 
 ## docs/engineering/
-docs/engineering/BEST_PRACTICES.md    Python/FastAPI/async coding standards
-docs/engineering/PR_WORKFLOW.md       PR + Linear linking workflow
+docs/engineering/BEST_PRACTICES.md       Python/FastAPI/async coding standards
+docs/engineering/PR_WORKFLOW.md          PR + Linear linking workflow
 docs/engineering/SOLAR_DATA_PIPELINE.md  Solar actuals pipeline walkthrough
-docs/engineering/OPERATING_MODEL.md  Full Linear protocol, session rules, career loop, coding principle detail
+docs/engineering/OPERATING_MODEL.md      Full Linear protocol, session rules, career loop, coding principle detail
+docs/engineering/FEATURE_STORE_PATTERN.md  Feature store design pattern notes
 
 ## docs/ops/
 docs/ops/HYPERCARE_PROTOCOL.md    Monitoring thresholds + rollback runbook (App Runner go-live)
@@ -85,6 +86,9 @@ scripts/verify_tariffs.py     Verify tariff registry against live rates
 scripts/myenergi_backfill.py  Backfill 846 days of MyEnergi data (idempotent)
 scripts/run_pipeline.py       Full training pipeline CLI
 scripts/export_predictions.py Export predictions from DB
+scripts/recover_metrics.py    Legacy metrics recovery (one-off utility)
+scripts/run_oslo.sh           Oslo dataset execution script
+scripts/extract_pdf.py        PDF text extraction (gitignored — machine-specific)
 
 ## research/scripts/ — Thesis/research only (not production)
 research/scripts/             See research/scripts/README.md — 7 MSc AI thesis scripts
