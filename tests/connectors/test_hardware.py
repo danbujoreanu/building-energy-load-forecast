@@ -1,11 +1,11 @@
 """
-tests/test_connectors.py
-========================
-Unit tests for deployment/connectors.py — MyEnergiConnector and price/device stubs.
+tests/connectors/test_hardware.py
+==================================
+Unit tests for MyEnergiConnector and MockDeviceConnector.
 
-All tests use mock HTTP responses so no live API calls are made.  The test suite
-verifies the parsing logic that was confirmed against the live API on 2026-03-15,
-guarding against regressions when connector.py is refactored.
+All tests use mock HTTP responses — no live API calls are made. The test
+suite verifies parsing logic confirmed against the live API on 2026-03-15,
+guarding against regressions.
 
 Test classes
 ------------
@@ -14,7 +14,6 @@ TestGetScheduleParsing   — get_schedule() response parsing (endpoint confirmed
 TestGetHistoryDayParsing — get_history_day() 1441-entry structure parsing
 TestGetStatusParsing     — get_status() list/dict response format handling
 TestMockDeviceConnector  — MockDeviceConnector smoke tests
-TestMockPriceConnector   — MockPriceConnector smoke tests
 """
 
 import sys
@@ -24,10 +23,11 @@ from unittest.mock import patch
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "deployment"))
 
-from connectors import MockDeviceConnector, MockPriceConnector, MyEnergiConnector
+from connectors import MockDeviceConnector, MyEnergiConnector
+
 
 # ---------------------------------------------------------------------------
 # Helper: build a connector without making any network calls
@@ -75,17 +75,12 @@ class TestDecodeBdd:
         assert result == ["Sat", "Sun"]
 
     def test_weekdays_and_saturday(self):
-        """'01111110' = Mon–Fri+Sat (no Sunday).
-
-        bdd[6]=Sat, so '0' at position 6 means NOT Sat.
-        '01111110' has position 6='1' → Sat included, position 7='0' → Sun excluded.
-        Note: '01111100' = Mon–Fri only (positions 6 and 7 both '0').
-        """
+        """'01111110' = Mon–Fri+Sat (no Sunday)."""
         result = MyEnergiConnector._decode_bdd("01111110")
         assert result == ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
     def test_weekdays_only_no_sat(self):
-        """'01111100' = Mon–Fri only (positions 6+7 = Sat+Sun both '0')."""
+        """'01111100' = Mon–Fri only."""
         result = MyEnergiConnector._decode_bdd("01111100")
         assert result == ["Mon", "Tue", "Wed", "Thu", "Fri"]
 
@@ -561,42 +556,3 @@ class TestMockDeviceConnector:
         dev = MockDeviceConnector()
         dev.send_command("HEAT_NOW")
         assert dev.command_log[0]["building_id"] == "unknown"
-
-
-# ---------------------------------------------------------------------------
-# 6. MockPriceConnector
-# ---------------------------------------------------------------------------
-
-
-class TestMockPriceConnector:
-    """Smoke tests for MockPriceConnector (realistic Irish day-ahead curve)."""
-
-    def test_returns_24_prices(self):
-        """get_day_ahead_prices() returns exactly 24 values."""
-        pc = MockPriceConnector()
-        prices = pc.get_day_ahead_prices()
-        assert len(prices) == 24
-
-    def test_prices_are_floats(self):
-        """All prices are floats."""
-        for p in MockPriceConnector().get_day_ahead_prices():
-            assert isinstance(p, float)
-
-    def test_prices_in_plausible_range(self):
-        """All prices are in a plausible range for Irish electricity (€0.10–€0.50/kWh)."""
-        for p in MockPriceConnector().get_day_ahead_prices():
-            assert 0.10 <= p <= 0.50, f"Price {p:.3f} EUR/kWh outside expected range"
-
-    def test_night_rate_cheaper_than_peak(self):
-        """Night-time prices (00:00–07:00) are lower than evening peak (17:00–19:00)."""
-        prices = MockPriceConnector().get_day_ahead_prices()
-        avg_night = sum(prices[0:8]) / 8
-        avg_peak = sum(prices[17:20]) / 3
-        assert (
-            avg_night < avg_peak
-        ), f"Night avg {avg_night:.3f} should be < peak avg {avg_peak:.3f}"
-
-    def test_same_result_repeated_calls(self):
-        """Repeated calls return identical lists (deterministic mock)."""
-        pc = MockPriceConnector()
-        assert pc.get_day_ahead_prices() == pc.get_day_ahead_prices()
