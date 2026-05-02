@@ -1,0 +1,131 @@
+"""Database query functions for the Energy Forecast API.
+
+All raw SQL lives here. Scheduler and router functions import from this
+module so they stay focused on orchestration, not query construction.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Household queries
+# ---------------------------------------------------------------------------
+
+async def fetch_all_households(pool) -> list:
+    """Return all households with id and city."""
+    async with pool.acquire() as conn:
+        return await conn.fetch("SELECT id, city FROM households")
+
+
+async def fetch_household_ids(pool) -> list:
+    """Return all household ids."""
+    async with pool.acquire() as conn:
+        return await conn.fetch("SELECT id FROM households")
+
+
+# ---------------------------------------------------------------------------
+# Solar actuals
+# ---------------------------------------------------------------------------
+
+async def upsert_solar_actuals(pool, household_id: str, days: int = 90) -> str:
+    """Aggregate export_kwh from meter_readings into solar_actuals for the last N days.
+
+    Returns the asyncpg status string (e.g. 'INSERT 0 30').
+    """
+    async with pool.acquire() as conn:
+        return await conn.execute(
+            """
+            INSERT INTO solar_actuals (solar_date, export_kwh)
+            SELECT
+              DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS solar_date,
+              ROUND(SUM(export_kwh)::NUMERIC, 3)              AS export_kwh
+            FROM meter_readings
+            WHERE household_id = $1
+              AND export_kwh IS NOT NULL
+              AND DATE(recorded_at AT TIME ZONE 'Europe/Dublin')
+                  >= CURRENT_DATE - INTERVAL '1 day' * $2
+            GROUP BY 1
+            ON CONFLICT (solar_date)
+            DO UPDATE SET export_kwh = EXCLUDED.export_kwh
+            """,
+            household_id,
+            days,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Panel factor seasonal
+# ---------------------------------------------------------------------------
+
+async def fetch_panel_factor_by_month(pool) -> list:
+    """Compute per-month panel_factor from solar_actuals (months with >= 10 clean days)."""
+    async with pool.acquire() as conn:
+        return await conn.fetch(
+            """
+            SELECT
+                TO_CHAR(solar_date, 'YYYY-MM')                             AS month_key,
+                ROUND(
+                    AVG(
+                        (export_kwh + COALESCE(eddi_kwh, 0.0))
+                        / NULLIF(ghi_actual, 0)
+                    )::NUMERIC, 4
+                )                                                           AS pf
+            FROM solar_actuals
+            WHERE ghi_actual > 0
+              AND export_kwh  IS NOT NULL
+              AND export_kwh  > 0
+            GROUP BY 1
+            HAVING COUNT(*) >= 10
+            ORDER BY 1
+            """
+        )
+
+
+async def update_household_panel_factor(pool, household_id: str, seasonal: dict) -> None:
+    """Persist panel_factor_seasonal JSONB on a household row."""
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE households SET panel_factor_seasonal = $1::jsonb WHERE id = $2",
+            json.dumps(seasonal),
+            household_id,
+        )
+
+
+async def get_household_panel_factor_seasonal(pool, household_id: str):
+    """Return the raw panel_factor_seasonal JSONB value (str or None)."""
+    async with pool.acquire() as conn:
+        return await conn.fetchval(
+            "SELECT panel_factor_seasonal FROM households WHERE id = $1",
+            household_id,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Meter gap / recency
+# ---------------------------------------------------------------------------
+
+async def check_meter_recency(pool, household_id: str):
+    """Return recency and gap stats for meter_readings over the last 30 days.
+
+    Columns: last_ts, days_with_data, missing_days_30d
+    Returns None if no rows.
+    """
+    async with pool.acquire() as conn:
+        return await conn.fetchrow(
+            """
+            SELECT
+                MAX(recorded_at) AS last_ts,
+                COUNT(DISTINCT DATE(recorded_at AT TIME ZONE 'Europe/Dublin')) AS days_with_data,
+                30 - COUNT(DISTINCT DATE(recorded_at AT TIME ZONE 'Europe/Dublin')) AS missing_days_30d
+            FROM meter_readings
+            WHERE household_id = $1
+              AND recorded_at >= NOW() - INTERVAL '30 days'
+            """,
+            household_id,
+        )
