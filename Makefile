@@ -69,7 +69,7 @@ sweep-dl:
 sprint3:
 	@echo "Running Oslo full paradigm parity (Setup A + Setup C)..."
 	$(PYTHON) scripts/run_pipeline.py --city oslo --save-predictions
-	$(PYTHON) scripts/run_raw_dl.py --city oslo --save-predictions
+	$(PYTHON) research/scripts/run_raw_dl.py --city oslo --save-predictions
 
 significance:
 	$(PYTHON) scripts/significance_test.py
