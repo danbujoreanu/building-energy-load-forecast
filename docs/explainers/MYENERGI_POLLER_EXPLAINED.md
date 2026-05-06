@@ -220,12 +220,33 @@ was added to `init.sql`). Migration 007 applied 2026-05-06, now fixed.
 | `scripts/backfill_myenergi_eddi.py` | Corrects `eddi_kwh` using `h1b+h1d` after the `hsk` bug. Fetches 846 days (2024-01-01 to 2026-04-29). | **One-time historical correction** — already run |
 | `scripts/myenergi_backfill.py` | General date-range backfill. Same as the nightly poller but accepts `--start-date`/`--end-date` args. | **Fill gaps** — run after NUC deploy or to backfill from Eddi installation date |
 
-**Running on NUC** (scripts dir isn't in the Docker image, use `docker cp`):
+**Running on NUC** (scripts dir isn't in the Docker image, use `docker cp` + background exec):
 ```bash
-# On NUC host:
-docker cp ~/sparc/scripts/myenergi_backfill.py sparc-api:/app/scripts/myenergi_backfill.py
-docker exec sparc-api python /app/scripts/myenergi_backfill.py --start-date 2025-XX-XX
-# DATABASE_URL is automatically picked up from the container env (db:5432)
+# Step 1 — sync latest script from Mac to NUC (run on Mac):
+rsync -av ~/building-energy-load-forecast/scripts/myenergi_backfill.py \
+    dan@192.168.68.119:~/sparc/scripts/myenergi_backfill.py
+
+# Step 2 — copy into running container (run on NUC host or via ssh):
+ssh dan@192.168.68.119 \
+    "docker cp ~/sparc/scripts/myenergi_backfill.py sparc-api:/app/scripts/myenergi_backfill.py"
+
+# Step 3 — run in background, log to /tmp/backfill.log (1,202 days ≈ 24 min):
+ssh dan@192.168.68.119 \
+    "docker exec -d sparc-api sh -c 'python /app/scripts/myenergi_backfill.py \
+     --start-date 2023-01-20 > /tmp/backfill.log 2>&1'"
+# Eddi installed 2023-01-20 — use this as canonical start date for full history
+
+# Step 4 — check progress:
+ssh dan@192.168.68.119 "docker exec sparc-api tail -10 /tmp/backfill.log"
+
+# DATABASE_URL is automatically picked up from the container env (db:5432).
+# Safe to re-run: skips dates already with ≥40 slots (ON CONFLICT DO UPDATE).
+```
+
+**Expected output per day:**
+```
+20:06:32  INFO  [myenergi_poller] Done for 2023-01-22 — 48 30-min slots, Eddi 0.58 kWh, GHI 0.264 kWh/m²
+20:06:32  INFO  ✓ 2023-01-22  [3/1202 done, 0 skipped, 0 failed]
 ```
 
 ### Grafana Free Saturday panels now query `myenergi_readings`
