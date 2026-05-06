@@ -5,6 +5,8 @@
 ## In Progress
 - DAN-49   App Runner deploy — blocked until AWS Activate credits (DAN-69)
 - MyEnergi Harvi install (Dan, this week) — enables real-time CT clamp data
+- MyEnergi full backfill running on NUC — 2023-01-20 → present (1,202 days, ~24 min total)
+  Monitor: ssh dan@192.168.68.119 "docker exec sparc-api tail -5 /tmp/backfill.log"
 
 ## Tier 1 — Next to start
 - DAN-167  Train Irish household LightGBM model — wire ESB CSV pipeline for Ireland city,
@@ -20,12 +22,23 @@
 - DAN-166  Tank temp inference from Eddi kWh log (improve LP dispatcher initial temp)
 
 ## Blocked / External
-- DAN-165  Gardening Digital Twin on NUC (InfluxDB 3.x) — awaiting InfluxDB webinar
+- DAN-165  Gardening Digital Twin on NUC (InfluxDB 3 Enterprise hobbyist) — instructions drafted; install via Docker Compose: https://docs.influxdata.com/influxdb3/enterprise/admin/license/?t=Docker+compose#activate-a-trial-or-at-home-license
 - DAN-66   ESCO registration (Dan)
 - DAN-54   BGE contract renewal (Dan, ends 15 Jun 2026)
 - BGE Free Saturday panels — will fill in as Saturdays accumulate in myenergi_readings
 
 ## Recently Completed
+- NUC dashboard comprehensive rebuild — 8 → 20+ panels, 6 sections, textfile collector workaround ✅ 2026-05-06
+- NUC dashboard — Technology Stack panel added (TimescaleDB, Redis, cAdvisor workaround note) ✅ 2026-05-06
+- Solar Pipeline — Forecast Accuracy Audit section (panels 28–32): GHI MAPE, advisory accuracy %, h1d caveat ✅ 2026-05-06
+- SOLAR_ADVISORY_EXPLAINED.md — Forecast Accuracy Audit section added (panels 28–32 walkthrough) ✅ 2026-05-06
+- GRAFANA_DASHBOARDS_EXPLAINED.md — NUC section full rewrite + Solar accuracy audit section ✅ 2026-05-06
+- Solar Pipeline dashboard — household_id template fix (ORDER BY created_at → onboarded_at DESC) ✅ 2026-05-06
+- Solar Pipeline — Tomorrow's Solar Advisory section added (panels 25-27, advisory_log) ✅ 2026-05-06
+- LP dispatch switched to BGE retail tariff (was incorrectly using SEMO wholesale SMP) ✅ 2026-05-06
+- Morning advisory Pushover manual trigger tested — SKIP_BOOST, GHI=3.63 kWh/m², 9h sun ✅ 2026-05-06
+- SOLAR_ADVISORY_EXPLAINED.md updated: 20:00 schedule, seasonality, panel_factor_seasonal, InfluxDB JOIN note ✅ 2026-05-06
+- MYENERGI_POLLER_EXPLAINED.md updated: precise NUC backfill procedure with canonical start date ✅ 2026-05-06
 - DAN-128  Intel NUC5PGYHR full stack live (9 containers, SSH tunnel, Chrome access) ✅ 2026-05-05
 - DAN-163  Migration 005, model_drift_log, check_drift_sunday job, 3 Grafana panels ✅ 2026-05-06
 - DAN-152  Migration 007 — household profile cols + panel_factor_seasonal ✅ 2026-05-06
@@ -43,3 +56,5 @@
 - DATA_PIPELINE_LIVE_EXPLAINED.md  — full live data pipeline reference
 - GRAFANA_DASHBOARDS_EXPLAINED.md  — panel-by-panel guide, blank panel diagnosis
 - LP_DISPATCH_EXPLAINED.md         — LP thermal dispatch design, pricing model, tank physics
+- SOLAR_ADVISORY_EXPLAINED.md      — morning advisory (20:00), panel_factor_seasonal, InfluxDB vs PG
+- MYENERGI_POLLER_EXPLAINED.md     — cgi-jday API, hsk bug, full backfill procedure

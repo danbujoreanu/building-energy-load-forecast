@@ -5,7 +5,7 @@
   "timezone": "Europe/Dublin",
   "refresh": "30s",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
 
   "panels": [
 
@@ -222,6 +222,18 @@
       "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
       "targets": [{"expr":"rate(node_disk_io_time_seconds_total{device=\"sda\"}[2m]) * 100","legendFormat":"IO util %","datasource":{"type":"prometheus","uid":"sparc-prometheus"}}],
       "fieldConfig": {"defaults":{"unit":"percent","min":0,"max":100,"thresholds":{"mode":"absolute","steps":[{"color":"green","value":0},{"color":"yellow","value":40},{"color":"red","value":75}]}}}
+    },
+
+    { "collapsed": false, "gridPos": {"h":1,"w":24,"x":0,"y":58}, "id":106, "title":"🗄️ Technology Stack", "type":"row" },
+
+    {
+      "id": 60, "title": "Service Stack",
+      "type": "text",
+      "gridPos": {"h":6,"w":24,"x":0,"y":59},
+      "options": {
+        "mode": "markdown",
+        "content": "| Service | Technology | Notes |\n|---------|-----------|-------|\n| **Primary Database** | **TimescaleDB** (PostgreSQL 16 extension) | Time-series hypertables + full SQL JOINs. Container: `sparc-db` |\n| **Cache** | Redis 7 | AOF persistence · 256 MB cap · allkeys-lru eviction |\n| **Monitoring** | Prometheus v2.52 → Grafana OSS 11 | Scrapes node_exporter + textfile collector |\n| **Container Metrics** | node_exporter textfile collector | `docker_stats_prom.sh` cron every 30s (cAdvisor bypassed — overlay2 incompatibility on Ubuntu 24) |\n| **Reverse Proxy** | Caddy 2 | Auto-TLS · HTTP/3 · sparc.localhost domain |\n| **Automation** | n8n (largest RAM consumer ~320 MB) | Webhook → Pushover notifications |\n| **API** | FastAPI + LightGBM | H+24 load forecast · ControlEngine · Solar Advisory |\n\n> **Why TimescaleDB, not InfluxDB?** Advisory log, recommendations, and meter readings need SQL JOINs across tables — impossible in InfluxDB 2.x Flux. See `docs/adr/ADR-012`."
+      }
     }
 
   ]
