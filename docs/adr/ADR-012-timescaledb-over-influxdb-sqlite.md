@@ -79,3 +79,21 @@ SQLite has a write lock on the whole database file — incompatible with concurr
 ## Relationship to Gardening project
 
 The Gardening project (`/Users/danalexandrubujoreanu/Personal Projects/Gardening/`) uses the same free Open-Meteo API for weather data and stores it in InfluxDB. This is intentional duplication — the two projects serve different purposes and should remain independently deployable. Do NOT attempt to share a database between them.
+
+---
+
+## Addendum — InfluxDB v3 reassessment (2026-05-05)
+
+InfluxDB v3 (aka InfluxDB 3.0) is a complete rewrite using Apache Arrow + DataFusion + Parquet. It addresses the main weakness cited above: v3 supports full SQL including JOINs via the DataFusion query engine.
+
+**However, the decision is unchanged for the following reasons:**
+
+1. **Two InfluxDB stacks, not one.** The Gardening project runs InfluxDB 2.7. InfluxDB v3 is not backward-compatible with v2.7 (different storage engine, different API). Adopting v3 for Energy would mean running two separate InfluxDB versions simultaneously — more operational complexity, not less.
+
+2. **Processing Engine is not built-in ML.** InfluxDB v3's "predictive capabilities" refer to its Processing Engine — a Python trigger/UDF runtime that executes Python scripts on data writes. The LightGBM model still runs in Python; the artifact still needs to exist somewhere. The Processing Engine replaces APScheduler as a trigger mechanism, which already works.
+
+3. **Data frequency mismatch.** InfluxDB v3's columnar storage and Arrow query engine are optimised for sub-second IoT ingestion at high cardinality. Sparc Energy ingests 30-min ESB meter readings and daily MyEnergi polls — not a high-frequency use case.
+
+4. **TimescaleDB already provisioned.** asyncpg pool, Grafana datasource, migrations, and hypertables are all live. Migration cost is not zero.
+
+**Reconsider v3 if:** sub-minute Eddi or Shelly Plug S current readings are added to the pipeline in future. High-frequency IoT ingestion is the genuine use case where v3's architecture outperforms TimescaleDB.

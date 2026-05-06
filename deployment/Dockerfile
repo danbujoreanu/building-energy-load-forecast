@@ -30,13 +30,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN useradd -m -u 1000 appuser
 
 # Copy application source
-COPY deployment/__init__.py ./deployment/
-COPY deployment/app.py ./deployment/
-COPY deployment/connectors.py ./deployment/
-COPY deployment/live_inference.py ./deployment/
-COPY deployment/mock_data.py ./deployment/
-COPY deployment/morning_advisory.py ./deployment/
-COPY deployment/myenergi_poller.py ./deployment/
+# Copy entire deployment package (connectors/ routers/ schemas.py db_repository.py scheduler.py etc.)
+COPY deployment/ ./deployment/
 COPY src/ ./src/
 COPY config/ ./config/
 

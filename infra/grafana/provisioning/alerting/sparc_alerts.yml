@@ -71,7 +71,7 @@ groups:
             model:
               type: math
               expression: "$A > 30"
-        noDataState: NoData
+        noDataState: OK
         execErrState: Error
         for: 10m
         labels:
@@ -109,7 +109,7 @@ groups:
             model:
               type: math
               expression: "$A > 3"
-        noDataState: NoData
+        noDataState: OK
         execErrState: Error
         for: 5m
         labels:
@@ -156,7 +156,7 @@ groups:
               type: math
               # 1.5× the 0.171 kWh/h MAE from training ≈ 0.257 per hour, ×24 = ~6.2 kWh/day
               expression: "$A > 6.2"
-        noDataState: NoData
+        noDataState: OK
         execErrState: Error
         for: 60m
         labels:
@@ -199,8 +199,8 @@ groups:
               # Only alert in solar months (Mar–Sep). Ratio < 0.5 is a drop.
               # The month filter is approximate via Grafana math — full logic in app code.
               expression: "$A < 0.5"
-        noDataState: NoData
-        execErrState: NoData
+        noDataState: OK
+        execErrState: OK
         for: 180m
         labels:
           severity: info

@@ -159,6 +159,66 @@ services:
     networks:
       - sparc
 
+  # ── NUC Monitoring Stack ───────────────────────────────────────────────────
+  # cAdvisor: per-container CPU/RAM/network/disk metrics
+  # node-exporter: host-level NUC metrics (total CPU, RAM, disk, temp)
+  # prometheus: scrapes both, stores time-series, feeds Grafana
+  # Dashboard auto-provisioned at http://<NUC-IP>:3001/d/nuc-overview
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: sparc-cadvisor
+    ports:
+      - "8082:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    restart: unless-stopped
+    networks:
+      - sparc
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: sparc-node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+    networks:
+      - sparc
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: sparc-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheusdata:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    restart: unless-stopped
+    networks:
+      - sparc
+
   # ── Caddy (Reverse Proxy + Automatic TLS) ──────────────────────────────────
   # Handles HTTPS for all services behind a single port.
   # On Mac: caddy auto-generates a local CA and issues *.sparc.localhost certs.
@@ -194,6 +254,8 @@ volumes:
   caddyconfig:
     driver: local
   n8ndata:
+    driver: local
+  prometheusdata:
     driver: local
 
 # ── Network ──────────────────────────────────────────────────────────────────
