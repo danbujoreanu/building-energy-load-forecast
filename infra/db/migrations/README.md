@@ -15,6 +15,7 @@ on the Intel NUC running `~/sparc`.
 | `004_data_quality.sql` | 2026-05-04 | DAN-159 | `data_quality_events` table — MyEnergi vs ESB reconciliation log |
 | `005_recommendations_drift.sql` | **2026-05-06** | **DAN-163** | `model_drift_log` + missing relational tables (`recommendations`, `recommendation_outcomes`, `tariff_changes`) + `customer_tiers` and `savings_gap` views |
 | `006_semo_prices.sql` | **2026-05-06** | **DAN-164 Stream 4** | `semo_prices` — EirGrid day-ahead SMP hourly prices (EUR/kWh) |
+| `007_household_profile.sql` | **2026-05-06** | **DAN-152** | `households` additions: `has_eddi`, `heating_type`, `installed_pv_kw`, `panel_factor_seasonal` (JSONB), `panel_factor_obs` |
 
 ---
 
@@ -51,6 +52,4 @@ docker compose exec db psql -U sparc -d sparc_energy
 
 ## Pending Migrations
 
-| Planned | Linear | What |
-|---------|--------|------|
-| `007_household_profile.sql` | DAN-152 | Add `has_ev`, `has_heat_pump`, `installed_pv_kw` columns to `households` |
+None currently. All planned migrations applied.
