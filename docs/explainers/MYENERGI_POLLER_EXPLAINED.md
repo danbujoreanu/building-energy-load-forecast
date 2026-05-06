@@ -1,7 +1,7 @@
 # MyEnergi Poller — Complete Technical Walkthrough
 *Part of the Explainers/ series. Local only — not tracked in git.*
 *Covers: nightly poll design, cgi-jday field mapping, h1b+h1d vs hsk bug, backfill script*
-*Last updated: 2026-04-30*
+*Last updated: 2026-05-06*
 
 ---
 
@@ -205,10 +205,47 @@ The `h1b` peaks in the DB at boost start times; `h1d` peaks during midday solar 
 
 ---
 
+## Changes Since Initial Write (2026-05-06)
+
+### Migration 007 — `panel_factor_seasonal` now exists
+`households` table now has `panel_factor_seasonal` JSONB and `panel_factor_obs` NUMERIC.
+The `_recompute_panel_factor_seasonal` job (APScheduler 23:45) was silently failing on NUC
+because this column was missing from the live DB (the NUC volume was created before the column
+was added to `init.sql`). Migration 007 applied 2026-05-06, now fixed.
+
+### Backfill scripts — two different scripts, different purposes
+
+| Script | Purpose | When to use |
+|--------|---------|-------------|
+| `scripts/backfill_myenergi_eddi.py` | Corrects `eddi_kwh` using `h1b+h1d` after the `hsk` bug. Fetches 846 days (2024-01-01 to 2026-04-29). | **One-time historical correction** — already run |
+| `scripts/myenergi_backfill.py` | General date-range backfill. Same as the nightly poller but accepts `--start-date`/`--end-date` args. | **Fill gaps** — run after NUC deploy or to backfill from Eddi installation date |
+
+**Running on NUC** (scripts dir isn't in the Docker image, use `docker cp`):
+```bash
+# On NUC host:
+docker cp ~/sparc/scripts/myenergi_backfill.py sparc-api:/app/scripts/myenergi_backfill.py
+docker exec sparc-api python /app/scripts/myenergi_backfill.py --start-date 2025-XX-XX
+# DATABASE_URL is automatically picked up from the container env (db:5432)
+```
+
+### Grafana Free Saturday panels now query `myenergi_readings`
+Panels 22 and 25 in `household_intelligence.json` were switched from `meter_readings`
+(ESB CSV) to `myenergi_readings` (live hub data). Query joins via `households.hardware_id = myenergi_readings.hub_serial`. ESB CSV remains in `meter_readings` for delta validation only.
+
+### LP Thermal Dispatcher uses myEnergi context
+`lp_dispatcher.py` receives `solar_surplus_kw` input (future: from `solar_actuals.eddi_kwh`
+and `SolarBaselineModel`). Currently zero until enough data accumulates. The LP also
+schedules grid boosts to complement the Eddi's automatic solar diversion — it only controls
+grid-sourced heating, never overrides the hub's solar diversion logic.
+
+---
+
 ## References
 
 - `deployment/myenergi_poller.py` — poller implementation
-- `deployment/app.py` — APScheduler job setup, `_sync_solar_actuals()`
-- `scripts/backfill_myenergi_eddi.py` — historical correction script
+- `deployment/scheduler.py` — APScheduler job registrations (poller at 23:30, solar_actuals at 23:45)
+- `scripts/backfill_myenergi_eddi.py` — historical correction script (hsk bug, one-time use)
+- `scripts/myenergi_backfill.py` — general gap-fill backfill script
 - `scripts/calibrate_panel_factor.py` — PANEL_FACTOR recalibration (run after backfill)
 - `docs/explainers/SOLAR_ADVISORY_EXPLAINED.md` — how PANEL_FACTOR is used in the advisory
+- `docs/explainers/LP_DISPATCH_EXPLAINED.md` — LP thermal dispatcher design and pricing model
