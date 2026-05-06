@@ -43,9 +43,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger("backfill")
 
-DB_URL = (
+DB_URL = os.environ.get(
+    "DATABASE_URL",
     f"postgresql://sparc:{os.environ.get('DB_PASSWORD', 'sparc_local_2026')}"
-    f"@localhost:5432/sparc_energy"
+    f"@localhost:5432/sparc_energy",
 )
 
 SLEEP_BETWEEN_DAYS = 1.2  # seconds — avoid hammering MyEnergi API

@@ -220,9 +220,10 @@ class LPThermalDispatcher:
         from scipy.optimize import linprog  # lazy import — not installed everywhere
 
         H = 24
-        # Objective: minimise cost + tiny time penalty (prefer heating later)
+        # Objective: minimise cost only. No time penalty — with fixed Irish tariffs
+        # the night rate (23:00-08:00) is always cheapest; penalising early hours
+        # would push heating into day-rate slots.
         c = prices.copy()
-        c += np.array([1e-4 * (H - h) for h in range(H)])
 
         # Temperature constraint matrix
         # temp[h] = initial_temp
