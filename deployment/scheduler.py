@@ -306,13 +306,18 @@ async def _check_drift_sunday(app: FastAPI) -> None:
 
 
 async def _run_lp_dispatch(app: FastAPI) -> None:
-    """14:30 job — DAN-164 Stream 3: LP-optimal Eddi schedule using tomorrow's SMP prices.
+    """14:30 job — DAN-164 Stream 3: LP-optimal Eddi schedule using household tariff rates.
 
-    Reads semo_prices for tomorrow (just fetched at 14:00), runs LPThermalDispatcher,
-    stores result as recommendations, sends Pushover with the schedule summary.
+    Ireland is NOT on dynamic/day-ahead pricing. Retail customers pay fixed day/night
+    tariff slots (BGE night rate: 23:00-08:00, day rate: 08:00-23:00, peak Mon-Fri
+    17:00-19:00). We use the real tariff curve, NOT wholesale SEMO prices.
+
+    SEMO prices (fetched at 14:00) are stored for monitoring and future dynamic-tariff
+    customers, but LP optimisation runs on actual retail rates.
     """
     import datetime as _dt
     from energy_forecast.control.lp_dispatcher import LPThermalDispatcher
+    from energy_forecast.tariff import build_price_curve
 
     pool = getattr(app.state, "db_pool", None)
     if pool is None:
@@ -320,10 +325,14 @@ async def _run_lp_dispatch(app: FastAPI) -> None:
         return
     try:
         tomorrow = (_dt.datetime.now(_DUBLIN) + _dt.timedelta(days=1)).date()
-        prices = await db.get_semo_prices(pool, tomorrow)
-        if prices is None:
-            logger.warning("[lp_dispatch] No SEMO prices for %s — skipping dispatch.", tomorrow)
-            return
+        # Use retail tariff rates — night 23:00-08:00, day 08:00-23:00, free Sat 09:00-17:00
+        prices = build_price_curve(tomorrow)
+        logger.info(
+            "[lp_dispatch] Tariff curve for %s: night=%.4f day=%.4f (cheapest hours: 23:00-08:00)",
+            tomorrow,
+            min(prices),
+            max(prices),
+        )
 
         households = await db.fetch_all_households(pool)
         if not households:
