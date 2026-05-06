@@ -670,6 +670,109 @@
       ],
       "title": "Tomorrow's GHI & Sun Hours",
       "type": "stat"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 101 },
+      "id": 28,
+      "title": "🔍 Forecast Accuracy Audit — Day X Forecast vs Actual",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "For each advisory date: GHI forecast vs actual, and expected diversion vs actual Eddi kWh. NOTE: actual_eddi_kwh includes BOTH solar diversion (h1d) AND grid boost (h1b) — the comparison is exact only on days when the morning boost was skipped. DAN-139 (h1d split) will fix this by comparing h1d only.",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8 }, "unit": "kwatth", "decimals": 2 },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "ghi_forecast_kwh_m2" }, "properties": [{ "id": "displayName", "value": "GHI Forecast (kWh/m²)" }, { "id": "color", "value": { "fixedColor": "#FF9830", "mode": "fixed" } }, { "id": "custom.lineStyle", "value": { "dash": [8, 4], "fill": "dash" } }] },
+          { "matcher": { "id": "byName", "options": "ghi_actual_kwh_m2" },    "properties": [{ "id": "displayName", "value": "GHI Actual (kWh/m²)" },   { "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "expected_diversion_kwh" },"properties": [{ "id": "displayName", "value": "Expected Diversion (kWh)" }, { "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }, { "id": "custom.lineStyle", "value": { "dash": [6, 4], "fill": "dash" } }] },
+          { "matcher": { "id": "byName", "options": "actual_eddi_kwh" },       "properties": [{ "id": "displayName", "value": "Actual Eddi (kWh)*" },     { "id": "color", "value": { "fixedColor": "#F2495C", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 102 },
+      "id": 29,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  al.advisory_date::TIMESTAMPTZ AS time,\n  al.ghi_forecast::FLOAT8         AS ghi_forecast_kwh_m2,\n  sa.ghi_actual::FLOAT8           AS ghi_actual_kwh_m2,\n  al.expected_diversion_kwh::FLOAT8 AS expected_diversion_kwh,\n  sa.eddi_kwh::FLOAT8             AS actual_eddi_kwh\nFROM advisory_log al\nLEFT JOIN solar_actuals sa ON sa.solar_date = al.advisory_date\nWHERE al.household_id = '$household_id'::uuid\n  AND al.advisory_date >= CURRENT_DATE - INTERVAL '90 days'\n  AND al.advisory_date <= CURRENT_DATE\nORDER BY 1",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "title": "GHI Forecast vs Actual + Diversion Forecast vs Actual Eddi*",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "GHI forecast error = (forecast - actual) / actual × 100. Positive = over-estimated sun. Negative = under-estimated. Large negative errors on days Open-Meteo missed cloud cover.",
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "decimals": 1, "custom": { "lineWidth": 2, "fillOpacity": 5 }, "color": { "mode": "fixed", "fixedColor": "orange" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": -20 }, { "color": "yellow", "value": 20 }, { "color": "red", "value": 40 }] }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 112 },
+      "id": 30,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  al.advisory_date::TIMESTAMPTZ AS time,\n  ROUND(\n    ((al.ghi_forecast - sa.ghi_actual) / NULLIF(sa.ghi_actual, 0) * 100)::NUMERIC\n  , 1)::FLOAT8 AS ghi_forecast_error_pct\nFROM advisory_log al\nJOIN solar_actuals sa ON sa.solar_date = al.advisory_date\nWHERE al.household_id = '$household_id'::uuid\n  AND sa.ghi_actual > 0.1\n  AND al.advisory_date >= CURRENT_DATE - INTERVAL '90 days'\n  AND al.advisory_date < CURRENT_DATE\nORDER BY 1",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "title": "GHI Forecast Error % — (forecast − actual) / actual",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Mean Absolute Percentage Error of Open-Meteo GHI forecast for this household location (Maynooth). Excludes low-GHI days (< 0.5 kWh/m²). Lower is better.",
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "decimals": 1, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }, { "color": "yellow", "value": 20 }, { "color": "red", "value": 35 }] } }
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 112 },
+      "id": 31,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  NOW() AS time,\n  ROUND(\n    AVG(ABS(al.ghi_forecast - sa.ghi_actual) / NULLIF(sa.ghi_actual, 0) * 100)::NUMERIC\n  , 1)::FLOAT8 AS ghi_mape_pct\nFROM advisory_log al\nJOIN solar_actuals sa ON sa.solar_date = al.advisory_date\nWHERE al.household_id = '$household_id'::uuid\n  AND sa.ghi_actual > 0.5\n  AND al.advisory_date >= CURRENT_DATE - INTERVAL '30 days'\n  AND al.advisory_date < CURRENT_DATE",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "GHI Forecast MAPE (30d)",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Advisory accuracy: what % of days did the recommendation match the outcome? SKIP_BOOST correct = actual Eddi kWh was high (solar-rich day). KEEP_BOOST correct = actual Eddi kWh was low. Requires DAN-139 (h1d split) for precision — currently uses total eddi_kwh (includes grid boost).",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "unit": "percent", "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": 0 }, { "color": "yellow", "value": 60 }, { "color": "green", "value": 80 }] } }
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 112 },
+      "id": 32,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT\n  NOW() AS time,\n  ROUND(\n    100.0 * SUM(CASE\n      WHEN al.recommendation = 'SKIP_BOOST' AND sa.eddi_kwh >= 2.0 THEN 1\n      WHEN al.recommendation = 'KEEP_BOOST' AND sa.eddi_kwh <  2.0 THEN 1\n      WHEN al.recommendation = 'PARTIAL'    THEN 1\n      ELSE 0\n    END)::NUMERIC / NULLIF(COUNT(*), 0)\n  , 1)::FLOAT8 AS advisory_accuracy_pct\nFROM advisory_log al\nJOIN solar_actuals sa ON sa.solar_date = al.advisory_date\nWHERE al.household_id = '$household_id'::uuid\n  AND al.advisory_date >= CURRENT_DATE - INTERVAL '30 days'\n  AND al.advisory_date < CURRENT_DATE\n  AND sa.eddi_kwh IS NOT NULL",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Advisory Accuracy % (30d)*",
+      "type": "stat"
     }
 
   ],
@@ -700,5 +803,5 @@
   "timezone": "Europe/Dublin",
   "title": "Solar Data Pipeline",
   "uid": "sparc-solar-pipeline",
-  "version": 6
+  "version": 7
 }

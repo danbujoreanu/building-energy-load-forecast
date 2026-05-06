@@ -1,293 +1,228 @@
 {
   "uid": "nuc-overview",
   "title": "NUC System Overview",
-  "tags": [
-    "infrastructure",
-    "nuc"
-  ],
+  "tags": ["infrastructure", "nuc"],
   "timezone": "Europe/Dublin",
   "refresh": "30s",
-  "schemaVersion": 38,
+  "schemaVersion": 39,
+  "version": 2,
+
   "panels": [
+
+    { "collapsed": false, "gridPos": {"h":1,"w":24,"x":0,"y":0}, "id":100, "title":"⚡ System Health at a Glance", "type":"row" },
+
     {
-      "id": 1,
-      "title": "Host CPU Usage %",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 0
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "sparc-prometheus"
-      },
-      "targets": [
-        {
-          "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[2m])) * 100)",
-          "legendFormat": "CPU %",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "sparc-prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "max": 100,
-          "min": 0
-        }
-      }
-    },
-    {
-      "id": 2,
-      "title": "Host RAM Usage",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 12,
-        "y": 0
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "sparc-prometheus"
-      },
-      "targets": [
-        {
-          "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / 1024 / 1024 / 1024",
-          "legendFormat": "RAM Used (GB)",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "sparc-prometheus"
-          }
-        },
-        {
-          "expr": "node_memory_MemTotal_bytes / 1024 / 1024 / 1024",
-          "legendFormat": "RAM Total (GB)",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "sparc-prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "decgbytes"
-        }
-      }
-    },
-    {
-      "id": 3,
-      "title": "Disk Usage %",
+      "id": 1, "title": "CPU %",
       "type": "gauge",
-      "gridPos": {
-        "h": 7,
-        "w": 6,
-        "x": 0,
-        "y": 7
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "sparc-prometheus"
-      },
-      "targets": [
-        {
-          "expr": "100 - ((node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}) * 100)",
-          "legendFormat": "Disk Used %",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "sparc-prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "yellow",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 85
-              }
-            ]
-          }
-        }
-      }
+      "gridPos": {"h":5,"w":4,"x":0,"y":1},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
+      "targets": [{"expr":"100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[2m])) * 100)","legendFormat":"CPU %","datasource":{"type":"prometheus","uid":"sparc-prometheus"}}],
+      "fieldConfig": {"defaults":{"unit":"percent","min":0,"max":100,"thresholds":{"mode":"absolute","steps":[{"color":"green","value":0},{"color":"yellow","value":60},{"color":"red","value":85}]}}}
     },
+
     {
-      "id": 4,
-      "title": "Disk Free (GB)",
+      "id": 2, "title": "CPU Temp (°C)",
+      "type": "gauge",
+      "gridPos": {"h":5,"w":4,"x":4,"y":1},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
+      "targets": [{"expr":"max(node_hwmon_temp_celsius{chip=\"platform_coretemp_0\"})","legendFormat":"Package °C","datasource":{"type":"prometheus","uid":"sparc-prometheus"}}],
+      "fieldConfig": {"defaults":{"unit":"celsius","min":20,"max":90,"thresholds":{"mode":"absolute","steps":[{"color":"green","value":0},{"color":"yellow","value":65},{"color":"red","value":80}]}}}
+    },
+
+    {
+      "id": 3, "title": "RAM Used / Total",
       "type": "stat",
-      "gridPos": {
-        "h": 7,
-        "w": 6,
-        "x": 6,
-        "y": 7
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "sparc-prometheus"
-      },
+      "gridPos": {"h":5,"w":4,"x":8,"y":1},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
       "targets": [
-        {
-          "expr": "node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"} / 1024 / 1024 / 1024",
-          "legendFormat": "Free GB",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "sparc-prometheus"
-          }
-        }
+        {"expr":"(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / 1024/1024/1024","legendFormat":"Used GB","refId":"A","datasource":{"type":"prometheus","uid":"sparc-prometheus"}},
+        {"expr":"node_memory_MemTotal_bytes / 1024/1024/1024","legendFormat":"Total GB","refId":"B","datasource":{"type":"prometheus","uid":"sparc-prometheus"}}
       ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "decgbytes"
-        }
-      }
+      "fieldConfig": {"defaults":{"unit":"decgbytes","decimals":1}}
     },
+
     {
-      "id": 5,
-      "title": "Container CPU Usage %",
+      "id": 4, "title": "Disk Used %",
+      "type": "gauge",
+      "gridPos": {"h":5,"w":4,"x":12,"y":1},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
+      "targets": [{"expr":"100 - ((node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}) * 100)","legendFormat":"Disk %","datasource":{"type":"prometheus","uid":"sparc-prometheus"}}],
+      "fieldConfig": {"defaults":{"unit":"percent","min":0,"max":100,"thresholds":{"mode":"absolute","steps":[{"color":"green","value":0},{"color":"yellow","value":70},{"color":"red","value":85}]}}}
+    },
+
+    {
+      "id": 5, "title": "Disk Free",
+      "type": "stat",
+      "gridPos": {"h":5,"w":4,"x":16,"y":1},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
+      "targets": [{"expr":"node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"} / 1024/1024/1024","legendFormat":"Free GB","datasource":{"type":"prometheus","uid":"sparc-prometheus"}}],
+      "fieldConfig": {"defaults":{"unit":"decgbytes","decimals":1}}
+    },
+
+    {
+      "id": 6, "title": "Total Docker RAM",
+      "type": "stat",
+      "description": "All 9 Docker containers combined. n8n is the largest at ~320 MB.",
+      "gridPos": {"h":5,"w":4,"x":20,"y":1},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
+      "targets": [{"expr":"sum(docker_container_memory_bytes{name=~\"sparc-.+\"}) / 1024/1024","legendFormat":"Docker MB","datasource":{"type":"prometheus","uid":"sparc-prometheus"}}],
+      "fieldConfig": {"defaults":{"unit":"decmbytes","decimals":0,"thresholds":{"mode":"absolute","steps":[{"color":"green","value":0},{"color":"yellow","value":900},{"color":"red","value":1200}]}}}
+    },
+
+    { "collapsed": false, "gridPos": {"h":1,"w":24,"x":0,"y":6}, "id":101, "title":"📊 CPU & RAM Trend", "type":"row" },
+
+    {
+      "id": 10, "title": "CPU Usage % (trend)",
       "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 7
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "sparc-prometheus"
-      },
-      "targets": [
-        {
-          "expr": "rate(container_cpu_usage_seconds_total{name=~\"sparc-.+\"}[2m]) * 100",
-          "legendFormat": "{{name}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "sparc-prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent"
-        }
-      }
+      "gridPos": {"h":8,"w":12,"x":0,"y":7},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
+      "targets": [{"expr":"100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[2m])) * 100)","legendFormat":"CPU %","datasource":{"type":"prometheus","uid":"sparc-prometheus"}}],
+      "fieldConfig": {"defaults":{"unit":"percent","min":0,"max":100,"color":{"fixedColor":"blue","mode":"fixed"},"custom":{"fillOpacity":15}}}
     },
+
     {
-      "id": 6,
-      "title": "Container RAM (MB)",
+      "id": 11, "title": "RAM Breakdown (GB)",
       "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 14
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "sparc-prometheus"
-      },
+      "gridPos": {"h":8,"w":12,"x":12,"y":7},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
       "targets": [
-        {
-          "expr": "container_memory_usage_bytes{name=~\"sparc-.+\"} / 1024 / 1024",
-          "legendFormat": "{{name}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "sparc-prometheus"
-          }
-        }
+        {"expr":"(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / 1024/1024/1024","legendFormat":"Used","refId":"A","datasource":{"type":"prometheus","uid":"sparc-prometheus"}},
+        {"expr":"node_memory_Cached_bytes / 1024/1024/1024","legendFormat":"Cached","refId":"B","datasource":{"type":"prometheus","uid":"sparc-prometheus"}},
+        {"expr":"node_memory_MemFree_bytes / 1024/1024/1024","legendFormat":"Free","refId":"C","datasource":{"type":"prometheus","uid":"sparc-prometheus"}}
       ],
       "fieldConfig": {
-        "defaults": {
-          "unit": "decmbytes"
-        }
+        "defaults": {"unit":"decgbytes"},
+        "overrides": [
+          {"matcher":{"id":"byName","options":"Used"},  "properties":[{"id":"color","value":{"fixedColor":"red","mode":"fixed"}}]},
+          {"matcher":{"id":"byName","options":"Cached"},"properties":[{"id":"color","value":{"fixedColor":"yellow","mode":"fixed"}}]},
+          {"matcher":{"id":"byName","options":"Free"},  "properties":[{"id":"color","value":{"fixedColor":"green","mode":"fixed"}}]}
+        ]
       }
     },
+
+    { "collapsed": false, "gridPos": {"h":1,"w":24,"x":0,"y":15}, "id":102, "title":"🐳 Container Memory & CPU", "type":"row" },
+
     {
-      "id": 7,
-      "title": "Network In/Out (KB/s)",
+      "id": 20, "title": "Container RAM (MB) — sorted by usage",
+      "description": "docker stats refreshed every 30s via cron → node_exporter textfile. n8n is the largest consumer.",
+      "type": "bargauge",
+      "gridPos": {"h":9,"w":14,"x":0,"y":16},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
+      "targets": [{"expr":"sort_desc(docker_container_memory_bytes{name=~\"sparc-.+\"} / 1024/1024)","legendFormat":"{{name}}","instant":true,"datasource":{"type":"prometheus","uid":"sparc-prometheus"}}],
+      "options": {"reduceOptions":{"calcs":["lastNotNull"]},"orientation":"horizontal","displayMode":"gradient","minVizHeight":15},
+      "fieldConfig": {"defaults":{"unit":"decmbytes","thresholds":{"mode":"absolute","steps":[{"color":"green","value":0},{"color":"yellow","value":200},{"color":"red","value":400}]}}}
+    },
+
+    {
+      "id": 21, "title": "Container CPU % (current)",
+      "type": "bargauge",
+      "gridPos": {"h":9,"w":10,"x":14,"y":16},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
+      "targets": [{"expr":"sort_desc(docker_container_cpu_percent{name=~\"sparc-.+\"})","legendFormat":"{{name}}","instant":true,"datasource":{"type":"prometheus","uid":"sparc-prometheus"}}],
+      "options": {"reduceOptions":{"calcs":["lastNotNull"]},"orientation":"horizontal","displayMode":"gradient","minVizHeight":15},
+      "fieldConfig": {"defaults":{"unit":"percent","thresholds":{"mode":"absolute","steps":[{"color":"green","value":0},{"color":"yellow","value":10},{"color":"red","value":30}]}}}
+    },
+
+    {
+      "id": 22, "title": "Container RAM trend (MB)",
       "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 14
+      "gridPos": {"h":8,"w":24,"x":0,"y":25},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
+      "targets": [{"expr":"docker_container_memory_bytes{name=~\"sparc-.+\"} / 1024/1024","legendFormat":"{{name}}","datasource":{"type":"prometheus","uid":"sparc-prometheus"}}],
+      "fieldConfig": {"defaults":{"unit":"decmbytes"}},
+      "options": {"legend":{"calcs":["lastNotNull","max"],"displayMode":"table","placement":"right"}}
+    },
+
+    { "collapsed": false, "gridPos": {"h":1,"w":24,"x":0,"y":33}, "id":103, "title":"🟢 Container Status", "type":"row" },
+
+    {
+      "id": 30, "title": "Container Running Status",
+      "description": "1 = running (refreshed every 30s). Any container showing 0 or missing needs investigation.",
+      "type": "stat",
+      "gridPos": {"h":6,"w":24,"x":0,"y":34},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
+      "targets": [{"expr":"docker_container_running{name=~\"sparc-.+\"}","legendFormat":"{{name}}","instant":true,"datasource":{"type":"prometheus","uid":"sparc-prometheus"}}],
+      "options": {
+        "reduceOptions": {"calcs":["lastNotNull"]},
+        "colorMode": "background",
+        "graphMode": "none",
+        "orientation": "horizontal"
       },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "sparc-prometheus"
-      },
-      "targets": [
-        {
-          "expr": "rate(node_network_receive_bytes_total{device=\"wlp2s0\"}[2m]) / 1024",
-          "legendFormat": "RX KB/s",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "sparc-prometheus"
-          }
-        },
-        {
-          "expr": "rate(node_network_transmit_bytes_total{device=\"wlp2s0\"}[2m]) / 1024",
-          "legendFormat": "TX KB/s",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "sparc-prometheus"
-          }
-        }
-      ],
       "fieldConfig": {
         "defaults": {
-          "unit": "KBs"
+          "mappings": [{"type":"value","options":{"1":{"text":"🟢 UP","color":"green"},"0":{"text":"🔴 DOWN","color":"red"}}}],
+          "thresholds": {"mode":"absolute","steps":[{"color":"red","value":null},{"color":"green","value":1}]}
         }
       }
     },
+
+    { "collapsed": false, "gridPos": {"h":1,"w":24,"x":0,"y":40}, "id":104, "title":"🌡️ Temperature & Network", "type":"row" },
+
     {
-      "id": 8,
-      "title": "Container Status",
-      "type": "table",
-      "gridPos": {
-        "h": 6,
-        "w": 24,
-        "x": 0,
-        "y": 22
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "sparc-prometheus"
-      },
+      "id": 40, "title": "CPU Temperature (°C)",
+      "type": "timeseries",
+      "gridPos": {"h":8,"w":12,"x":0,"y":41},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
       "targets": [
-        {
-          "expr": "container_last_seen{name=~\"sparc-.+\"}",
-          "legendFormat": "{{name}}",
-          "instant": true,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "sparc-prometheus"
-          }
-        }
+        {"expr":"max(node_hwmon_temp_celsius{chip=\"platform_coretemp_0\"})","legendFormat":"Package (max)","refId":"A","datasource":{"type":"prometheus","uid":"sparc-prometheus"}},
+        {"expr":"node_hwmon_temp_celsius{chip=\"platform_coretemp_0\",sensor=\"temp2\"}","legendFormat":"Core 0","refId":"B","datasource":{"type":"prometheus","uid":"sparc-prometheus"}},
+        {"expr":"node_hwmon_temp_celsius{chip=\"platform_coretemp_0\",sensor=\"temp3\"}","legendFormat":"Core 1","refId":"C","datasource":{"type":"prometheus","uid":"sparc-prometheus"}}
       ],
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "mode": "columns"
-          }
-        }
-      ]
+      "fieldConfig": {
+        "defaults": {"unit":"celsius","min":20,"max":90},
+        "overrides": [
+          {"matcher":{"id":"byName","options":"Package (max)"},"properties":[{"id":"color","value":{"fixedColor":"orange","mode":"fixed"}},{"id":"custom.lineWidth","value":2}]}
+        ]
+      },
+      "options": {"legend":{"calcs":["lastNotNull","max"],"displayMode":"table","placement":"bottom"}}
+    },
+
+    {
+      "id": 41, "title": "Network In/Out (KB/s)",
+      "type": "timeseries",
+      "gridPos": {"h":8,"w":12,"x":12,"y":41},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
+      "targets": [
+        {"expr":"rate(node_network_receive_bytes_total{device=\"wlp2s0\"}[2m]) / 1024","legendFormat":"RX KB/s","refId":"A","datasource":{"type":"prometheus","uid":"sparc-prometheus"}},
+        {"expr":"rate(node_network_transmit_bytes_total{device=\"wlp2s0\"}[2m]) / 1024","legendFormat":"TX KB/s","refId":"B","datasource":{"type":"prometheus","uid":"sparc-prometheus"}}
+      ],
+      "fieldConfig": {
+        "defaults": {"unit":"KBs"},
+        "overrides": [
+          {"matcher":{"id":"byName","options":"RX KB/s"},"properties":[{"id":"color","value":{"fixedColor":"green","mode":"fixed"}}]},
+          {"matcher":{"id":"byName","options":"TX KB/s"},"properties":[{"id":"color","value":{"fixedColor":"blue","mode":"fixed"}}]}
+        ]
+      }
+    },
+
+    { "collapsed": false, "gridPos": {"h":1,"w":24,"x":0,"y":49}, "id":105, "title":"💾 Disk I/O", "type":"row" },
+
+    {
+      "id": 50, "title": "Disk Read/Write throughput (KB/s)",
+      "type": "timeseries",
+      "gridPos": {"h":8,"w":12,"x":0,"y":50},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
+      "targets": [
+        {"expr":"rate(node_disk_read_bytes_total{device=\"sda\"}[2m]) / 1024","legendFormat":"Read KB/s","refId":"A","datasource":{"type":"prometheus","uid":"sparc-prometheus"}},
+        {"expr":"rate(node_disk_written_bytes_total{device=\"sda\"}[2m]) / 1024","legendFormat":"Write KB/s","refId":"B","datasource":{"type":"prometheus","uid":"sparc-prometheus"}}
+      ],
+      "fieldConfig": {
+        "defaults": {"unit":"KBs"},
+        "overrides": [
+          {"matcher":{"id":"byName","options":"Read KB/s"}, "properties":[{"id":"color","value":{"fixedColor":"green","mode":"fixed"}}]},
+          {"matcher":{"id":"byName","options":"Write KB/s"},"properties":[{"id":"color","value":{"fixedColor":"orange","mode":"fixed"}}]}
+        ]
+      }
+    },
+
+    {
+      "id": 51, "title": "Disk I/O Utilisation %",
+      "type": "timeseries",
+      "gridPos": {"h":8,"w":12,"x":12,"y":50},
+      "datasource": {"type":"prometheus","uid":"sparc-prometheus"},
+      "targets": [{"expr":"rate(node_disk_io_time_seconds_total{device=\"sda\"}[2m]) * 100","legendFormat":"IO util %","datasource":{"type":"prometheus","uid":"sparc-prometheus"}}],
+      "fieldConfig": {"defaults":{"unit":"percent","min":0,"max":100,"thresholds":{"mode":"absolute","steps":[{"color":"green","value":0},{"color":"yellow","value":40},{"color":"red","value":75}]}}}
     }
+
   ]
 }
