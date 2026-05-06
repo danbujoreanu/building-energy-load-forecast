@@ -305,6 +305,60 @@ async def _check_drift_sunday(app: FastAPI) -> None:
         logger.error("[drift_check] Drift check failed: %s", exc)
 
 
+async def _run_lp_dispatch(app: FastAPI) -> None:
+    """14:30 job — DAN-164 Stream 3: LP-optimal Eddi schedule using tomorrow's SMP prices.
+
+    Reads semo_prices for tomorrow (just fetched at 14:00), runs LPThermalDispatcher,
+    stores result as recommendations, sends Pushover with the schedule summary.
+    """
+    import datetime as _dt
+    from energy_forecast.control.lp_dispatcher import LPThermalDispatcher
+
+    pool = getattr(app.state, "db_pool", None)
+    if pool is None:
+        logger.warning("[lp_dispatch] DB pool not available — skipping.")
+        return
+    try:
+        tomorrow = (_dt.datetime.now(_DUBLIN) + _dt.timedelta(days=1)).date()
+        prices = await db.get_semo_prices(pool, tomorrow)
+        if prices is None:
+            logger.warning("[lp_dispatch] No SEMO prices for %s — skipping dispatch.", tomorrow)
+            return
+
+        households = await db.fetch_all_households(pool)
+        if not households:
+            return
+
+        dispatcher = LPThermalDispatcher()
+
+        for row in households:
+            hid = str(row["id"])
+            try:
+                # Use 55°C as a safe default tank temp (no sensor yet — DAN-152)
+                result = dispatcher.optimize(
+                    initial_temp_c=55.0,
+                    prices=prices,
+                )
+                summary = result.schedule_summary()
+                logger.info("[lp_dispatch] household=%s  %s", hid[:8], summary)
+
+                # Store 24 per-hour recommendations
+                actions = result.to_control_actions()
+                await db.insert_lp_recommendations(pool, hid, actions)
+
+                await asyncio.to_thread(
+                    _send_alert_pushover,
+                    f"⚡ Sparc: tomorrow's Eddi schedule",
+                    f"{tomorrow}\n{summary}",
+                    -1,
+                )
+                break  # single-household MVP
+            except Exception as exc:
+                logger.error("[lp_dispatch] Failed for household=%s: %s", hid[:8], exc)
+    except Exception as exc:
+        logger.error("[lp_dispatch] LP dispatch job failed: %s", exc)
+
+
 async def _check_data_gaps(app: FastAPI) -> None:
     """09:00 job — DAN-148: alert if ESB meter readings are stale (>72h) or have gap streaks."""
     pool = getattr(app.state, "db_pool", None)
@@ -440,6 +494,11 @@ def create_scheduler(app: FastAPI) -> AsyncIOScheduler:
         lambda: asyncio.ensure_future(_fetch_semo_prices(app)),
         CronTrigger(hour=14, minute=0),
         id="semo_price_fetch", replace_existing=True,
+    )
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(_run_lp_dispatch(app)),
+        CronTrigger(hour=14, minute=30),
+        id="lp_dispatch", replace_existing=True,
     )
 
     return scheduler

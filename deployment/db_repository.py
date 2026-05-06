@@ -210,6 +210,57 @@ async def get_semo_prices(pool, price_date: "date") -> list[float] | None:
     return [float(r["price_eur_kwh"]) for r in rows]
 
 
+async def insert_lp_recommendations(
+    pool,
+    household_id: str,
+    actions: list,
+) -> None:
+    """Bulk-insert 24 per-hour LP dispatch recommendations.
+
+    Each ControlAction becomes one row in the recommendations table.
+    Existing rows for this household from today are deleted first so
+    re-running at 14:30 produces a clean set.
+
+    Parameters
+    ----------
+    pool:
+        asyncpg connection pool.
+    household_id:
+        UUID string for the target household.
+    actions:
+        List of ControlAction objects (24 elements, one per hour).
+    """
+    async with pool.acquire() as conn:
+        # Delete today's LP recommendations before reinserting (idempotent re-runs)
+        await conn.execute(
+            """
+            DELETE FROM recommendations
+            WHERE household_id = $1
+              AND reasoning LIKE 'LP:%'
+              AND created_at >= CURRENT_DATE
+            """,
+            household_id,
+        )
+        await conn.executemany(
+            """
+            INSERT INTO recommendations
+                (household_id, target_hour, action, confidence, reasoning, price_eur_kwh, dry_run)
+            VALUES ($1, $2, $3, $4, $5, $6, FALSE)
+            """,
+            [
+                (
+                    household_id,
+                    a.target_hour,
+                    a.action.value,
+                    round(a.confidence, 3),
+                    a.reasoning,
+                    round(a.price_eur_kwh, 4),
+                )
+                for a in actions
+            ],
+        )
+
+
 async def insert_drift_log(
     pool,
     household_id: str,
