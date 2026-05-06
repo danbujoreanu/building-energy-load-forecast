@@ -178,6 +178,38 @@ async def get_recent_mae(pool, household_id: str, days: int = 7) -> float | None
         return float(row["mae"]) if row and row["mae"] is not None else None
 
 
+async def upsert_semo_prices(
+    pool, price_date: "date", prices: list[float], source: str = "eirgrid"
+) -> None:
+    """Upsert 24 hourly SEMO prices for price_date into semo_prices table."""
+    from datetime import date  # noqa: PLC0415
+    async with pool.acquire() as conn:
+        await conn.executemany(
+            """
+            INSERT INTO semo_prices (price_date, hour, price_eur_kwh, source)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (price_date, hour) DO UPDATE SET
+                price_eur_kwh = EXCLUDED.price_eur_kwh,
+                source        = EXCLUDED.source,
+                fetched_at    = NOW()
+            """,
+            [(price_date, h, prices[h], source) for h in range(len(prices))],
+        )
+
+
+async def get_semo_prices(pool, price_date: "date") -> list[float] | None:
+    """Return 24 hourly prices in EUR/kWh for price_date, or None if not stored."""
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT hour, price_eur_kwh FROM semo_prices "
+            "WHERE price_date = $1 ORDER BY hour",
+            price_date,
+        )
+    if len(rows) < 24:
+        return None
+    return [float(r["price_eur_kwh"]) for r in rows]
+
+
 async def insert_drift_log(
     pool,
     household_id: str,

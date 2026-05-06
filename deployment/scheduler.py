@@ -235,6 +235,34 @@ async def _run_weekly_quality_report(app: FastAPI) -> None:
         logger.error("[data_quality_weekly] Weekly report failed: %s", exc)
 
 
+async def _fetch_semo_prices(app: FastAPI) -> None:
+    """14:00 job — DAN-164 Stream 4: fetch tomorrow's day-ahead SMP from EirGrid.
+
+    EirGrid publishes day-ahead prices at ~13:00. We fetch at 14:00 to ensure
+    availability. Stored in semo_prices table for use by LPThermalDispatcher (16:00).
+    Falls back to MockPriceConnector on API failure — LP dispatch still works.
+    """
+    from datetime import datetime as _dt
+    from deployment.connectors.markets import SEMOConnector
+
+    pool = getattr(app.state, "db_pool", None)
+    if pool is None:
+        logger.warning("[semo_prices] DB pool not available — skipping.")
+        return
+    try:
+        tomorrow = (_dt.now(_DUBLIN) + __import__("datetime").timedelta(days=1)).date()
+        connector = SEMOConnector()
+        prices = await asyncio.to_thread(connector.get_day_ahead_prices, tomorrow)
+        source = "eirgrid" if len(prices) == 24 else "mock"
+        await db.upsert_semo_prices(pool, tomorrow, prices, source)
+        logger.info(
+            "[semo_prices] Stored %d prices for %s (source=%s, range=%.4f–%.4f EUR/kWh)",
+            len(prices), tomorrow, source, min(prices), max(prices),
+        )
+    except Exception as exc:
+        logger.error("[semo_prices] Price fetch failed: %s", exc)
+
+
 async def _check_drift_sunday(app: FastAPI) -> None:
     """Sun 02:00 job — DAN-163: compute rolling MAE, log drift, alert if ratio > 1.25.
 
@@ -407,6 +435,11 @@ def create_scheduler(app: FastAPI) -> AsyncIOScheduler:
         lambda: asyncio.ensure_future(_check_drift_sunday(app)),
         CronTrigger(day_of_week="sun", hour=2, minute=0),
         id="drift_check_sunday", replace_existing=True,
+    )
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(_fetch_semo_prices(app)),
+        CronTrigger(hour=14, minute=0),
+        id="semo_price_fetch", replace_existing=True,
     )
 
     return scheduler

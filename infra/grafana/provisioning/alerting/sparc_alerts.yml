@@ -21,12 +21,12 @@ groups:
       # ── Rule 1: Zero readings ──────────────────────────────────────────────
       # Critical: no data uploaded in last 2 hours → meter/upload failure
       - uid: sparc-alert-zero-readings
-        title: "Zero Meter Readings (2h)"
+        title: "Zero Meter Readings (72h)"
         condition: A
         data:
           - refId: A
             relativeTimeRange:
-              from: 7200   # 2 hours in seconds
+              from: 259200   # 72 hours in seconds
               to: 0
             datasourceUid: sparc-postgres
             model:
@@ -34,7 +34,7 @@ groups:
                 SELECT
                   CASE WHEN COUNT(*) = 0 THEN 1 ELSE 0 END AS no_data
                 FROM meter_readings
-                WHERE recorded_at >= NOW() - INTERVAL '2 hours'
+                WHERE recorded_at >= NOW() - INTERVAL '72 hours'
               format: table
         noDataState: Alerting
         execErrState: Alerting
@@ -43,8 +43,8 @@ groups:
           severity: critical
           team: sparc
         annotations:
-          summary: "No meter readings in the last 2 hours"
-          description: "Check ESB HDF upload or P1 port connection. No readings recorded since {{ $labels.recorded_at }}."
+          summary: "No meter readings in the last 72 hours"
+          description: "Check ESB HDF upload. Last reading was >72h ago. Upload fresh ESB CSV or check myEnergi poller. Last recorded at {{ $labels.recorded_at }}."
 
       # ── Rule 2: High daily import ─────────────────────────────────────────
       # Warning: total import today > 30 kWh (unusually high — heat pump fault, EV left on)

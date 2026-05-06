@@ -80,7 +80,7 @@
         "defaults": { "unit": "short", "color": { "mode": "palette-classic" } },
         "overrides": [
           { "matcher": { "id": "byName", "options": "sample_count" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "expected_48" }, "properties": [{ "id": "color", "value": { "fixedColor": "dark-grey", "mode": "fixed" } }, { "id": "custom.lineStyle", "value": { "dash": [10, 10], "fill": "dash" } }] }
+          { "matcher": { "id": "byName", "options": "expected_48" }, "properties": [{ "id": "color", "value": { "fixedColor": "#808080", "mode": "fixed" } }, { "id": "custom.lineStyle", "value": { "dash": [10, 10], "fill": "dash" } }] }
         ]
       },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 11 },
@@ -414,7 +414,7 @@
             "matcher": { "id": "byName", "options": "fallback" },
             "properties": [
               { "id": "displayName", "value": "Static fallback (1.6)" },
-              { "id": "color", "value": { "fixedColor": "dark-grey", "mode": "fixed" } },
+              { "id": "color", "value": { "fixedColor": "#808080", "mode": "fixed" } },
               { "id": "custom.lineStyle", "value": { "dash": [6, 6], "fill": "dash" } }
             ]
           }
