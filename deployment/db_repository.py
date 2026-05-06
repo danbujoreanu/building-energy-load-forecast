@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -128,4 +128,79 @@ async def check_meter_recency(pool, household_id: str):
               AND recorded_at >= NOW() - INTERVAL '30 days'
             """,
             household_id,
+        )
+
+
+# ---------------------------------------------------------------------------
+# DAN-163 — Drift monitoring
+# ---------------------------------------------------------------------------
+
+async def get_recent_mae(pool, household_id: str, days: int = 7) -> float | None:
+    """Compute mean absolute error between H+24 predictions and actual meter readings.
+
+    Matches each prediction's p50_kwh[hour] against the actual import_kwh for that
+    30-min slot (using hour index 0–23 mapped to 30-min pairs).
+
+    Returns MAE in kWh over the last `days` days, or None if < 24h of paired data.
+    """
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            WITH paired AS (
+                SELECT
+                    p.forecast_date,
+                    -- p50_kwh is a 24-element array (one per hour).
+                    -- Sum consecutive 30-min readings per hour bucket.
+                    ABS(
+                        p.p50_kwh[gs.h + 1]  -- 1-indexed in Postgres arrays
+                        - COALESCE(
+                            (SELECT SUM(mr.import_kwh)
+                             FROM meter_readings mr
+                             WHERE mr.household_id = p.household_id
+                               AND mr.recorded_at >= (p.forecast_date + (gs.h * INTERVAL '1 hour'))
+                                                      AT TIME ZONE 'Europe/Dublin'
+                               AND mr.recorded_at <  (p.forecast_date + ((gs.h + 1) * INTERVAL '1 hour'))
+                                                      AT TIME ZONE 'Europe/Dublin'
+                            ), p.p50_kwh[gs.h + 1]  -- fallback to prediction if no actual
+                        )
+                    ) AS abs_error
+                FROM predictions p
+                CROSS JOIN generate_series(0, 23) AS gs(h)
+                WHERE p.household_id = $1
+                  AND p.forecast_date >= CURRENT_DATE - INTERVAL '1 day' * $2
+            )
+            SELECT ROUND(AVG(abs_error)::NUMERIC, 4) AS mae
+            FROM paired
+            """,
+            household_id,
+            days,
+        )
+        return float(row["mae"]) if row and row["mae"] is not None else None
+
+
+async def insert_drift_log(
+    pool,
+    household_id: str,
+    mae_7d: float | None,
+    mae_28d: float | None,
+    alert_sent: bool = False,
+    notes: str | None = None,
+) -> None:
+    """Insert one row into model_drift_log."""
+    drift_ratio = None
+    if mae_7d and mae_28d and mae_28d > 0:
+        drift_ratio = round(mae_7d / mae_28d, 3)
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO model_drift_log
+                (household_id, checked_at, model_mae_7d, model_mae_28d, drift_ratio, alert_sent, notes)
+            VALUES ($1, NOW(), $2, $3, $4, $5, $6)
+            """,
+            household_id,
+            mae_7d,
+            mae_28d,
+            drift_ratio,
+            alert_sent,
+            notes,
         )

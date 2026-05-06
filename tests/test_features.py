@@ -82,3 +82,72 @@ class TestTemporalFeatures:
         result = build_temporal_features(mini_df, mini_cfg)
         assert result["hour_of_day_sin"].between(-1, 1).all()
         assert result["hour_of_day_cos"].between(-1, 1).all()
+
+
+# ---------------------------------------------------------------------------
+# LoadDisaggregator tests — DAN-164 Stream 1
+# ---------------------------------------------------------------------------
+
+class TestLoadDisaggregator:
+    def test_happy_path(self):
+        from energy_forecast.features.load_disaggregation import LoadDisaggregator
+        df = pd.DataFrame({"import_kwh": [1.2, 0.8, 0.5], "eddi_kwh": [0.3, 0.0, 0.6]})
+        result = LoadDisaggregator.separate_eddi_load(df)
+        assert "base_load_kwh" in result.columns
+        assert result["base_load_kwh"].round(4).tolist() == [0.9, 0.8, 0.0]  # 0.5-0.6 clipped to 0
+
+    def test_no_negative_base_load(self):
+        from energy_forecast.features.load_disaggregation import LoadDisaggregator
+        df = pd.DataFrame({"import_kwh": [0.2], "eddi_kwh": [1.0]})
+        result = LoadDisaggregator.separate_eddi_load(df)
+        assert result["base_load_kwh"].iloc[0] == 0.0
+
+    def test_missing_eddi_treated_as_zero(self):
+        from energy_forecast.features.load_disaggregation import LoadDisaggregator
+        df = pd.DataFrame({"import_kwh": [1.0], "eddi_kwh": [float("nan")]})
+        result = LoadDisaggregator.separate_eddi_load(df)
+        assert result["base_load_kwh"].iloc[0] == 1.0
+
+    def test_missing_column_raises(self):
+        from energy_forecast.features.load_disaggregation import LoadDisaggregator
+        df = pd.DataFrame({"import_kwh": [1.0]})
+        with pytest.raises(ValueError, match="eddi_kwh"):
+            LoadDisaggregator.separate_eddi_load(df)
+
+
+# ---------------------------------------------------------------------------
+# SolarBaselineModel tests — DAN-164 Stream 2
+# ---------------------------------------------------------------------------
+
+class TestSolarBaselineModel:
+    def test_zero_pv_returns_zeros(self):
+        from energy_forecast.features.solar_baseline import SolarBaselineModel
+        model = SolarBaselineModel(pv_peak_power_kw=0.0)
+        result = model.predict(hours_ahead=24, cloud_coverage=[50.0] * 24)
+        assert result == [0.0] * 24
+
+    def test_daytime_positive_nighttime_zero(self):
+        from energy_forecast.features.solar_baseline import SolarBaselineModel
+        from datetime import datetime
+        model = SolarBaselineModel(pv_peak_power_kw=4.0)
+        # Summer noon in Dublin — should produce positive output
+        noon = datetime(2026, 6, 21, 12, 0)
+        result = model.predict(hours_ahead=1, cloud_coverage=[0.0], start_time=noon)
+        assert result[0] > 0.0, "Expected positive PV output at noon"
+
+    def test_midnight_output_zero(self):
+        from energy_forecast.features.solar_baseline import SolarBaselineModel
+        from datetime import datetime
+        model = SolarBaselineModel(pv_peak_power_kw=4.0)
+        midnight = datetime(2026, 6, 21, 0, 0)
+        result = model.predict(hours_ahead=1, cloud_coverage=[0.0], start_time=midnight)
+        assert result[0] == 0.0, "Expected zero PV output at midnight"
+
+    def test_full_cloud_reduces_output(self):
+        from energy_forecast.features.solar_baseline import SolarBaselineModel
+        from datetime import datetime
+        model = SolarBaselineModel(pv_peak_power_kw=4.0)
+        noon = datetime(2026, 6, 21, 12, 0)
+        clear = model.predict(1, [0.0], noon)[0]
+        overcast = model.predict(1, [100.0], noon)[0]
+        assert overcast < clear, "Overcast should reduce output vs clear sky"

@@ -100,7 +100,7 @@ class OpenMeteoConnector(DataConnector):
         url = (
             f"https://api.open-meteo.com/v1/forecast"
             f"?latitude={self.latitude}&longitude={self.longitude}"
-            f"&hourly=temperature_2m,direct_radiation"
+            f"&hourly=temperature_2m,direct_radiation,cloud_cover,shortwave_radiation"
             f"&forecast_days={math.ceil(hours / 24)}"
             f"&timezone=UTC"
         )
@@ -126,11 +126,15 @@ class OpenMeteoConnector(DataConnector):
                     times = pd.to_datetime(hourly["time"], utc=True)
                     temps = hourly["temperature_2m"]
                     solar = hourly["direct_radiation"]
+                    cloud = hourly.get("cloud_cover", [None] * hours)
+                    shortwave = hourly.get("shortwave_radiation", [None] * hours)
 
                     df = pd.DataFrame(
                         {
                             "Temperature_Outdoor_C": temps[:hours],
                             "Global_Solar_Horizontal_Radiation_W_m2": solar[:hours],
+                            "cloud_cover_pct": cloud[:hours],
+                            "shortwave_radiation_W_m2": shortwave[:hours],
                             "Electricity_Imported_Total_kWh": float("nan"),  # unknown future load
                         },
                         index=times[:hours],

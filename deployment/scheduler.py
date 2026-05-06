@@ -235,6 +235,48 @@ async def _run_weekly_quality_report(app: FastAPI) -> None:
         logger.error("[data_quality_weekly] Weekly report failed: %s", exc)
 
 
+async def _check_drift_sunday(app: FastAPI) -> None:
+    """Sun 02:00 job — DAN-163: compute rolling MAE, log drift, alert if ratio > 1.25.
+
+    Computes 7-day MAE vs 28-day baseline MAE per household.
+    Drift ratio > 1.25 means recent error is 25% worse than baseline → Pushover alert.
+    """
+    pool = getattr(app.state, "db_pool", None)
+    if pool is None:
+        logger.warning("[drift_check] DB pool not available — skipping.")
+        return
+    try:
+        households = await db.fetch_household_ids(pool)
+        if not households:
+            return
+        for row in households:
+            hid = str(row["id"])
+            mae_7d  = await db.get_recent_mae(pool, hid, days=7)
+            mae_28d = await db.get_recent_mae(pool, hid, days=28)
+
+            drift_ratio = (mae_7d / mae_28d) if (mae_7d and mae_28d and mae_28d > 0) else None
+            alert_sent  = False
+            notes       = None
+
+            if drift_ratio is not None and drift_ratio > 1.25:
+                notes = f"Drift detected: 7d MAE={mae_7d:.4f} kWh, 28d MAE={mae_28d:.4f} kWh, ratio={drift_ratio:.2f}"
+                await asyncio.to_thread(
+                    _send_alert_pushover,
+                    "⚡ Sparc: Model drift detected",
+                    notes,
+                    0,
+                )
+                alert_sent = True
+                logger.warning("[drift_check] household=%s — %s", hid[:8], notes)
+            else:
+                level = f"{drift_ratio:.2f}" if drift_ratio else "n/a"
+                logger.info("[drift_check] household=%s OK — ratio=%s", hid[:8], level)
+
+            await db.insert_drift_log(pool, hid, mae_7d, mae_28d, alert_sent, notes)
+    except Exception as exc:
+        logger.error("[drift_check] Drift check failed: %s", exc)
+
+
 async def _check_data_gaps(app: FastAPI) -> None:
     """09:00 job — DAN-148: alert if ESB meter readings are stale (>72h) or have gap streaks."""
     pool = getattr(app.state, "db_pool", None)
@@ -360,6 +402,11 @@ def create_scheduler(app: FastAPI) -> AsyncIOScheduler:
         lambda: asyncio.ensure_future(_run_weekly_quality_report(app)),
         CronTrigger(day_of_week="mon", hour=8, minute=30),
         id="weekly_quality_report", replace_existing=True,
+    )
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(_check_drift_sunday(app)),
+        CronTrigger(day_of_week="sun", hour=2, minute=0),
+        id="drift_check_sunday", replace_existing=True,
     )
 
     return scheduler

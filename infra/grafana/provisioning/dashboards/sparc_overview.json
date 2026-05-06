@@ -1,14 +1,46 @@
 {
   "__inputs": [],
   "__requires": [
-    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "11.0.0" },
-    { "type": "datasource", "id": "postgres", "name": "PostgreSQL", "version": "1.0.0" },
-    { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
-    { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
-    { "type": "panel", "id": "table", "name": "Table", "version": "" },
-    { "type": "panel", "id": "text", "name": "Text", "version": "" }
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "11.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "text",
+      "name": "Text",
+      "version": ""
+    }
   ],
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -17,41 +49,68 @@
   "panels": [
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "id": 20,
       "title": "System Status",
       "type": "row"
     },
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "mappings": []
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
       "id": 1,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value_and_name"
       },
       "title": "Households",
       "type": "stat",
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT COUNT(*) AS \"Households\" FROM households",
           "format": "table",
           "refId": "A"
@@ -59,34 +118,56 @@
       ]
     },
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "blue", "value": null }
+              {
+                "color": "blue",
+                "value": null
+              }
             ]
           }
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
       "id": 2,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value_and_name"
       },
       "title": "Meter Readings",
       "type": "stat",
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT COUNT(*) AS \"Readings\" FROM meter_readings",
           "format": "table",
           "refId": "A"
@@ -94,34 +175,56 @@
       ]
     },
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "purple", "value": null }
+              {
+                "color": "purple",
+                "value": null
+              }
             ]
           }
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
       "id": 3,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value_and_name"
       },
       "title": "Forecasts Issued",
       "type": "stat",
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT COUNT(*) AS \"Forecasts\" FROM predictions",
           "format": "table",
           "refId": "A"
@@ -129,34 +232,56 @@
       ]
     },
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "orange", "value": null }
+              {
+                "color": "orange",
+                "value": null
+              }
             ]
           }
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
       "id": 4,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "value_and_name"
       },
       "title": "Control Recommendations",
       "type": "stat",
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT COUNT(*) AS \"Recommendations\" FROM recommendations",
           "format": "table",
           "refId": "A"
@@ -164,10 +289,15 @@
       ]
     },
     {
-      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
       "id": 5,
       "options": {
-        "content": "## Sparc Energy — Local Dev Stack\n\n**API:** [localhost:8000/health](http://localhost:8000/health)  \n**Docs:** [localhost:8000/docs](http://localhost:8000/docs)  \n**Stack:** FastAPI · TimescaleDB · Redis · LightGBM  \n\n> Rows will populate once ESB CSV is uploaded and demo is run.",
+        "content": "## Sparc Energy \u2014 Local Dev Stack\n\n**API:** [localhost:8000/health](http://localhost:8000/health)  \n**Docs:** [localhost:8000/docs](http://localhost:8000/docs)  \n**Stack:** FastAPI \u00b7 TimescaleDB \u00b7 Redis \u00b7 LightGBM  \n\n> Rows will populate once ESB CSV is uploaded and demo is run.",
         "mode": "markdown"
       },
       "title": "",
@@ -176,16 +306,26 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
       "id": 21,
       "title": "Energy Consumption",
       "type": "row"
     },
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "axisCenteredZero": false,
             "axisColorMode": "text",
@@ -195,38 +335,72 @@
             "drawStyle": "line",
             "fillOpacity": 15,
             "gradientMode": "opacity",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 3,
-            "scaleDistribution": { "type": "linear" },
+            "scaleDistribution": {
+              "type": "linear"
+            },
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "unit": "kwatth",
           "decimals": 3
         },
         "overrides": []
       },
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 6 },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
       "id": 6,
       "options": {
-        "legend": { "calcs": ["mean", "max", "sum"], "displayMode": "table", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "none" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
       },
-      "title": "30-Minute Meter Readings — Import & Export",
+      "title": "30-Minute Meter Readings \u2014 Import & Export",
       "type": "timeseries",
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  recorded_at AS \"time\",\n  import_kwh AS \"Import (kWh)\"\nFROM meter_readings\nWHERE $__timeFilter(recorded_at)\nORDER BY recorded_at",
           "format": "time_series",
           "refId": "A"
         },
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  recorded_at AS \"time\",\n  export_kwh AS \"Export (kWh)\"\nFROM meter_readings\nWHERE $__timeFilter(recorded_at)\nORDER BY recorded_at",
           "format": "time_series",
           "refId": "B"
@@ -235,16 +409,26 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
       "id": 22,
       "title": "Forecasts & Control",
       "type": "row"
     },
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "axisLabel": "kWh/hour",
             "drawStyle": "line",
@@ -259,17 +443,35 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 16 },
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 0,
+        "y": 16
+      },
       "id": 7,
       "options": {
-        "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "none" }
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
       },
-      "title": "Latest H+24 Forecast — P10 / P50 / P90",
+      "title": "Latest H+24 Forecast \u2014 P10 / P50 / P90",
       "type": "timeseries",
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  (forecast_date + (generate_series(0,23) * interval '1 hour')) AS \"time\",\n  (p50_kwh[generate_series(1,24)]) AS \"P50\",\n  (p10_kwh[generate_series(1,24)]) AS \"P10\",\n  (p90_kwh[generate_series(1,24)]) AS \"P90\"\nFROM predictions\nORDER BY issued_at DESC\nLIMIT 24",
           "format": "time_series",
           "refId": "A"
@@ -277,38 +479,246 @@
       ]
     },
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {
             "align": "auto",
-            "cellOptions": { "type": "auto" },
+            "cellOptions": {
+              "type": "auto"
+            },
             "inspect": false
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 80 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
             ]
           }
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 16
+      },
       "id": 8,
       "options": {
         "cellHeight": "sm",
-        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
         "showHeader": true
       },
       "title": "Recent Control Recommendations",
       "type": "table",
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  issued_at::date AS \"Date\",\n  hour_of_day AS \"Hour\",\n  action AS \"Action\",\n  ROUND(confidence::numeric, 2) AS \"Confidence\",\n  ROUND(estimated_saving_eur::numeric, 4) AS \"Saving €\"\nFROM recommendations\nORDER BY issued_at DESC\nLIMIT 20",
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "rawSql": "SELECT\n  issued_at::date AS \"Date\",\n  hour_of_day AS \"Hour\",\n  action AS \"Action\",\n  ROUND(confidence::numeric, 2) AS \"Confidence\",\n  ROUND(estimated_saving_eur::numeric, 4) AS \"Saving \u20ac\"\nFROM recommendations\nORDER BY issued_at DESC\nLIMIT 20",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "title": "Model Drift \u2014 DAN-163",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "panels": []
+    },
+    {
+      "id": 31,
+      "title": "Rolling MAE \u2014 7d vs 28d (kWh)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 0,
+        "y": 25
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "last"
+          ],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwh",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "mae_7d"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "mae_28d"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "rawSql": "SELECT checked_at AS time, model_mae_7d AS mae_7d, model_mae_28d AS mae_28d FROM model_drift_log WHERE household_id = (SELECT id FROM households ORDER BY onboarded_at DESC LIMIT 1) ORDER BY checked_at",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "title": "Drift Ratio (7d/28d) \u2014 Alert if > 1.25",
+      "type": "gauge",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 25
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "orientation": "auto",
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1.1
+              },
+              {
+                "color": "red",
+                "value": 1.25
+              }
+            ]
+          },
+          "min": 0,
+          "max": 2
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "rawSql": "SELECT checked_at AS time, COALESCE(drift_ratio, 1.0) AS drift_ratio FROM model_drift_log WHERE household_id = (SELECT id FROM households ORDER BY onboarded_at DESC LIMIT 1) ORDER BY checked_at DESC LIMIT 1",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "title": "Drift Alerts",
+      "type": "table",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 25
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "options": {
+        "footer": {
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "rawSql": "SELECT checked_at, ROUND(model_mae_7d,4) AS mae_7d, ROUND(drift_ratio,3) AS ratio, alert_sent, notes FROM model_drift_log WHERE household_id = (SELECT id FROM households ORDER BY onboarded_at DESC LIMIT 1) ORDER BY checked_at DESC LIMIT 10",
           "format": "table",
           "refId": "A"
         }
@@ -317,12 +727,21 @@
   ],
   "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["sparc", "energy", "forecast"],
-  "templating": { "list": [] },
-  "time": { "from": "now-7d", "to": "now" },
+  "tags": [
+    "sparc",
+    "energy",
+    "forecast"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "Europe/Dublin",
-  "title": "Sparc Energy — Overview",
+  "title": "Sparc Energy \u2014 Overview",
   "uid": "sparc-overview-v1",
   "version": 1
 }
