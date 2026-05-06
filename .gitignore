@@ -204,3 +204,4 @@ docs/PROJECT_OVERVIEW.md
 # Career scripts — personal, not part of energy product
 scripts/career_ingest.py
 scripts/career_watch.py
+docs/infra/NUC_ACCESS.md
