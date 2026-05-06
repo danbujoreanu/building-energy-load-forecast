@@ -583,6 +583,93 @@
       ],
       "title": "CT Calibration Factor (30d mean ESB/MyEnergi)",
       "type": "stat"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 94 },
+      "id": 24,
+      "title": "☀️ Tomorrow's Solar Advisory",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Tomorrow's boost recommendation from the 20:00 nightly advisory. SKIP_BOOST = enough solar to fill tank. PARTIAL = solar warms but may not fill. KEEP_BOOST = insufficient sun. Issued at 20:00 for next day.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            { "type": "value", "options": { "SKIP_BOOST":  { "text": "☀️ SKIP 07:00 BOOST",  "color": "green"  } } },
+            { "type": "value", "options": { "PARTIAL":     { "text": "⛅ PARTIAL — KEEP BOOST", "color": "yellow" } } },
+            { "type": "value", "options": { "KEEP_BOOST":  { "text": "☁️ KEEP 07:00 BOOST",   "color": "red"    } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+        }
+      },
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 95 },
+      "id": 25,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT recommendation\nFROM advisory_log\nWHERE household_id = '$household_id'::uuid\n  AND advisory_date = CURRENT_DATE + 1\nLIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Tomorrow's Boost Recommendation",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Estimated total solar panel output tomorrow. Expected hot-water diversion = min(est_solar, 3.5 kWh daily tank need). Both from 20:00 advisory using Open-Meteo GHI forecast × panel_factor.",
+      "fieldConfig": {
+        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" }, "decimals": 2 },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "estimated_solar_kwh" },    "properties": [{ "id": "displayName", "value": "Est. Solar Output (kWh)" }] },
+          { "matcher": { "id": "byName", "options": "expected_diversion_kwh" }, "properties": [{ "id": "displayName", "value": "Expected Hot Water Diversion (kWh)" }] }
+        ]
+      },
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 95 },
+      "id": 26,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value_and_name" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT estimated_solar_kwh::FLOAT8, expected_diversion_kwh::FLOAT8\nFROM advisory_log\nWHERE household_id = '$household_id'::uuid\n  AND advisory_date = CURRENT_DATE + 1\nLIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Tomorrow's Solar Estimate",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "description": "Tomorrow's total GHI (Global Horizontal Irradiance) from Open-Meteo forecast, and hours where irradiance > 200 W/m² (productive sun hours). ≥5 peak hours = SKIP_BOOST threshold.",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "decimals": 2 },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "ghi_forecast" },    "properties": [{ "id": "displayName", "value": "GHI Forecast (kWh/m²)" }, { "id": "unit", "value": "kwatth" }] },
+          { "matcher": { "id": "byName", "options": "peak_sun_hours" }, "properties": [{ "id": "displayName", "value": "Peak Sun Hours (>200 W/m²)" }, { "id": "unit", "value": "short" }] }
+        ]
+      },
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 95 },
+      "id": 27,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value_and_name" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "rawSql": "SELECT ghi_forecast::FLOAT8, peak_sun_hours::FLOAT8\nFROM advisory_log\nWHERE household_id = '$household_id'::uuid\n  AND advisory_date = CURRENT_DATE + 1\nLIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Tomorrow's GHI & Sun Hours",
+      "type": "stat"
     }
 
   ],
@@ -594,14 +681,14 @@
       {
         "current": {},
         "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-        "definition": "SELECT id FROM households ORDER BY created_at",
+        "definition": "SELECT id::text FROM households ORDER BY onboarded_at DESC",
         "hide": 0,
         "includeAll": false,
         "label": "Household",
         "multi": false,
         "name": "household_id",
         "options": [],
-        "query": "SELECT id FROM households ORDER BY created_at",
+        "query": "SELECT id::text FROM households ORDER BY onboarded_at DESC",
         "refresh": 2,
         "sort": 0,
         "type": "query"
@@ -613,5 +700,5 @@
   "timezone": "Europe/Dublin",
   "title": "Solar Data Pipeline",
   "uid": "sparc-solar-pipeline",
-  "version": 5
+  "version": 6
 }
