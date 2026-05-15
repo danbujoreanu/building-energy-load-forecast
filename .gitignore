@@ -164,6 +164,7 @@ knowledge/
 # Private operational, commercial & personal files — NEVER commit
 CLAUDE.md
 CAREER_CONTEXT.md
+docs/team_meetings/  # real names, internal strategy, interview content — never public
 docs/ops/
 docs/commercial/
 knowledge/procedural/EDDI_API.md
