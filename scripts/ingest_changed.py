@@ -51,6 +51,19 @@ TIER_MAP: dict[str, str] = {
     "regulatory": "regulatory",
 }
 
+# Extra source paths per tier — outside intel/docs/, resolved at runtime.
+# Each entry is a list of (path, recursive) tuples. Paths that don't exist are
+# silently skipped (safe on NUC where Mac-local Career paths are absent).
+_CAREER_ROOT = Path.home() / "Personal Projects" / "Career"
+EXTRA_PATHS: dict[str, list[tuple[Path, bool]]] = {
+    "career": [
+        (_CAREER_ROOT / "Applications" / "Pipeline", True),
+        (_CAREER_ROOT / "Applications" / "Closed" / "2026", True),
+        (_CAREER_ROOT / "00_Master_Resume", False),
+        (_CAREER_ROOT, False),  # single root-level .md files (TARGET_ROLE_PROFILE etc.)
+    ],
+}
+
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -101,13 +114,25 @@ def run(tiers: list[str], dry_run: bool, force: bool) -> None:
     total_errors = 0
 
     for tier in tiers:
+        # Primary source: intel/docs/<tier>/
         tier_dir = DOCS_ROOT / tier
-        if not tier_dir.exists():
-            logger.debug("Tier dir does not exist, skipping: %s", tier_dir)
-            continue
+        md_files: list[Path] = []
+        if tier_dir.exists():
+            md_files.extend(sorted(tier_dir.glob("*.md")))
 
-        md_files = sorted(tier_dir.glob("*.md"))
+        # Extra sources: tier-specific paths outside intel/docs/ (e.g. Career project)
+        for extra_root, recursive in EXTRA_PATHS.get(tier, []):
+            if not extra_root.exists():
+                continue
+            pattern = "**/*.md" if recursive else "*.md"
+            md_files.extend(sorted(extra_root.glob(pattern)))
+
+        # Deduplicate (preserve order) in case paths overlap
+        seen: set[Path] = set()
+        md_files = [p for p in md_files if not (p in seen or seen.add(p))]  # type: ignore[func-returns-value]
+
         if not md_files:
+            logger.debug("Tier dir does not exist or is empty, skipping: %s", tier)
             continue
 
         logger.info("── Tier: %s (%d files) ──", tier, len(md_files))
