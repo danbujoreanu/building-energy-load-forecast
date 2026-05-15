@@ -22,6 +22,7 @@ import argparse
 import hashlib
 import logging
 import sys
+import time
 import warnings
 from pathlib import Path
 
@@ -136,9 +137,11 @@ def run(tiers: list[str], dry_run: bool, force: bool) -> None:
                 logger.info("  ✓  %s ingested", path.name)
                 total_ingested += 1
                 tier_ingested += 1
+                time.sleep(0.5)  # avoid UniVec API rate limit on large batches
             except Exception as exc:
                 logger.error("  ✗  %s — %s", path.name, exc)
                 total_errors += 1
+                time.sleep(1.0)  # back off longer on error
 
         # Per-tier flush + count-check (raises RuntimeError if post-flush count == 0).
         # Must run in the same process as ingest_file() to access _curr_batch.
