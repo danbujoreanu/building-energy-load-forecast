@@ -32,3 +32,10 @@ gradio==4.44.1               # as specified
 
 # ── File watching (Phase 2 auto-ingest) ───────────────────────────────────────
 watchdog==4.0.2              # Phase 2 — not used in Sprint 1/2
+
+# ── LLM synthesis (E-25 context_builder.py) ───────────────────────────────────
+# anthropic>=0.40.0          # Optional — needed for /intel/ask Claude synthesis.
+#                            # Set ANTHROPIC_API_KEY env var to activate.
+#                            # Without it, /intel/ask falls back to raw context.
+#                            # Uncomment when deploying to NUC or cloud.
+# llama-index-llms-ollama    # Alternative: local Ollama (gemma3:4b) — no API key needed.

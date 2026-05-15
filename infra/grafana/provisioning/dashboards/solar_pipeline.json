@@ -1,41 +1,114 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
   "links": [
-    { "title": "Household Intelligence", "type": "link", "url": "/d/sparc-household-intelligence", "icon": "external link", "targetBlank": false }
+    {
+      "title": "Household Intelligence",
+      "type": "link",
+      "url": "/d/sparc-household-intelligence",
+      "icon": "external link",
+      "targetBlank": false
+    }
   ],
   "panels": [
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "id": 1,
-      "title": "MyEnergi Readings — 30-min import + Eddi diversion",
+      "title": "MyEnergi Readings \u2014 30-min import + Eddi diversion",
       "type": "row"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "description": "Grid import and Eddi hot-water diversion at 30-min resolution from MyEnergi API. Polled nightly at 23:30. Import mirrors ESB meter data; Eddi gives exact hot-water diversion not available from ESB.",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "import_kwh" }, "properties": [{ "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }, { "id": "displayName", "value": "Grid Import (kWh)" }] },
-          { "matcher": { "id": "byName", "options": "eddi_kwh" },   "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }, { "id": "displayName", "value": "Eddi Diversion (kWh)" }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "import_kwh"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#5794F2",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "Grid Import (kWh)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "eddi_kwh"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "Eddi Diversion (kWh)"
+              }
+            ]
+          }
         ]
       },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
       "id": 2,
       "options": {
-        "legend": { "calcs": ["mean", "max", "sum"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  interval_start AS time,\n  import_kwh,\n  eddi_kwh\nFROM myenergi_readings\nWHERE hub_serial = '21509692'\n  AND $__timeFilter(interval_start)\nORDER BY interval_start",
           "format": "time_series",
           "refId": "A"
@@ -44,26 +117,50 @@
       "title": "MyEnergi 30-min: Grid Import vs Eddi Diversion",
       "type": "timeseries"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "description": "Daily totals from MyEnergi. Eddi column = total hot-water diversion that day (includes solar diversion + grid boost).",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 11 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
       "id": 3,
       "options": {
         "xField": "day",
         "barWidth": 0.6,
         "groupWidth": 0.7,
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  TO_CHAR(DATE(interval_start AT TIME ZONE 'Europe/Dublin'), 'DD Mon') AS day,\n  ROUND(SUM(import_kwh)::NUMERIC, 2)::FLOAT8 AS daily_import_kwh,\n  ROUND(SUM(eddi_kwh)::NUMERIC, 2)::FLOAT8 AS daily_eddi_kwh\nFROM myenergi_readings\nWHERE hub_serial = '21509692'\n  AND $__timeFilter(interval_start)\nGROUP BY DATE(interval_start AT TIME ZONE 'Europe/Dublin')\nORDER BY DATE(interval_start AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
@@ -72,168 +169,438 @@
       "title": "Daily Import vs Eddi Totals (MyEnergi)",
       "type": "barchart"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "description": "How many 30-min samples were collected per day. Full day = 48 samples. Missing samples indicate polling failure or MyEnergi API issue.",
       "fieldConfig": {
-        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "sample_count" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "expected_48" }, "properties": [{ "id": "color", "value": { "fixedColor": "#808080", "mode": "fixed" } }, { "id": "custom.lineStyle", "value": { "dash": [10, 10], "fill": "dash" } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "sample_count"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "expected_48"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#808080",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    10,
+                    10
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 11 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
       "id": 4,
       "options": {
         "xField": "day",
         "barWidth": 0.6,
         "groupWidth": 0.7,
-        "legend": { "calcs": ["min", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "calcs": [
+            "min",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  TO_CHAR(DATE(interval_start AT TIME ZONE 'Europe/Dublin'), 'DD Mon') AS day,\n  COUNT(*)::FLOAT8 AS sample_count,\n  48.0::FLOAT8 AS expected_48\nFROM myenergi_readings\nWHERE hub_serial = '21509692'\n  AND $__timeFilter(interval_start)\nGROUP BY DATE(interval_start AT TIME ZONE 'Europe/Dublin')\nORDER BY DATE(interval_start AT TIME ZONE 'Europe/Dublin')",
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "Poller Health — Samples per Day (48 = full day)",
+      "title": "Poller Health \u2014 Samples per Day (48 = full day)",
       "type": "barchart"
     },
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 19 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
       "id": 5,
-      "title": "Weather — GHI Forecast vs Actual",
+      "title": "Weather \u2014 GHI Forecast vs Actual",
       "type": "row"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Open-Meteo GHI (Global Horizontal Irradiance) in kWh/m². Forecast written at 20:00 for next day. Actual written at 23:30 from Open-Meteo archive API. Gap between lines = forecast accuracy.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Open-Meteo GHI (Global Horizontal Irradiance) in kWh/m\u00b2. Forecast written at 20:00 for next day. Actual written at 23:30 from Open-Meteo archive API. Gap between lines = forecast accuracy.",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "forecast_ghi" }, "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }, { "id": "displayName", "value": "GHI Forecast (kWh/m²)" }] },
-          { "matcher": { "id": "byName", "options": "actual_ghi" },   "properties": [{ "id": "color", "value": { "fixedColor": "green",  "mode": "fixed" } }, { "id": "displayName", "value": "GHI Actual (kWh/m²)" }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "forecast_ghi"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "GHI Forecast (kWh/m\u00b2)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "actual_ghi"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "GHI Actual (kWh/m\u00b2)"
+              }
+            ]
+          }
         ]
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
       "id": 6,
       "options": {
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  DATE(hour_utc AT TIME ZONE 'Europe/Dublin') AS time,\n  ROUND(SUM(ghi_wh_m2) FILTER (WHERE data_type = 'forecast') / 1000.0, 3)::FLOAT8 AS forecast_ghi,\n  ROUND(SUM(ghi_wh_m2) FILTER (WHERE data_type = 'actual')   / 1000.0, 3)::FLOAT8 AS actual_ghi\nFROM weather_log\nWHERE location = 'maynooth'\n  AND $__timeFilter(hour_utc)\nGROUP BY DATE(hour_utc AT TIME ZONE 'Europe/Dublin')\nORDER BY 1",
           "format": "time_series",
           "refId": "A"
         }
       ],
-      "title": "Daily GHI — Forecast vs Actual (kWh/m²)",
+      "title": "Daily GHI \u2014 Forecast vs Actual (kWh/m\u00b2)",
       "type": "timeseries"
     },
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 28
+      },
       "id": 7,
-      "title": "Solar Actuals — Panel Factor Calibration",
+      "title": "Solar Actuals \u2014 Panel Factor Calibration",
       "type": "row"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "panel_factor_obs = (export_kwh + eddi_kwh) / ghi_actual. LOWER BOUND — excludes house self-consumption (Harvi CT not installed). Target: ~1.6. Green = 1.0–2.8 (normal). Yellow = 0.5–1.0 (below expected — check ESB data). Red = below 0.5 (data gap). NOTE: panel_factor_obs will remain blank until ESB export data is uploaded via /upload and the daily aggregation job has run.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "panel_factor_obs = (export_kwh + eddi_kwh) / ghi_actual. LOWER BOUND \u2014 excludes house self-consumption (Harvi CT not installed). Target: ~1.6. Green = 1.0\u20132.8 (normal). Yellow = 0.5\u20131.0 (below expected \u2014 check ESB data). Red = below 0.5 (data gap). NOTE: panel_factor_obs will remain blank until ESB export data is uploaded via /upload and the daily aggregation job has run.",
       "fieldConfig": {
-        "defaults": { "unit": "none", "color": { "mode": "palette-classic" },
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "red",    "value": null },
-            { "color": "yellow", "value": 0.5  },
-            { "color": "green",  "value": 1.0  },
-            { "color": "yellow", "value": 2.8  }
-          ]}
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "green",
+                "value": 1.0
+              },
+              {
+                "color": "yellow",
+                "value": 2.8
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 29 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 29
+      },
       "id": 8,
       "options": {
-        "legend": { "calcs": ["mean", "min", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "min",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  solar_date::TIMESTAMPTZ AS time,\n  panel_factor_obs::FLOAT8 AS panel_factor_obs,\n  1.6::FLOAT8 AS current_model_factor\nFROM solar_actuals\nWHERE ghi_actual > 0.5\n  AND solar_date BETWEEN ($__timeFrom())::date AND ($__timeTo())::date\nORDER BY solar_date",
           "format": "time_series",
           "refId": "A"
         }
       ],
-      "title": "Panel Factor (obs vs model) — calibrates morning_advisory.py",
+      "title": "Panel Factor (obs vs model) \u2014 calibrates morning_advisory.py",
       "type": "timeseries"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Daily solar actuals. export_kwh from ESB CSV uploads (populated by daily aggregation from meter_readings); eddi_kwh from MyEnergi API; ghi_actual from Open-Meteo archive. panel_factor_obs = lower bound (excludes house SC). '—' = not yet populated.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Daily solar actuals. export_kwh from ESB CSV uploads (populated by daily aggregation from meter_readings); eddi_kwh from MyEnergi API; ghi_actual from Open-Meteo archive. panel_factor_obs = lower bound (excludes house SC). '\u2014' = not yet populated.",
       "fieldConfig": {
-        "defaults": { "color": { "mode": "thresholds" } },
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          }
+        },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 29 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 29
+      },
       "id": 9,
       "options": {
-        "footer": { "show": false },
+        "footer": {
+          "show": false
+        },
         "showHeader": true,
-        "sortBy": [{ "displayName": "solar_date", "desc": true }]
+        "sortBy": [
+          {
+            "displayName": "solar_date",
+            "desc": true
+          }
+        ]
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  solar_date,\n  COALESCE(export_kwh::TEXT, '—') AS export_kwh,\n  COALESCE(eddi_kwh::TEXT, '—') AS eddi_kwh,\n  COALESCE(ghi_actual::TEXT, '—') AS ghi_actual,\n  COALESCE(ghi_forecast::TEXT, '—') AS ghi_forecast,\n  COALESCE(panel_factor_obs::TEXT, '—') AS panel_factor_obs\nFROM solar_actuals\nWHERE solar_date BETWEEN ($__timeFrom())::date AND ($__timeTo())::date\nORDER BY solar_date DESC\nLIMIT 30",
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "rawSql": "SELECT\n  solar_date,\n  COALESCE(export_kwh::TEXT, '\u2014') AS export_kwh,\n  COALESCE(eddi_kwh::TEXT, '\u2014') AS eddi_kwh,\n  COALESCE(ghi_actual::TEXT, '\u2014') AS ghi_actual,\n  COALESCE(ghi_forecast::TEXT, '\u2014') AS ghi_forecast,\n  COALESCE(panel_factor_obs::TEXT, '\u2014') AS panel_factor_obs\nFROM solar_actuals\nWHERE solar_date BETWEEN ($__timeFrom())::date AND ($__timeTo())::date\nORDER BY solar_date DESC\nLIMIT 30",
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "Solar Actuals — Last 30 Days",
+      "title": "Solar Actuals \u2014 Last 30 Days",
       "type": "table"
     },
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 37 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 37
+      },
       "id": 10,
-      "title": "Data Quality — ESB vs MyEnergi Import Reconciliation (DAN-147)",
+      "title": "Data Quality \u2014 ESB vs MyEnergi Import Reconciliation (DAN-147)",
       "type": "row"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Both ESB (meter_readings) and MyEnergi (myenergi_readings) independently measure grid import at 30-min resolution. Daily sums should be near-identical (±5%). Systematic divergence indicates a timezone mismatch or data quality issue. Difference = ESB minus MyEnergi.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Both ESB (meter_readings) and MyEnergi (myenergi_readings) independently measure grid import at 30-min resolution. Daily sums should be near-identical (\u00b15%). Systematic divergence indicates a timezone mismatch or data quality issue. Difference = ESB minus MyEnergi.",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" } },
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "ESB Import (kWh)" }, "properties": [{ "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "MyEnergi Import (kWh)" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "Difference (kWh)" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }, { "id": "custom.lineStyle", "value": { "dash": [6, 4], "fill": "dash" } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ESB Import (kWh)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#5794F2",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MyEnergi Import (kWh)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Difference (kWh)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          }
         ]
       },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 38 },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 38
+      },
       "id": 11,
       "options": {
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  esb.day AS time,\n  esb.daily_import_kwh::FLOAT8 AS \"ESB Import (kWh)\",\n  COALESCE(me.daily_import_kwh, 0)::FLOAT8 AS \"MyEnergi Import (kWh)\",\n  ROUND((esb.daily_import_kwh - COALESCE(me.daily_import_kwh, 0))::NUMERIC, 3)::FLOAT8 AS \"Difference (kWh)\"\nFROM (\n  SELECT\n    DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS day,\n    ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n) esb\nLEFT JOIN (\n  SELECT\n    DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n    ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM myenergi_readings\n  WHERE hub_serial = '21509692'\n  GROUP BY 1\n) me ON me.day = esb.day\nORDER BY esb.day",
           "format": "time_series",
           "refId": "A"
@@ -242,27 +609,64 @@
       "title": "ESB vs MyEnergi Daily Import Reconciliation",
       "type": "timeseries"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Percentage difference between ESB and MyEnergi daily import totals. Values near 0% = good agreement. Consistent positive % means ESB reads higher than MyEnergi (expected — ESB is the official meter, MyEnergi measures at the hub which may miss some circuits).",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Percentage difference between ESB and MyEnergi daily import totals. Values near 0% = good agreement. Consistent positive % means ESB reads higher than MyEnergi (expected \u2014 ESB is the official meter, MyEnergi measures at the hub which may miss some circuits).",
       "fieldConfig": {
-        "defaults": { "unit": "percent", "color": { "mode": "palette-classic" },
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "orange", "value": 15 }
-          ]}
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 5
+              },
+              {
+                "color": "orange",
+                "value": 15
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 48 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 48
+      },
       "id": 12,
       "options": {
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  esb.day AS time,\n  CASE WHEN me.daily_import_kwh > 0\n    THEN ROUND(((esb.daily_import_kwh - me.daily_import_kwh) / me.daily_import_kwh * 100)::NUMERIC, 1)::FLOAT8\n    ELSE NULL\n  END AS \"Diff % (ESB vs MyEnergi)\"\nFROM (\n  SELECT DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n) esb\nJOIN (\n  SELECT DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM myenergi_readings\n  WHERE hub_serial = '21509692'\n  GROUP BY 1\n) me ON me.day = esb.day\nWHERE me.daily_import_kwh > 0.5\nORDER BY esb.day",
           "format": "time_series",
           "refId": "A"
@@ -271,28 +675,102 @@
       "title": "ESB vs MyEnergi Import % Difference (< 5% = good)",
       "type": "timeseries"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Summary stats for reconciliation. Mean diff near 0 = good. Consistent positive bias = ESB reads more (normal — MyEnergi hub may only monitor certain circuits). Large outliers = investigate specific dates.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Summary stats for reconciliation. Mean diff near 0 = good. Consistent positive bias = ESB reads more (normal \u2014 MyEnergi hub may only monitor certain circuits). Large outliers = investigate specific dates.",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null }, { "color": "yellow", "value": 0.5 }, { "color": "red", "value": 2.0 }
-          ]}
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 2.0
+              }
+            ]
+          }
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "mean_diff_kwh" }, "properties": [{ "id": "displayName", "value": "Mean daily diff (kWh)" }] },
-          { "matcher": { "id": "byName", "options": "max_diff_kwh" }, "properties": [{ "id": "displayName", "value": "Max daily diff (kWh)" }] },
-          { "matcher": { "id": "byName", "options": "days_compared" }, "properties": [{ "id": "displayName", "value": "Days compared" }, { "id": "unit", "value": "short" }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "mean_diff_kwh"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Mean daily diff (kWh)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_diff_kwh"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Max daily diff (kWh)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "days_compared"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Days compared"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 48 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 48
+      },
       "id": 13,
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  ROUND(AVG(ABS(esb.daily_import_kwh - me.daily_import_kwh))::NUMERIC, 3)::FLOAT8 AS mean_diff_kwh,\n  ROUND(MAX(ABS(esb.daily_import_kwh - me.daily_import_kwh))::NUMERIC, 3)::FLOAT8 AS max_diff_kwh,\n  COUNT(*)::FLOAT8 AS days_compared\nFROM (\n  SELECT DATE(recorded_at AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n) esb\nJOIN (\n  SELECT DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n         ROUND(SUM(import_kwh)::NUMERIC, 3) AS daily_import_kwh\n  FROM myenergi_readings\n  WHERE hub_serial = '21509692'\n  GROUP BY 1\n) me ON me.day = esb.day\nWHERE me.daily_import_kwh > 0.5",
           "format": "table",
           "refId": "A"
@@ -301,36 +779,58 @@
       "title": "Reconciliation Summary Stats",
       "type": "stat"
     },
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 56 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 56
+      },
       "id": 14,
       "title": "Solar Self-Sufficiency",
       "type": "row"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "description": "% of total household energy supplied by solar panels each month. Formula: (export_kwh + eddi_kwh) / (import_kwh + export_kwh + eddi_kwh). Requires ESB CSV upload + MyEnergi nightly poll.",
       "fieldConfig": {
         "defaults": {
           "unit": "percent",
           "min": 0,
           "max": 100,
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red",    "value": null },
-              { "color": "yellow", "value": 15 },
-              { "color": "green",  "value": 30 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 15
+              },
+              {
+                "color": "green",
+                "value": 30
+              }
             ]
           }
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 57 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 57
+      },
       "id": 15,
       "options": {
         "barRadius": 0.1,
@@ -341,7 +841,10 @@
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "WITH monthly AS (\n  SELECT\n    DATE_TRUNC('month', solar_date) AS month,\n    SUM(export_kwh) AS export_kwh,\n    SUM(eddi_kwh)   AS eddi_kwh\n  FROM solar_actuals\n  WHERE export_kwh IS NOT NULL\n    AND eddi_kwh IS NOT NULL\n    AND solar_date BETWEEN ($__timeFrom())::date AND ($__timeTo())::date\n  GROUP BY 1\n),\nimport_monthly AS (\n  SELECT\n    DATE_TRUNC('month', DATE(recorded_at AT TIME ZONE 'Europe/Dublin')) AS month,\n    SUM(import_kwh) AS import_kwh\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid\n    AND $__timeFilter(recorded_at)\n  GROUP BY 1\n)\nSELECT\n  m.month AS time,\n  ROUND(\n    100.0 * (m.export_kwh + m.eddi_kwh) /\n    NULLIF(im.import_kwh + m.export_kwh + m.eddi_kwh, 0)\n  , 1)::FLOAT8 AS self_sufficiency_pct\nFROM monthly m\nJOIN import_monthly im ON m.month = im.month\nORDER BY 1",
           "format": "time_series",
           "refId": "A"
@@ -350,157 +853,327 @@
       "title": "Monthly Solar Self-Sufficiency (%)",
       "type": "barchart"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Current month solar self-sufficiency at a glance. Green = ≥30%, yellow = 15–30%, red = <15% (winter baseline).",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Current month solar self-sufficiency at a glance. Green = \u226530%, yellow = 15\u201330%, red = <15% (winter baseline).",
       "fieldConfig": {
         "defaults": {
           "unit": "percent",
           "min": 0,
           "max": 100,
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red",    "value": null },
-              { "color": "yellow", "value": 15 },
-              { "color": "green",  "value": 30 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 15
+              },
+              {
+                "color": "green",
+                "value": 30
+              }
             ]
           }
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 57 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 57
+      },
       "id": 16,
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "orientation": "auto" },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "orientation": "auto"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "WITH monthly AS (\n  SELECT\n    SUM(export_kwh) AS export_kwh,\n    SUM(eddi_kwh)   AS eddi_kwh\n  FROM solar_actuals\n  WHERE solar_date >= DATE_TRUNC('month', CURRENT_DATE)\n    AND export_kwh IS NOT NULL\n    AND eddi_kwh IS NOT NULL\n),\nimport_monthly AS (\n  SELECT SUM(import_kwh) AS import_kwh\n  FROM meter_readings\n  WHERE household_id = '$household_id'::uuid\n    AND recorded_at >= DATE_TRUNC('month', CURRENT_DATE)\n)\nSELECT\n  NOW() AS time,\n  ROUND(100.0 * (m.export_kwh + m.eddi_kwh) / NULLIF(im.import_kwh + m.export_kwh + m.eddi_kwh, 0), 1)::FLOAT8 AS \"Self-Sufficiency (this month)\",\n  ROUND(m.export_kwh::NUMERIC, 2)::FLOAT8 AS \"Export kWh\",\n  ROUND(m.eddi_kwh::NUMERIC, 2)::FLOAT8 AS \"Eddi kWh\"\nFROM monthly m CROSS JOIN import_monthly im",
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "Self-Sufficiency — This Month",
+      "title": "Self-Sufficiency \u2014 This Month",
       "type": "stat"
     },
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 65 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 65
+      },
       "id": 17,
       "title": "Seasonal Panel Factor Calibration (DAN-160)",
       "type": "row"
     },
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "fillOpacity": 10, "lineWidth": 2 },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
           "unit": "short",
           "decimals": 3
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "panel_factor_obs" },
+            "matcher": {
+              "id": "byName",
+              "options": "panel_factor_obs"
+            },
             "properties": [
-              { "id": "displayName", "value": "Monthly avg panel factor (obs)" },
-              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
+              {
+                "id": "displayName",
+                "value": "Monthly avg panel factor (obs)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "fallback" },
+            "matcher": {
+              "id": "byName",
+              "options": "fallback"
+            },
             "properties": [
-              { "id": "displayName", "value": "Static fallback (1.6)" },
-              { "id": "color", "value": { "fixedColor": "#808080", "mode": "fixed" } },
-              { "id": "custom.lineStyle", "value": { "dash": [6, 6], "fill": "dash" } }
+              {
+                "id": "displayName",
+                "value": "Static fallback (1.6)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#808080",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    6
+                  ],
+                  "fill": "dash"
+                }
+              }
             ]
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 66 },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 66
+      },
       "id": 18,
       "options": {
-        "legend": { "calcs": ["mean", "min", "max"], "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "min",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  DATE_TRUNC('month', solar_date)::TIMESTAMPTZ AS time,\n  ROUND(AVG((export_kwh + COALESCE(eddi_kwh, 0.0)) / NULLIF(ghi_actual, 0))::NUMERIC, 4)::FLOAT8 AS panel_factor_obs,\n  1.6::FLOAT8 AS fallback\nFROM solar_actuals\nWHERE ghi_actual > 0\n  AND export_kwh IS NOT NULL\n  AND export_kwh > 0\nGROUP BY 1\nHAVING COUNT(*) >= 10\nORDER BY 1",
           "format": "time_series",
           "refId": "A"
         }
       ],
-      "title": "Seasonal Panel Factor — Monthly Average (min 10 days/month)",
+      "title": "Seasonal Panel Factor \u2014 Monthly Average (min 10 days/month)",
       "type": "timeseries"
     },
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 74 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 74
+      },
       "id": 19,
-      "title": "Eddi Solar Diversion — Forecast vs Actual (DAN-144)",
+      "title": "Eddi Solar Diversion \u2014 Forecast vs Actual (DAN-144)",
       "type": "row"
     },
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "fillOpacity": 8, "lineWidth": 2 },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 8,
+            "lineWidth": 2
+          },
           "unit": "kwatth",
           "decimals": 2
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "forecast_diversion_kwh" },
+            "matcher": {
+              "id": "byName",
+              "options": "forecast_diversion_kwh"
+            },
             "properties": [
-              { "id": "displayName", "value": "Forecast diversion (kWh)" },
-              { "id": "color", "value": { "fixedColor": "#FF9830", "mode": "fixed" } },
-              { "id": "custom.lineStyle", "value": { "dash": [8, 4], "fill": "dash" } }
+              {
+                "id": "displayName",
+                "value": "Forecast diversion (kWh)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#FF9830",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    8,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "actual_eddi_kwh" },
+            "matcher": {
+              "id": "byName",
+              "options": "actual_eddi_kwh"
+            },
             "properties": [
-              { "id": "displayName", "value": "Actual Eddi diversion (kWh)" },
-              { "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }
+              {
+                "id": "displayName",
+                "value": "Actual Eddi diversion (kWh)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#73BF69",
+                  "mode": "fixed"
+                }
+              }
             ]
           }
         ]
       },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 75 },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 75
+      },
       "id": 20,
       "options": {
-        "legend": { "calcs": ["mean", "max"], "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "none" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  al.advisory_date::TIMESTAMPTZ AS time,\n  al.expected_diversion_kwh::FLOAT8  AS forecast_diversion_kwh,\n  sa.eddi_kwh::FLOAT8                AS actual_eddi_kwh\nFROM advisory_log al\nLEFT JOIN solar_actuals sa ON sa.solar_date = al.advisory_date\nWHERE al.household_id = '$household_id'::uuid\n  AND al.advisory_date >= CURRENT_DATE - INTERVAL '90 days'\n  AND al.expected_diversion_kwh IS NOT NULL\nORDER BY 1",
           "format": "time_series",
           "refId": "A"
         }
       ],
-      "title": "Eddi Solar Diversion — Forecast (dashed) vs Actual (DAN-144)",
+      "title": "Eddi Solar Diversion \u2014 Forecast (dashed) vs Actual (DAN-144)",
       "type": "timeseries"
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 83 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 83
+      },
       "id": 21,
       "title": "MyEnergi / ESB Cross-Validation (DAN-159)",
       "type": "row"
     },
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "lineWidth": 2,
             "fillOpacity": 10
@@ -511,71 +1184,143 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red",    "value": null },
-              { "color": "green",  "value": 0.80 },
-              { "color": "yellow", "value": 0.95 },
-              { "color": "red",    "value": 1.05 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.8
+              },
+              {
+                "color": "yellow",
+                "value": 0.95
+              },
+              {
+                "color": "red",
+                "value": 1.05
+              }
             ]
           }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "ratio" },
+            "matcher": {
+              "id": "byName",
+              "options": "ratio"
+            },
             "properties": [
-              { "id": "displayName", "value": "MyEnergi / ESB ratio" },
-              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }
+              {
+                "id": "displayName",
+                "value": "MyEnergi / ESB ratio"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
             ]
           }
         ]
       },
-      "gridPos": { "h": 9, "w": 18, "x": 0, "y": 84 },
+      "gridPos": {
+        "h": 9,
+        "w": 18,
+        "x": 0,
+        "y": 84
+      },
       "id": 22,
       "options": {
-        "legend": { "calcs": ["mean", "min", "max"], "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "none" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "min",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  check_date::TIMESTAMPTZ AS time,\n  ratio::FLOAT8            AS ratio\nFROM data_quality_events\nWHERE household_id = '$household_id'::uuid\n  AND check_date >= CURRENT_DATE - INTERVAL '30 days'\n  AND ratio IS NOT NULL\nORDER BY 1",
           "format": "time_series",
           "refId": "A"
         }
       ],
-      "title": "Daily MyEnergi / ESB import ratio — expected 0.80–0.95 (DAN-159)",
+      "title": "Daily MyEnergi / ESB import ratio \u2014 expected 0.80\u20130.95 (DAN-159)",
       "type": "timeseries"
     },
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red",   "value": null },
-              { "color": "green", "value": 0.80 },
-              { "color": "red",   "value": 1.05 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.8
+              },
+              {
+                "color": "red",
+                "value": 1.05
+              }
             ]
           },
           "unit": "short",
           "decimals": 3
         }
       },
-      "gridPos": { "h": 9, "w": 6, "x": 18, "y": 84 },
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 18,
+        "y": 84
+      },
       "id": 23,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "auto"
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT ct_calibration_factor::FLOAT8 AS \"CT calibration factor\"\nFROM households\nWHERE id = '$household_id'::uuid",
           "format": "table",
           "refId": "A"
@@ -584,35 +1329,94 @@
       "title": "CT Calibration Factor (30d mean ESB/MyEnergi)",
       "type": "stat"
     },
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 94 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 94
+      },
       "id": 24,
-      "title": "☀️ Tomorrow's Solar Advisory",
+      "title": "\u2600\ufe0f Tomorrow's Solar Advisory",
       "type": "row"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
       "description": "Tomorrow's boost recommendation from the 20:00 nightly advisory. SKIP_BOOST = enough solar to fill tank. PARTIAL = solar warms but may not fill. KEEP_BOOST = insufficient sun. Issued at 20:00 for next day.",
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [
-            { "type": "value", "options": { "SKIP_BOOST":  { "text": "☀️ SKIP 07:00 BOOST",  "color": "green"  } } },
-            { "type": "value", "options": { "PARTIAL":     { "text": "⛅ PARTIAL — KEEP BOOST", "color": "yellow" } } },
-            { "type": "value", "options": { "KEEP_BOOST":  { "text": "☁️ KEEP 07:00 BOOST",   "color": "red"    } } }
+            {
+              "type": "value",
+              "options": {
+                "SKIP_BOOST": {
+                  "text": "\u2600\ufe0f SKIP 07:00 BOOST",
+                  "color": "green"
+                }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "PARTIAL": {
+                  "text": "\u26c5 PARTIAL \u2014 KEEP BOOST",
+                  "color": "yellow"
+                }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "KEEP_BOOST": {
+                  "text": "\u2601\ufe0f KEEP 07:00 BOOST",
+                  "color": "red"
+                }
+              }
+            }
           ],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
         }
       },
-      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 95 },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 0,
+        "y": 95
+      },
       "id": 25,
-      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "auto"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT recommendation\nFROM advisory_log\nWHERE household_id = '$household_id'::uuid\n  AND advisory_date = CURRENT_DATE + 1\nLIMIT 1",
           "format": "table",
           "refId": "A"
@@ -621,23 +1425,72 @@
       "title": "Tomorrow's Boost Recommendation",
       "type": "stat"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Estimated total solar panel output tomorrow. Expected hot-water diversion = min(est_solar, 3.5 kWh daily tank need). Both from 20:00 advisory using Open-Meteo GHI forecast × panel_factor.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Estimated total solar panel output tomorrow. Expected hot-water diversion = min(est_solar, 3.5 kWh daily tank need). Both from 20:00 advisory using Open-Meteo GHI forecast \u00d7 panel_factor.",
       "fieldConfig": {
-        "defaults": { "unit": "kwatth", "color": { "mode": "palette-classic" }, "decimals": 2 },
+        "defaults": {
+          "unit": "kwatth",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 2
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "estimated_solar_kwh" },    "properties": [{ "id": "displayName", "value": "Est. Solar Output (kWh)" }] },
-          { "matcher": { "id": "byName", "options": "expected_diversion_kwh" }, "properties": [{ "id": "displayName", "value": "Expected Hot Water Diversion (kWh)" }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "estimated_solar_kwh"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Est. Solar Output (kWh)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "expected_diversion_kwh"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Expected Hot Water Diversion (kWh)"
+              }
+            ]
+          }
         ]
       },
-      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 95 },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 8,
+        "y": 95
+      },
       "id": 26,
-      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value_and_name" },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value_and_name"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT estimated_solar_kwh::FLOAT8, expected_diversion_kwh::FLOAT8\nFROM advisory_log\nWHERE household_id = '$household_id'::uuid\n  AND advisory_date = CURRENT_DATE + 1\nLIMIT 1",
           "format": "table",
           "refId": "A"
@@ -646,23 +1499,79 @@
       "title": "Tomorrow's Solar Estimate",
       "type": "stat"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Tomorrow's total GHI (Global Horizontal Irradiance) from Open-Meteo forecast, and hours where irradiance > 200 W/m² (productive sun hours). ≥5 peak hours = SKIP_BOOST threshold.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "Tomorrow's total GHI (Global Horizontal Irradiance) from Open-Meteo forecast, and hours where irradiance > 200 W/m\u00b2 (productive sun hours). \u22655 peak hours = SKIP_BOOST threshold.",
       "fieldConfig": {
-        "defaults": { "color": { "mode": "palette-classic" }, "decimals": 2 },
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "decimals": 2
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "ghi_forecast" },    "properties": [{ "id": "displayName", "value": "GHI Forecast (kWh/m²)" }, { "id": "unit", "value": "kwatth" }] },
-          { "matcher": { "id": "byName", "options": "peak_sun_hours" }, "properties": [{ "id": "displayName", "value": "Peak Sun Hours (>200 W/m²)" }, { "id": "unit", "value": "short" }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ghi_forecast"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "GHI Forecast (kWh/m\u00b2)"
+              },
+              {
+                "id": "unit",
+                "value": "kwatth"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "peak_sun_hours"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Peak Sun Hours (>200 W/m\u00b2)"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          }
         ]
       },
-      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 95 },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 16,
+        "y": 95
+      },
       "id": 27,
-      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value_and_name" },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value_and_name"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT ghi_forecast::FLOAT8, peak_sun_hours::FLOAT8\nFROM advisory_log\nWHERE household_id = '$household_id'::uuid\n  AND advisory_date = CURRENT_DATE + 1\nLIMIT 1",
           "format": "table",
           "refId": "A"
@@ -671,36 +1580,163 @@
       "title": "Tomorrow's GHI & Sun Hours",
       "type": "stat"
     },
-
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 101 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 101
+      },
       "id": 28,
-      "title": "🔍 Forecast Accuracy Audit — Day X Forecast vs Actual",
+      "title": "\ud83d\udd0d Forecast Accuracy Audit \u2014 Day X Forecast vs Actual",
       "type": "row"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "For each advisory date: GHI forecast vs actual, and expected diversion vs actual Eddi kWh. NOTE: actual_eddi_kwh includes BOTH solar diversion (h1d) AND grid boost (h1b) — the comparison is exact only on days when the morning boost was skipped. DAN-139 (h1d split) will fix this by comparing h1d only.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "For each advisory date: GHI forecast vs actual, and expected diversion vs actual Eddi kWh. NOTE: actual_eddi_kwh includes BOTH solar diversion (h1d) AND grid boost (h1b) \u2014 the comparison is exact only on days when the morning boost was skipped. DAN-139 (h1d split) will fix this by comparing h1d only.",
       "fieldConfig": {
-        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8 }, "unit": "kwatth", "decimals": 2 },
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          },
+          "unit": "kwatth",
+          "decimals": 2
+        },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "ghi_forecast_kwh_m2" }, "properties": [{ "id": "displayName", "value": "GHI Forecast (kWh/m²)" }, { "id": "color", "value": { "fixedColor": "#FF9830", "mode": "fixed" } }, { "id": "custom.lineStyle", "value": { "dash": [8, 4], "fill": "dash" } }] },
-          { "matcher": { "id": "byName", "options": "ghi_actual_kwh_m2" },    "properties": [{ "id": "displayName", "value": "GHI Actual (kWh/m²)" },   { "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }] },
-          { "matcher": { "id": "byName", "options": "expected_diversion_kwh" },"properties": [{ "id": "displayName", "value": "Expected Diversion (kWh)" }, { "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }, { "id": "custom.lineStyle", "value": { "dash": [6, 4], "fill": "dash" } }] },
-          { "matcher": { "id": "byName", "options": "actual_eddi_kwh" },       "properties": [{ "id": "displayName", "value": "Actual Eddi (kWh)*" },     { "id": "color", "value": { "fixedColor": "#F2495C", "mode": "fixed" } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ghi_forecast_kwh_m2"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "GHI Forecast (kWh/m\u00b2)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#FF9830",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    8,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ghi_actual_kwh_m2"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "GHI Actual (kWh/m\u00b2)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#73BF69",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "expected_diversion_kwh"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Expected Diversion (kWh)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#5794F2",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    6,
+                    4
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "actual_eddi_kwh"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Actual Eddi (kWh)*"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#F2495C",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
         ]
       },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 102 },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 102
+      },
       "id": 29,
       "options": {
-        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "none" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  al.advisory_date::TIMESTAMPTZ AS time,\n  al.ghi_forecast::FLOAT8         AS ghi_forecast_kwh_m2,\n  sa.ghi_actual::FLOAT8           AS ghi_actual_kwh_m2,\n  al.expected_diversion_kwh::FLOAT8 AS expected_diversion_kwh,\n  sa.eddi_kwh::FLOAT8             AS actual_eddi_kwh\nFROM advisory_log al\nLEFT JOIN solar_actuals sa ON sa.solar_date = al.advisory_date\nWHERE al.household_id = '$household_id'::uuid\n  AND al.advisory_date >= CURRENT_DATE - INTERVAL '90 days'\n  AND al.advisory_date <= CURRENT_DATE\nORDER BY 1",
           "format": "time_series",
           "refId": "A"
@@ -709,42 +1745,129 @@
       "title": "GHI Forecast vs Actual + Diversion Forecast vs Actual Eddi*",
       "type": "timeseries"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "GHI forecast error = (forecast - actual) / actual × 100. Positive = over-estimated sun. Negative = under-estimated. Large negative errors on days Open-Meteo missed cloud cover.",
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
+      },
+      "description": "GHI forecast error = (forecast - actual) / actual \u00d7 100. Positive = over-estimated sun. Negative = under-estimated. Large negative errors on days Open-Meteo missed cloud cover.",
       "fieldConfig": {
-        "defaults": { "unit": "percent", "decimals": 1, "custom": { "lineWidth": 2, "fillOpacity": 5 }, "color": { "mode": "fixed", "fixedColor": "orange" },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": -20 }, { "color": "yellow", "value": 20 }, { "color": "red", "value": 40 }] }
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": -20
+              },
+              {
+                "color": "yellow",
+                "value": 20
+              },
+              {
+                "color": "red",
+                "value": 40
+              }
+            ]
+          }
         }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 112 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 112
+      },
       "id": 30,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  al.advisory_date::TIMESTAMPTZ AS time,\n  ROUND(\n    ((al.ghi_forecast - sa.ghi_actual) / NULLIF(sa.ghi_actual, 0) * 100)::NUMERIC\n  , 1)::FLOAT8 AS ghi_forecast_error_pct\nFROM advisory_log al\nJOIN solar_actuals sa ON sa.solar_date = al.advisory_date\nWHERE al.household_id = '$household_id'::uuid\n  AND sa.ghi_actual > 0.1\n  AND al.advisory_date >= CURRENT_DATE - INTERVAL '90 days'\n  AND al.advisory_date < CURRENT_DATE\nORDER BY 1",
           "format": "time_series",
           "refId": "A"
         }
       ],
-      "title": "GHI Forecast Error % — (forecast − actual) / actual",
+      "title": "GHI Forecast Error % \u2014 (forecast \u2212 actual) / actual",
       "type": "timeseries"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Mean Absolute Percentage Error of Open-Meteo GHI forecast for this household location (Maynooth). Excludes low-GHI days (< 0.5 kWh/m²). Lower is better.",
-      "fieldConfig": {
-        "defaults": { "unit": "percent", "decimals": 1, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }, { "color": "yellow", "value": 20 }, { "color": "red", "value": 35 }] } }
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
       },
-      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 112 },
+      "description": "Mean Absolute Percentage Error of Open-Meteo GHI forecast for this household location (Maynooth). Excludes low-GHI days (< 0.5 kWh/m\u00b2). Lower is better.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 20
+              },
+              {
+                "color": "red",
+                "value": 35
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 112
+      },
       "id": 31,
-      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "auto"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
           "rawSql": "SELECT\n  NOW() AS time,\n  ROUND(\n    AVG(ABS(al.ghi_forecast - sa.ghi_actual) / NULLIF(sa.ghi_actual, 0) * 100)::NUMERIC\n  , 1)::FLOAT8 AS ghi_mape_pct\nFROM advisory_log al\nJOIN solar_actuals sa ON sa.solar_date = al.advisory_date\nWHERE al.household_id = '$household_id'::uuid\n  AND sa.ghi_actual > 0.5\n  AND al.advisory_date >= CURRENT_DATE - INTERVAL '30 days'\n  AND al.advisory_date < CURRENT_DATE",
           "format": "table",
           "refId": "A"
@@ -753,37 +1876,557 @@
       "title": "GHI Forecast MAPE (30d)",
       "type": "stat"
     },
-
     {
-      "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-      "description": "Advisory accuracy: what % of days did the recommendation match the outcome? SKIP_BOOST correct = actual Eddi kWh was high (solar-rich day). KEEP_BOOST correct = actual Eddi kWh was low. Requires DAN-139 (h1d split) for precision — currently uses total eddi_kwh (includes grid boost).",
-      "fieldConfig": {
-        "defaults": { "color": { "mode": "thresholds" }, "unit": "percent", "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": 0 }, { "color": "yellow", "value": 60 }, { "color": "green", "value": 80 }] } }
+      "datasource": {
+        "type": "postgres",
+        "uid": "sparc-postgres"
       },
-      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 112 },
+      "description": "Advisory accuracy: what % of days did the recommendation match the outcome? SKIP_BOOST correct = actual Eddi kWh was high (solar-rich day). KEEP_BOOST correct = actual Eddi kWh was low. Requires DAN-139 (h1d split) for precision \u2014 currently uses total eddi_kwh (includes grid boost).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 60
+              },
+              {
+                "color": "green",
+                "value": 80
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 112
+      },
       "id": 32,
-      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "auto"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "sparc-postgres" },
-          "rawSql": "SELECT\n  NOW() AS time,\n  ROUND(\n    100.0 * SUM(CASE\n      WHEN al.recommendation = 'SKIP_BOOST' AND sa.eddi_kwh >= 2.0 THEN 1\n      WHEN al.recommendation = 'KEEP_BOOST' AND sa.eddi_kwh <  2.0 THEN 1\n      WHEN al.recommendation = 'PARTIAL'    THEN 1\n      ELSE 0\n    END)::NUMERIC / NULLIF(COUNT(*), 0)\n  , 1)::FLOAT8 AS advisory_accuracy_pct\nFROM advisory_log al\nJOIN solar_actuals sa ON sa.solar_date = al.advisory_date\nWHERE al.household_id = '$household_id'::uuid\n  AND al.advisory_date >= CURRENT_DATE - INTERVAL '30 days'\n  AND al.advisory_date < CURRENT_DATE\n  AND sa.eddi_kwh IS NOT NULL",
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "rawSql": "SELECT\n  NOW() AS time,\n  ROUND(\n    100.0 * SUM(CASE\n      WHEN al.recommendation = 'SKIP_BOOST' AND sa.ghi_actual >= 2.0 THEN 1\n      WHEN al.recommendation = 'KEEP_BOOST' AND sa.ghi_actual <  2.0 THEN 1\n      WHEN al.recommendation = 'PARTIAL'    THEN 1\n      ELSE 0\n    END)::NUMERIC / NULLIF(COUNT(*), 0)\n  , 1)::FLOAT8 AS advisory_accuracy_pct\nFROM advisory_log al\nJOIN solar_actuals sa ON sa.solar_date = al.advisory_date\nWHERE al.household_id = '$household_id'::uuid\n  AND al.advisory_date >= CURRENT_DATE - INTERVAL '30 days'\n  AND al.advisory_date < CURRENT_DATE\n  AND sa.eddi_kwh IS NOT NULL",
           "format": "table",
           "refId": "A"
         }
       ],
       "title": "Advisory Accuracy % (30d)*",
       "type": "stat"
+    },
+    {
+      "id": 33,
+      "type": "row",
+      "title": "\u2600\ufe0f Solar Capture \u2014 Forecast vs Actual",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 120
+      }
+    },
+    {
+      "id": 34,
+      "type": "timeseries",
+      "title": "Solar: Eddi capture + Grid export vs GHI estimate (gap = house self-consumption)",
+      "description": "Bars = measured from myenergi (h1d + exp). Lines = GHI\u00d71.6 estimates. Gap between gen_est line and bars = self-consumption (solar powering house directly \u2014 needs Harvi CT to measure precisely).",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 121
+      },
+      "datasource": null,
+      "targets": [
+        {
+          "rawSql": "WITH daily_ghi AS (\n  SELECT\n    DATE(hour_utc AT TIME ZONE 'Europe/Dublin') AS day,\n    ROUND(SUM(ghi_wh_m2) FILTER (WHERE data_type = 'forecast') / 1000.0 * 1.6, 2) AS forecast_kwh,\n    ROUND(SUM(ghi_wh_m2) FILTER (WHERE data_type = 'actual')   / 1000.0 * 1.6, 2) AS gen_est_kwh\n  FROM weather_log\n  WHERE location = 'maynooth'\n  GROUP BY 1\n),\ndaily_cap AS (\n  SELECT\n    DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n    ROUND(SUM(eddi_divert_kwh)::NUMERIC, 3) AS eddi_kwh,\n    ROUND(SUM(export_kwh)::NUMERIC, 3)      AS export_kwh\n  FROM myenergi_readings\n  GROUP BY 1\n)\nSELECT\n  g.day::TIMESTAMPTZ    AS time,\n  c.eddi_kwh::FLOAT8,\n  c.export_kwh::FLOAT8,\n  g.gen_est_kwh::FLOAT8,\n  g.forecast_kwh::FLOAT8\nFROM daily_ghi g\nJOIN daily_cap c ON c.day = g.day\nWHERE $__timeFilter(g.day::TIMESTAMPTZ)\nORDER BY g.day",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "min": 0,
+          "custom": {
+            "drawStyle": "bars",
+            "barAlignment": 0,
+            "lineWidth": 0,
+            "fillOpacity": 80,
+            "stacking": {
+              "mode": "normal",
+              "group": "solar"
+            },
+            "barWidthFactor": 0.6
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "eddi_kwh"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "\u2600\ufe0f Eddi hot water (h1d)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF7F00"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "export_kwh"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "\u26a1 Grid export (exp)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF69"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gen_est_kwh"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "GHI actual est. (\u00d71.6)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FADE2A"
+                }
+              },
+              {
+                "id": "custom.drawStyle",
+                "value": "line"
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.stacking",
+                "value": {
+                  "mode": "none",
+                  "group": "lines"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    8,
+                    4
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "forecast_kwh"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Forecast est. (\u00d71.6)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF9830"
+                }
+              },
+              {
+                "id": "custom.drawStyle",
+                "value": "line"
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.stacking",
+                "value": {
+                  "mode": "none",
+                  "group": "lines"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dot"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 35,
+      "type": "timeseries",
+      "title": "GHI Forecast Error % \u2014 weather_log (forecast \u2212 actual) / actual",
+      "description": "Uses weather_log directly so error history predates the advisory_log. Negative = underforecast (we predicted less sun than arrived).",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 130
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ghi_error_pct"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "GHI Forecast Error %"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F2495C"
+                }
+              },
+              {
+                "id": "custom.thresholdsStyle",
+                "value": {
+                  "mode": "line"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 25
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "WITH daily_ghi AS (\n  SELECT\n    DATE(hour_utc AT TIME ZONE 'Europe/Dublin') AS day,\n    SUM(ghi_wh_m2) FILTER (WHERE data_type = 'forecast') AS ghi_forecast_wh,\n    SUM(ghi_wh_m2) FILTER (WHERE data_type = 'actual')   AS ghi_actual_wh\n  FROM weather_log\n  WHERE location = 'maynooth'\n  GROUP BY 1\n)\nSELECT\n  day::TIMESTAMPTZ AS time,\n  ROUND(\n    ((ghi_forecast_wh - ghi_actual_wh) / NULLIF(ghi_actual_wh, 0) * 100)::NUMERIC\n  , 1)::FLOAT8 AS ghi_error_pct\nFROM daily_ghi\nWHERE ghi_actual_wh > 500\n  AND ghi_forecast_wh IS NOT NULL\n  AND $__timeFilter(day::TIMESTAMPTZ)\nORDER BY day"
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "type": "stat",
+      "title": "Avg GHI Forecast Error % (30d, weather_log)",
+      "description": "Negative = consistently underforecasting sun. From weather_log \u2014 more history than MAPE panel (panels 30-31) which requires advisory_log.",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 12,
+        "y": 130
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": -20
+              },
+              {
+                "color": "red",
+                "value": 30
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "orientation": "auto",
+        "colorMode": "background"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "WITH daily_ghi AS (\n  SELECT\n    DATE(hour_utc AT TIME ZONE 'Europe/Dublin') AS day,\n    SUM(ghi_wh_m2) FILTER (WHERE data_type = 'forecast') AS ghi_forecast_wh,\n    SUM(ghi_wh_m2) FILTER (WHERE data_type = 'actual')   AS ghi_actual_wh\n  FROM weather_log\n  WHERE location = 'maynooth'\n    AND DATE(hour_utc AT TIME ZONE 'Europe/Dublin') >= CURRENT_DATE - 30\n  GROUP BY 1\n)\nSELECT\n  NOW() AS time,\n  ROUND(AVG((ghi_forecast_wh - ghi_actual_wh) / NULLIF(ghi_actual_wh,0) * 100)::NUMERIC, 1)::FLOAT8 AS avg_error_pct\nFROM daily_ghi\nWHERE ghi_actual_wh > 500 AND ghi_forecast_wh IS NOT NULL"
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "type": "stat",
+      "title": "Days with myenergi data (last 30d)",
+      "description": "Requires fresh ESB CSV upload. Export data completes the solar triangle: generated = eddi + export + self-consumption.",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 18,
+        "y": 130
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 10
+              },
+              {
+                "color": "green",
+                "value": 20
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "sparc-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  NOW() AS time,\n  COUNT(DISTINCT DATE(interval_start AT TIME ZONE 'Europe/Dublin'))::FLOAT8 AS days_with_myenergi\nFROM myenergi_readings\nWHERE interval_start >= NOW() - INTERVAL '30 days'"
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "type": "barchart",
+      "title": "Solar destination breakdown: Eddi / Grid / House (kWh)",
+      "description": "Where did the solar go each day? Eddi = measured (h1d). Grid = measured (exp). House = estimated from zero-import daylight slots \u00d7 0.15 kWh (conservative lower bound \u2014 Harvi will improve this).",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 137
+      },
+      "datasource": null,
+      "targets": [
+        {
+          "rawSql": "WITH daily_cap AS (\n  SELECT\n    DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS day,\n    ROUND(SUM(eddi_divert_kwh)::NUMERIC, 3)                AS eddi_kwh,\n    ROUND(SUM(export_kwh)::NUMERIC, 3)                     AS export_kwh,\n    COUNT(*) FILTER (\n      WHERE import_kwh < 0.005\n        AND EXTRACT(HOUR FROM interval_start AT TIME ZONE 'Europe/Dublin') BETWEEN 7 AND 20\n    )                                                       AS zero_import_slots\n  FROM myenergi_readings\n  GROUP BY 1\n),\nhouse AS (\n  -- House self-consumption: zero-import daylight slots \u00d7 avg load per slot\n  -- Avg non-Eddi daytime load ~0.15 kWh/slot (house baseline during solar hours)\n  SELECT day,\n    eddi_kwh,\n    export_kwh,\n    ROUND((zero_import_slots * 0.15)::NUMERIC, 3) AS house_kwh\n  FROM daily_cap\n)\nSELECT\n  day::TIMESTAMPTZ  AS time,\n  eddi_kwh::FLOAT8,\n  export_kwh::FLOAT8,\n  house_kwh::FLOAT8\nFROM house\nWHERE $__timeFilter(day::TIMESTAMPTZ)\nORDER BY day",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "xField": "time",
+        "stacking": {
+          "mode": "normal"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "min": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "eddi_kwh"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "\u2600\ufe0f Eddi hot water"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF7F00"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "export_kwh"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "\u26a1 Grid export"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF69"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "house_kwh"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "\ud83c\udfe0 House (est.)"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#5794F2"
+                }
+              }
+            ]
+          }
+        ]
+      }
     }
-
   ],
   "refresh": "5m",
   "schemaVersion": 39,
-  "tags": ["sparc", "solar", "pipeline", "data-quality"],
+  "tags": [
+    "sparc",
+    "solar",
+    "pipeline",
+    "data-quality"
+  ],
   "templating": {
     "list": [
       {
         "current": {},
-        "datasource": { "type": "postgres", "uid": "sparc-postgres" },
+        "datasource": {
+          "type": "postgres",
+          "uid": "sparc-postgres"
+        },
         "definition": "SELECT id::text FROM households ORDER BY onboarded_at DESC",
         "hide": 0,
         "includeAll": false,
@@ -798,7 +2441,10 @@
       }
     ]
   },
-  "time": { "from": "now-30d", "to": "now" },
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "Europe/Dublin",
   "title": "Solar Data Pipeline",

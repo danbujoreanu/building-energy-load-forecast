@@ -97,3 +97,68 @@ InfluxDB v3 (aka InfluxDB 3.0) is a complete rewrite using Apache Arrow + DataFu
 4. **TimescaleDB already provisioned.** asyncpg pool, Grafana datasource, migrations, and hypertables are all live. Migration cost is not zero.
 
 **Reconsider v3 if:** sub-minute Eddi or Shelly Plug S current readings are added to the pipeline in future. High-frequency IoT ingestion is the genuine use case where v3's architecture outperforms TimescaleDB.
+
+## Further notes:
+
+**Energy on InfluxDB v3 at 30/15 min:** Technically fine — v3 handles low-frequency writes without issue.
+
+**The real blocker — what InfluxDB v3 cannot replace PostgreSQL for:**
+
+The Energy schema has two kinds of tables:
+
+|Table|Type|InfluxDB v3?|
+|---|---|---|
+|`meter_readings`, `predictions`, `weather_log`|Time-series ✅|Yes|
+|`households`, `recommendations`, `tariff_changes`, `recommendation_outcomes`|**Relational**|❌ No|
+
+The relational tables need: foreign keys, `UPDATE` (mark recommendation actioned), referential integrity, sequences. InfluxDB is append-only — no `UPDATE`, no FK constraints, no sequences.
+
+**Verdict — honest:**
+
+You cannot replace PostgreSQL entirely with InfluxDB v3 for Energy without compromising data integrity on the relational side. You'd end up with InfluxDB v3 + SQLite (or similar) for the relational tables — which is more complex than TimescaleDB alone.
+
+**One subscription scenario:** Only makes sense if you accept SQLite for the 4 relational tables. Ask the InfluxDB dev specifically: _"Can I store relational tables with foreign keys, UPDATEs, and sequences in InfluxDB v3?"_ — the answer will close this cleanly.
+
+**My recommendation:** Stay on TimescaleDB for Energy. Upgrade Gardening to v3 separately when you're ready.
+
+
+---
+
+## Addendum — InfluxDB v3 Processing Engine Plugin Catalogue (2026-05-06)
+
+InfluxDB 3 Enterprise ships a plugin catalogue for its Processing Engine — Python UDFs that run on data writes or on a schedule. Reviewed for relevance to Energy and Gardening.
+
+### Plugin catalogue summary
+
+| Plugin | Trigger | Relevant to Energy? | Relevant to Gardening? |
+|--------|---------|--------------------|-----------------------|
+| MAD-Based Anomaly Detection | Data-write | ⚠️ Partly — APScheduler + `model_drift_log` already covers load forecast drift | ✅ Yes — detect faulty sensors (temp spike, soil moisture stuck at 0) |
+| ADTK Anomaly Detector | Scheduled | Same as above | ✅ Yes — more sophisticated for multi-sensor correlation |
+| Threshold Deadman Checks | Scheduled / HTTP | ⚠️ Irrelevant — n8n + Pushover already handles alerting | ✅ Yes — "soil moisture below 30% for 2h → alert" is exactly this |
+| State Change | Data-write | ⚠️ Irrelevant — recommendations use DB UPDATE, not state streams | ✅ Yes — detect valve open/close, zone dry→watered transitions |
+| Prophet Forecasting | Scheduled | ⚠️ Interesting but Energy uses LightGBM in FastAPI — not replacing | ✅ Maybe — forecast plant water demand without a separate ML stack |
+| Forecast Error Evaluator | Scheduled | ✅ Interesting — equivalent to Grafana panels 28–32, but already built | ✅ Useful if Gardening adds any forecast models |
+| Downsampler | Scheduled / HTTP | ⚠️ Low-value — meter data is already 30-min, not IoT-frequency | ✅ Yes — downsample 1-min sensor data to 15-min for long-term retention |
+| Notifier | HTTP | ⚠️ Irrelevant — n8n + Pushover already wired | ✅ Yes — native alerting without needing n8n for simple thresholds |
+| Basic Transformation | Data-write | ⚠️ Irrelevant — handled in FastAPI ingest layer | ✅ Maybe — normalise inconsistent sensor tag names at ingest |
+| Schema Validator | Data-write | ❌ Low priority | ✅ Useful — enforce sensor schema, prevent bad writes from misconfigured sensors |
+| MQTT Subscriber | Scheduled | ❌ No MQTT in Energy stack | ✅ Yes — if Gardening uses MQTT sensors (ESP32, Zigbee2MQTT) |
+| InfluxDB to Iceberg | Scheduled | ❌ No Iceberg infrastructure | ❌ Not at this scale |
+| System Metrics | Scheduled | ❌ Redundant — node_exporter + Prometheus already covers host metrics | ❌ Same |
+| Kafka / AMQP Subscriber | Scheduled | ❌ No message broker in stack | ❌ Overkill for home garden |
+| US NWS Weather Sampler | Scheduled | ❌ Wrong geography (Ireland uses Open-Meteo) | ❌ Wrong geography |
+
+### What this means for the verdict
+
+The plugin catalogue is compelling for Gardening — anomaly detection, threshold alerting, MQTT ingest, and state-change tracking are built-in rather than custom code. This **strengthens** the case for InfluxDB v3 Enterprise in Gardening.
+
+For Energy, the plugins that could be useful (anomaly detection, forecast error evaluation) are already implemented via APScheduler + `model_drift_log` + Grafana panels 28–32. The Processing Engine would replace existing working infrastructure, not fill a gap.
+
+**Verdict unchanged:** TimescaleDB for Energy (relational tables are the hard blocker). InfluxDB 3 Enterprise for Gardening (pure append-only sensor streams; plugin catalogue fits the use case natively).
+
+### Hobbyist licence
+
+InfluxDB 3 Enterprise is free for at-home use under the hobbyist licence:
+`https://docs.influxdata.com/influxdb3/enterprise/admin/license/?t=Docker+compose#activate-a-trial-or-at-home-license`
+
+Apply this licence in the Gardening project. Do not run it in the Energy stack.

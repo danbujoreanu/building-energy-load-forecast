@@ -141,8 +141,9 @@ tank_met = expected_diversion >= TANK_DAILY_KWH * 0.9   # within 10% = "met"
 ```
 5h productive sun (GHI 5.2 kWh/m², ~8 kWh panel output).
 Expected solar diversion: ~3.5 kWh (tank fully met ✅).
-Solar will fill the tank by midday — 07:00 grid boost not needed.
+Solar will fill the tank by 12:00 — 07:00 grid boost not needed.
 Consider skipping → save ~13c (0.55 kWh × 23.72c night rate).
+[URL button: ✅ I skipped the boost]
 ```
 
 **PARTIAL (mixed day):**
@@ -168,6 +169,71 @@ KEEP_BOOST_THRESHOLD = 2   # peak_sun_hours < 2 → KEEP_BOOST
 ```
 
 These are conservative by design. The cost of a wrong SKIP_BOOST is a cold shower. The cost of a wrong KEEP_BOOST is 13c wasted. The asymmetric downside justifies a high threshold for skipping. Summer Irish days typically see 6–8 peak sun hours; cloudy winter days 0–1.
+
+---
+
+## DAN-170: "Tank Full by HH:MM" Estimate
+
+Previously the SKIP_BOOST message said "Solar will fill the tank by midday" — hardcoded string. DAN-170 replaces this with a dynamic time computed from the hourly GHI forecast array.
+
+### How it works
+
+`_fetch_ghi()` now returns a third value: `hourly` — a list of `("HH:MM", wh_m2)` pairs for every hour of `target_date`. A new function `_estimate_tank_full_time()` walks from sunrise and accumulates solar output until the tank is full:
+
+```python
+def _estimate_tank_full_time(
+    hourly: list[tuple[str, float]],
+    panel_factor: float,
+    tank_kwh: float = TANK_DAILY_KWH,   # 3.5 kWh
+) -> str | None:
+    accumulated = 0.0
+    for hour_str, wh_m2 in hourly:
+        if wh_m2 < 50:        # skip night/pre-dawn hours
+            continue
+        accumulated += (wh_m2 / 1000.0) * panel_factor
+        if accumulated >= tank_kwh:
+            return hour_str   # "HH:MM"
+    return None               # insufficient solar
+```
+
+The SKIP_BOOST message line becomes:
+```python
+tank_full_line = (
+    f"Solar will fill the tank by {tank_full_time}"
+    if tank_full_time else "Solar will fill the tank"
+)
+```
+
+**Why it matters (Rory's UX insight):** "Tell me what time the tank will be full by. 'Solar will fill tank by 12:30' is more useful than 'by midday'. Makes it easier to decide whether I need a quick boost before my shower."
+
+**Accuracy caveat:** The estimate uses the 50% panel factor from the 50/50 Eddi bug. After the second Harvi is installed, `panel_factor_obs` will re-calibrate to ~2×, and `12:00` estimates will shift to ~`10:00` on equivalent GHI days. The time is directionally correct, not precise.
+
+---
+
+## DAN-P1: Outcome Feedback Deep-Link
+
+SKIP_BOOST Pushover notifications now include a URL button: **"✅ I skipped the boost"**. Tapping it calls `POST /advisory/{date}/outcome?acted=true`, recording the user's behaviour in `advisory_log.acted_on`.
+
+### How the URL is injected
+
+```python
+# In build_advisory():
+_api_base = os.environ.get("SPARC_API_PUBLIC_URL", "").rstrip("/")
+outcome_url = f"{_api_base}/advisory/{target_date}/outcome?acted=true" if _api_base else None
+```
+
+```python
+# In send_pushover():
+if advisory.outcome_url:
+    payload["url"] = advisory.outcome_url
+    payload["url_title"] = "✅ I skipped the boost"
+```
+
+**To activate:** set `SPARC_API_PUBLIC_URL=https://your-public-url` in `~/sparc/.env`. If the env var is not set, the URL is silently omitted — the notification still works, just without the deep-link.
+
+**Why this matters for the thesis:** The primary research question is "does a forecast change user behaviour?" `acted_on = true` is the minimum viable evidence that it does. Without this signal, you have advisory accuracy metrics but no behaviour change data — which is the thesis core (not just "was the forecast right?" but "did users act on it?").
+
+**Security note (Ciarán):** The endpoint is unauthenticated — acceptable for a single-household MVP. Add auth before rolling out to a second household. See ADR note in `deployment/routers/meters.py`.
 
 ---
 
@@ -421,19 +487,32 @@ The historical `advisory_date vs actual_eddi_kwh` comparison (panel 20, "Eddi So
 
 ---
 
-## Why TimescaleDB Not InfluxDB — The Recommendations JOIN Constraint
+## Why TimescaleDB Not InfluxDB — The Real Blocker Is Relational Integrity
 
-The recommendations, advisory, meter readings, and predictions all live in the same PostgreSQL database. This enables queries like:
+> **Note:** The JOIN argument (originally the main reason) is now obsolete — InfluxDB v3 added full SQL via Apache DataFusion. The permanent blocker is different and lower-level.
+
+### The two-table-type problem
+
+The Energy schema has two fundamentally different kinds of tables:
+
+| Table | Behaviour | InfluxDB v3? |
+|-------|-----------|-------------|
+| `meter_readings`, `myenergi_readings`, `weather_log`, `predictions` | Append-only time-series | ✅ Fine |
+| `households`, `recommendations`, `tariff_changes`, `recommendation_outcomes` | Needs `UPDATE`, foreign keys, sequences, referential integrity | ❌ Impossible |
+
+InfluxDB is append-only at its core. There is no `UPDATE`, no FK constraints, no sequences — in any version. `recommendations` gets `UPDATE`d when an action is taken. `households` is the FK anchor for everything. `tariff_changes` uses sequences. None of that maps to InfluxDB's data model.
+
+To run Energy on InfluxDB v3 you would need InfluxDB v3 **plus** a separate relational store for those 4 tables. That is more complex than TimescaleDB alone, which handles all tables in one PostgreSQL database. See `docs/adr/ADR-012-timescaledb-over-influxdb-sqlite.md` § "Further Notes" for the full analysis.
+
+### Why JOINs still matter (and now work in v3)
+
+The SQL JOIN argument is secondary but worth retaining for reference:
 
 ```sql
--- Was the SKIP_BOOST recommendation correct? Compare forecast diversion vs actual Eddi diversion.
-SELECT
-  al.advisory_date,
-  al.recommendation,
-  al.expected_diversion_kwh   AS forecast_diversion,
-  sa.eddi_kwh                 AS actual_eddi_kwh,
-  sa.ghi_actual               AS actual_ghi,
-  al.ghi_forecast             AS forecast_ghi
+-- Was the SKIP_BOOST recommendation correct?
+SELECT al.advisory_date, al.recommendation,
+       al.expected_diversion_kwh AS forecast_diversion,
+       sa.eddi_kwh               AS actual_eddi_kwh
 FROM advisory_log al
 JOIN solar_actuals sa ON sa.solar_date = al.advisory_date
 WHERE al.household_id = $1
@@ -441,21 +520,103 @@ WHERE al.household_id = $1
 ORDER BY al.advisory_date DESC;
 ```
 
-Or from the LP dispatch side:
-```sql
--- Did the HEAT_NOW recommendation coincide with actual cheap overnight imports?
-SELECT r.target_hour, r.action, r.price_eur_kwh, SUM(mr.import_kwh) AS actual_import
-FROM recommendations r
-JOIN myenergi_readings mr
-  ON DATE(mr.interval_start AT TIME ZONE 'Europe/Dublin') = CURRENT_DATE
-  AND EXTRACT(HOUR FROM mr.interval_start AT TIME ZONE 'Europe/Dublin') = r.target_hour
-WHERE r.household_id = $1
-GROUP BY 1, 2, 3;
-```
+InfluxDB v2 (Flux) cannot express this. InfluxDB v3 (DataFusion SQL) can. But v3 still cannot handle the `UPDATE` and FK requirements on `recommendations` and `households`, so the argument is moot for Energy.
 
-**This is exactly what InfluxDB cannot do.** InfluxDB's Flux/InfluxQL treats each measurement as an independent stream. Joining across `advisory_log` (relational recommendation store) and `myenergi_readings` (time-series) requires either: exporting both to a separate analytical database, or using InfluxDB v3 with its DataFusion SQL layer (which still doesn't share the same data model as the relational tables).
+### Unified project strategy (2026-05-06)
+
+| Project | Database | Why |
+|---------|----------|-----|
+| **Energy (Sparc)** | TimescaleDB (PostgreSQL 16) | Has relational tables with UPDATE/FK/sequences — cannot use any InfluxDB version |
+| **Gardening** | InfluxDB 3 Enterprise (hobbyist) | Pure append-only sensor streams — no relational model needed. v3 SQL handles cross-sensor JOINs |
+
+Grafana (port 3001 on the NUC) is shared. Databases are separate containers in separate compose files.
 
 Full decision: `docs/adr/ADR-012-timescaledb-over-influxdb-sqlite.md`
+
+---
+
+## Forecast Accuracy Audit — Grafana Panels 28–32
+
+The Solar Data Pipeline dashboard has a dedicated "Forecast Accuracy Audit" section (scroll past the Tomorrow's Advisory panels). This section answers: *how accurate was yesterday's forecast, and is the advisory system improving over time?*
+
+### Panel 29 — GHI Forecast vs Actual + Diversion (timeseries)
+
+Four lines on one chart:
+- **GHI forecast (dashed orange)** — Open-Meteo's prediction for that day, stored in `advisory_log.ghi_forecast`
+- **GHI actual (solid green)** — measured irradiance in `solar_actuals.ghi_actual` (written nightly at 23:45)
+- **Expected diversion (dashed blue)** — what `morning_advisory.py` predicted at 20:00 the evening before
+- **Actual Eddi kWh (solid red)** — `solar_actuals.eddi_kwh` from myenergi backfill/poll
+
+The JOIN:
+```sql
+SELECT al.advisory_date::TIMESTAMPTZ AS time, ...
+FROM advisory_log al
+LEFT JOIN solar_actuals sa ON sa.solar_date = al.advisory_date
+WHERE al.household_id = '$household_id'::uuid
+  AND al.advisory_date >= CURRENT_DATE - INTERVAL '90 days'
+ORDER BY 1
+```
+
+**Reading it**: When the dashed orange line sits above the solid green line, Open-Meteo overestimated irradiance (Irish cloud cover missed). When the dashed blue sits far above the solid red, the advisory overestimated Eddi capture — usually caused by Grid Boost kWh being factored in (see h1b/h1d caveat below).
+
+### Panel 30 — GHI Forecast Error % (timeseries)
+
+```sql
+(al.ghi_forecast - sa.ghi_actual) / NULLIF(sa.ghi_actual, 0) * 100
+```
+
+- **Positive** = Open-Meteo overestimated sun for that day
+- **Negative** = Open-Meteo underestimated (missed cloud clearance or Atlantic ridge)
+- **±10% band is good** — typical NWP forecast skill at 24h range
+- **Spikes > ±40%** usually indicate frontal passages that moved faster or slower than predicted
+
+### Panel 31 — GHI MAPE (30d) stat
+
+Mean Absolute Percentage Error of Open-Meteo's GHI forecast over the past 30 days, excluding near-zero GHI days (filter: `sa.ghi_actual > 0.5`):
+
+```sql
+ROUND(AVG(ABS(al.ghi_forecast - sa.ghi_actual) / NULLIF(sa.ghi_actual, 0) * 100)::NUMERIC, 1)
+```
+
+**Interpretation**:
+- < 15% — excellent for Irish climate (NWP performs well at 24h)
+- 15–25% — normal for Atlantic-influenced weather
+- > 30% — a systematic bias exists (worth checking if Open-Meteo model update changed behaviour)
+
+This is the **solar advisory equivalent of `mae_ratio` in `model_drift_log`**. Once 30 days of advisory data accumulate, you could add a `solar_advisory_drift` check to the Sunday drift job (currently checks load forecast drift only).
+
+### Panel 32 — Advisory Accuracy % (30d) stat
+
+```sql
+ROUND(
+  100.0 * SUM(CASE
+    WHEN al.recommendation = 'SKIP_BOOST' AND sa.eddi_kwh >= 2.0 THEN 1
+    WHEN al.recommendation IN ('KEEP_BOOST','PARTIAL') AND sa.eddi_kwh < 2.0 THEN 1
+    ELSE 0
+  END)::NUMERIC / NULLIF(COUNT(*), 0), 1
+)
+```
+
+**Classification rule**: `eddi_kwh ≥ 2.0 kWh` on a day = "solar was sufficient to skip the boost". This threshold was chosen to be above the ~1.1 kWh that two grid boosts alone contribute (2 × 0.55 kWh), so only days with real solar diversion count as solar-rich.
+
+**Interpretation**: A value of 80% means 80% of daily SKIP/KEEP recommendations matched what actually happened. Below 70% consistently → review the SKIP_BOOST_THRESHOLD constant in `morning_advisory.py`.
+
+### ⚠️ h1b/h1d ambiguity caveat (all diversion panels)
+
+`solar_actuals.eddi_kwh` = **total Eddi energy**: grid boost (h1b) + solar diversion (h1d). The advisory only predicts solar diversion. Until **DAN-139** (Eddi source split) is implemented, the comparison is a proxy:
+
+| Grid boost active | Effect on audit |
+|-------------------|----------------|
+| 07:00 boost kept ON (current) | Adds ~0.55 kWh to `eddi_kwh`. Classification threshold set to 2.0 kWh (above 1.1 kWh from two boosts alone) to compensate |
+| 07:00 boost disabled on SKIP_BOOST day | `eddi_kwh` = pure solar diversion — direct comparison |
+| Both boosts active (BGE tariff window) | `eddi_kwh` ≈ boost kWh + solar. Threshold still works but confidence lower |
+
+Once DAN-139 splits h1b/h1d in `myenergi_readings`, update the audit panels to use `solar_actuals.solar_diversion_kwh` (to be added) instead of `eddi_kwh`, and remove the 2.0 kWh threshold hack.
+
+### When will panels populate?
+
+- **Panel 29/30**: Populate from 23:30 the night after each advisory runs. First real data appears 2026-05-07 (first advisory was manually triggered 2026-05-06).
+- **Panels 31/32**: Need 30 qualifying days (30-day window). Will show a number from ~2026-06-05 onwards.
 
 ---
 
@@ -500,7 +661,7 @@ Usually caused by mixing `start_date` with `forecast_days`. Use `forecast_days=2
 - `deployment/routers/control.py` — `_compute_tomorrow_cost()` (predicted € cost for tomorrow)
 - `src/energy_forecast/api/meter_store.py` — `log_advisory()` writes to advisory_log
 - `scripts/calibrate_panel_factor.py` — DAN-142: panel factor calibration
-- `infra/grafana/provisioning/dashboards/solar_pipeline.json` — panels 25–27 (tomorrow's advisory), panel 20 (forecast vs actual)
+- `infra/grafana/provisioning/dashboards/solar_pipeline.json` — panels 25–27 (tomorrow's advisory), panels 28–32 (forecast accuracy audit)
 - `docs/adr/ADR-012-timescaledb-over-influxdb-sqlite.md` — full InfluxDB vs TimescaleDB decision
 - `docs/explainers/LP_DISPATCH_EXPLAINED.md` — the other recommendation system (HEAT_NOW/DEFER_HEATING)
 - Open-Meteo docs: `open-meteo.com/en/docs` — shortwave_radiation, forecast_days parameter

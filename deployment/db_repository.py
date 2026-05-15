@@ -34,12 +34,16 @@ async def fetch_household_ids(pool) -> list:
 # ---------------------------------------------------------------------------
 
 async def upsert_solar_actuals(pool, household_id: str, days: int = 90) -> str:
-    """Aggregate export_kwh from meter_readings into solar_actuals for the last N days.
+    """Aggregate export_kwh + ghi_forecast into solar_actuals for the last N days.
+
+    - export_kwh: step 1a = ESB CSV (authoritative); step 1b = MyEnergi exp field (fallback)
+    - ghi_forecast: from advisory_log (one row per advisory date)
 
     Returns the asyncpg status string (e.g. 'INSERT 0 30').
     """
     async with pool.acquire() as conn:
-        return await conn.execute(
+        # Step 1a: upsert export_kwh from meter_readings (ESB CSV — authoritative source)
+        status = await conn.execute(
             """
             INSERT INTO solar_actuals (solar_date, export_kwh)
             SELECT
@@ -57,6 +61,63 @@ async def upsert_solar_actuals(pool, household_id: str, days: int = 90) -> str:
             household_id,
             days,
         )
+        # Step 1b: fill export_kwh from MyEnergi readings where ESB hasn't provided it.
+        # Uses households.myenergi_serial to join myenergi_readings.hub_serial.
+        # COALESCE(sa.export_kwh, ...) ensures ESB data is never overwritten.
+        await conn.execute(
+            """
+            UPDATE solar_actuals sa
+            SET export_kwh = ROUND(mr_daily.daily_export::NUMERIC, 3)
+            FROM (
+                SELECT
+                    DATE(interval_start AT TIME ZONE 'Europe/Dublin') AS solar_date,
+                    SUM(export_kwh)                                    AS daily_export
+                FROM myenergi_readings mr
+                JOIN households h ON h.myenergi_serial = mr.hub_serial
+                WHERE h.id = $1::uuid
+                  AND export_kwh IS NOT NULL
+                  AND DATE(interval_start AT TIME ZONE 'Europe/Dublin')
+                      >= CURRENT_DATE - INTERVAL '1 day' * $2
+                GROUP BY 1
+            ) mr_daily
+            WHERE mr_daily.solar_date = sa.solar_date
+              AND sa.export_kwh IS NULL
+              AND mr_daily.daily_export > 0
+            """,
+            household_id,
+            days,
+        )
+        # Step 2: backfill ghi_forecast from advisory_log where still NULL
+        await conn.execute(
+            """
+            UPDATE solar_actuals sa
+            SET ghi_forecast = al.ghi_forecast
+            FROM advisory_log al
+            WHERE al.advisory_date = sa.solar_date
+              AND al.household_id  = $1
+              AND al.ghi_forecast  IS NOT NULL
+              AND sa.ghi_forecast  IS NULL
+            """,
+            household_id,
+        )
+        # Step 3: recompute panel_factor_obs where all three components are now available.
+        # Runs after step 1 (export_kwh from ESB) so newly uploaded CSVs trigger recalc.
+        # Only updates rows where panel_factor_obs is stale (NULL or export_kwh changed).
+        await conn.execute(
+            """
+            UPDATE solar_actuals
+            SET panel_factor_obs = ROUND(
+                ((export_kwh + COALESCE(eddi_kwh, 0)) / ghi_actual)::NUMERIC, 4
+            )
+            WHERE ghi_actual  > 0
+              AND export_kwh  IS NOT NULL
+              AND export_kwh  > 0
+              AND eddi_kwh    IS NOT NULL
+              AND solar_date >= CURRENT_DATE - INTERVAL '1 day' * $1
+            """,
+            days,
+        )
+        return status
 
 
 # ---------------------------------------------------------------------------

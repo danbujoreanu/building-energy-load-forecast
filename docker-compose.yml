@@ -37,6 +37,12 @@ services:
     volumes:
       # Persist model artefacts, logs, and drift reports beyond container restarts
       - ./outputs:/app/outputs
+      # Live code sync — changes to deployment/ take effect on restart, no rebuild needed
+      - ./deployment:/app/deployment
+      # Intel RAG module — synced from Mac via rsync
+      - ./intel:/app/intel
+      # Scripts — for running ingest_changed.py inside the container
+      - ./scripts:/app/scripts:ro
     depends_on:
       db:
         condition: service_healthy
@@ -102,7 +108,7 @@ services:
 
   # ── Grafana OSS (Operator Dashboard) ───────────────────────────────────────
   grafana:
-    image: grafana/grafana-oss:11.0.0
+    image: grafana/grafana-oss:11.5.0
     container_name: sparc-grafana
     ports:
       - "3001:3000"
@@ -120,6 +126,31 @@ services:
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
       db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - sparc
+
+  # ── Intel Chat UI (Streamlit — RAG query interface) ───────────────────────
+  # Access: http://localhost:8502 (via SSH tunnel) or http://192.168.68.119:8502
+  intel-ui:
+    image: python:3.11-slim
+    container_name: sparc-intel-ui
+    ports:
+      - "8502:8501"
+    command: >
+      bash -c "pip install --quiet streamlit requests &&
+               streamlit run /app/intel/streamlit_app.py
+               --server.port=8501
+               --server.address=0.0.0.0
+               --server.headless=true
+               --browser.gatherUsageStats=false"
+    environment:
+      SPARC_API_URL: http://api:8000
+    volumes:
+      - ./intel:/app/intel:ro
+    depends_on:
+      api:
         condition: service_healthy
     restart: unless-stopped
     networks:

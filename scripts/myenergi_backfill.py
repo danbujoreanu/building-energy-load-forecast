@@ -71,11 +71,16 @@ async def dates_already_present(pool: asyncpg.Pool, start: date, end: date) -> s
     return {r["d"] for r in rows}
 
 
-async def backfill(start: date, end: date) -> None:
+async def backfill(start: date, end: date, force: bool = False) -> None:
     pool = await asyncpg.create_pool(DB_URL, min_size=1, max_size=3)
 
-    already = await dates_already_present(pool, start, end)
-    logger.info("Dates already populated (≥40 slots): %d", len(already))
+    if force:
+        already: set[date] = set()
+        logger.info("--force: skipping presence check, re-fetching all %d days",
+                    (end - start).days + 1)
+    else:
+        already = await dates_already_present(pool, start, end)
+        logger.info("Dates already populated (≥40 slots): %d", len(already))
 
     total_days = (end - start).days + 1
     done = skipped = failed = 0
@@ -120,6 +125,12 @@ def parse_args() -> argparse.Namespace:
         default=date.today() - timedelta(days=1),
         help="Last date to backfill (default: yesterday)",
     )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-fetch and overwrite all dates, even those already populated. "
+             "Use after a formula fix to correct stored kWh values.",
+    )
     return p.parse_args()
 
 
@@ -130,4 +141,4 @@ if __name__ == "__main__":
     logger.info("Backfill range: %s → %s (%d days)",
                 args.start_date, args.end_date,
                 (args.end_date - args.start_date).days + 1)
-    asyncio.run(backfill(args.start_date, args.end_date))
+    asyncio.run(backfill(args.start_date, args.end_date, force=args.force))

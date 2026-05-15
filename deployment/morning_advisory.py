@@ -8,9 +8,10 @@ endpoint as the Gardening project's weather_poller.py), estimates solar
 panel output, and recommends whether to skip the 07:00 boost.
 
 Logic:
-  peak_sun_hours >= 5  → SKIP_BOOST   (solar fills tank by midday)
-  peak_sun_hours  2-4  → PARTIAL      (solar warms but may not fill; keep boost)
-  peak_sun_hours  < 2  → KEEP_BOOST   (insufficient solar)
+  Saturday            → FREE_SATURDAY (BGE €0.00/kWh 09:00–17:00 — always boost from grid)
+  peak_sun_hours >= 5 → SKIP_BOOST   (solar fills tank by midday)
+  peak_sun_hours  2-4 → PARTIAL      (solar warms but may not fill; keep boost)
+  peak_sun_hours  < 2 → KEEP_BOOST   (insufficient solar)
 
 Read-only advisory only — never calls Eddi write endpoints.
 
@@ -54,10 +55,16 @@ class SolarAdvisory:
     pushover_message: str
     issued_at: datetime
     daily_cost_eur: float | None = None  # DAN-143: tomorrow's predicted cost in €
+    outcome_url: str | None = None       # DAN-P1: deep-link for "I acted on this" feedback
 
 
-def _fetch_ghi(target_date: date) -> tuple[float, int]:
-    """Fetch daily GHI total (kWh/m²) and peak sun hours for target_date."""
+def _fetch_ghi(target_date: date) -> tuple[float, int, list[tuple[str, float]]]:
+    """Fetch GHI for target_date.
+
+    Returns:
+        (total_kwh_m2, peak_sun_hours, hourly_pairs)
+        hourly_pairs — list of ("HH:MM", wh_m2) for each hour of target_date.
+    """
     url = (
         f"https://api.open-meteo.com/v1/forecast"
         f"?latitude={MAYNOOTH_LAT}&longitude={MAYNOOTH_LON}"
@@ -69,7 +76,6 @@ def _fetch_ghi(target_date: date) -> tuple[float, int]:
     resp.raise_for_status()
     data = resp.json()["hourly"]
     target_str = str(target_date)
-    # Filter to only the 24 hours belonging to target_date
     pairs = [
         (t, v)
         for t, v in zip(data["time"], data["shortwave_radiation"])
@@ -77,7 +83,34 @@ def _fetch_ghi(target_date: date) -> tuple[float, int]:
     ]
     total_kwh_m2 = sum(v / 1000.0 for _, v in pairs)
     peak_hours = sum(1 for _, v in pairs if v > 200)
-    return round(total_kwh_m2, 3), peak_hours
+    hourly = [(t[-5:], v) for t, v in pairs]   # strip date prefix → "HH:MM"
+    return round(total_kwh_m2, 3), peak_hours, hourly
+
+
+def _estimate_tank_full_time(
+    hourly: list[tuple[str, float]],
+    panel_factor: float,
+    tank_kwh: float = TANK_DAILY_KWH,
+) -> str | None:
+    """Walk hourly GHI from sunrise and return the hour the tank is expected to be full.
+
+    Args:
+        hourly:       List of ("HH:MM", wh_m2) for the forecast day.
+        panel_factor: kWh solar output per kWh/m² GHI.
+        tank_kwh:     Energy needed to fully heat the tank (default TANK_DAILY_KWH).
+
+    Returns:
+        "HH:MM" string of the hour the accumulated solar output first meets tank_kwh,
+        or None if solar is insufficient.
+    """
+    accumulated = 0.0
+    for hour_str, wh_m2 in hourly:
+        if wh_m2 < 50:       # skip night / pre-dawn hours
+            continue
+        accumulated += (wh_m2 / 1000.0) * panel_factor
+        if accumulated >= tank_kwh:
+            return hour_str
+    return None
 
 
 def build_advisory(
@@ -101,7 +134,7 @@ def build_advisory(
         target_date = (datetime.now(dublin) + timedelta(days=1)).date()
 
     pf = panel_factor if panel_factor is not None else PANEL_FACTOR
-    ghi, peak_hours = _fetch_ghi(target_date)
+    ghi, peak_hours, hourly = _fetch_ghi(target_date)
     est_solar = round(ghi * pf, 1)
 
     # DAN-141: explicit diversion estimate — capped at tank daily need
@@ -117,13 +150,41 @@ def build_advisory(
     if daily_cost_eur is not None:
         cost_line = f"\nForecast cost tomorrow: ~€{daily_cost_eur:.2f} (incl. standing charge)."
 
-    if peak_hours >= SKIP_BOOST_THRESHOLD:
+    # DAN-170: estimate when tank will be full from solar
+    tank_full_time = _estimate_tank_full_time(hourly, pf)
+    tank_full_line = (
+        f"Solar will fill the tank by {tank_full_time}"
+        if tank_full_time else "Solar will fill the tank"
+    )
+
+    # Outcome deep-link (POST /advisory/{date}/outcome?acted=true)
+    _api_base = os.environ.get("SPARC_API_PUBLIC_URL", "").rstrip("/")
+    outcome_url = f"{_api_base}/advisory/{target_date}/outcome?acted=true" if _api_base else None
+
+    # ── Free Saturday — informational only, no recommendation ───────────────
+    # BGE Free Saturday: electricity is €0.00/kWh 09:00–17:00.
+    # The Eddi schedule already handles this. No recommendation needed.
+    # The only useful information is solar capture — how much sun to expect.
+    if target_date.weekday() == 5:  # Saturday
+        rec = "FREE_SATURDAY"
+        solar_note = (
+            f"{peak_hours}h productive sun, ~{est_solar:.0f} kWh panel output."
+            if peak_hours >= 2
+            else f"Low solar forecast ({peak_hours}h sun, ~{est_solar:.0f} kWh)."
+        )
+        title = f"☀️ Tomorrow: Free Saturday — {target_date}"
+        msg = (
+            f"Grid is free 09:00–17:00. Eddi schedule handles the rest.\n"
+            f"Solar: {solar_note}\n"
+            f"ℹ️ No action needed."
+        )
+    elif peak_hours >= SKIP_BOOST_THRESHOLD:
         rec = "SKIP_BOOST"
         title = f"☀️ Skip 07:00 Eddi boost — {target_date}"
         msg = (
             f"{peak_hours}h productive sun (GHI {ghi:.1f} kWh/m², ~{est_solar:.0f} kWh panel output).\n"
             f"{diversion_line}\n"
-            f"Solar will fill the tank by midday — 07:00 grid boost not needed.\n"
+            f"{tank_full_line} — 07:00 grid boost not needed.\n"
             f"Consider skipping → save ~{BOOST_KWH * 23.72:.0f}c "
             f"({BOOST_KWH} kWh × 23.72c night rate)."
             f"{cost_line}\n"
@@ -167,6 +228,7 @@ def build_advisory(
         pushover_message=msg,
         issued_at=datetime.now(timezone.utc),
         daily_cost_eur=daily_cost_eur,
+        outcome_url=outcome_url,
     )
 
 
@@ -178,16 +240,20 @@ def send_pushover(advisory: SolarAdvisory) -> None:
         logger.warning("[pushover] PUSHOVER_APP_TOKEN or PUSHOVER_USER_KEY not set — skipping.")
         return
 
-    priority_map = {"SKIP_BOOST": 0, "PARTIAL": -1, "KEEP_BOOST": -2}
+    priority_map = {"FREE_SATURDAY": 0, "SKIP_BOOST": 0, "PARTIAL": -1, "KEEP_BOOST": -2}
+    payload: dict = {
+        "token":    token,
+        "user":     user,
+        "title":    advisory.pushover_title,
+        "message":  advisory.pushover_message,
+        "priority": priority_map.get(advisory.recommendation, -1),
+    }
+    if advisory.outcome_url:
+        payload["url"] = advisory.outcome_url
+        payload["url_title"] = "✅ I skipped the boost"
     resp = requests.post(
         "https://api.pushover.net/1/messages.json",
-        data={
-            "token":    token,
-            "user":     user,
-            "title":    advisory.pushover_title,
-            "message":  advisory.pushover_message,
-            "priority": priority_map.get(advisory.recommendation, -1),
-        },
+        data=payload,
         timeout=10,
     )
     resp.raise_for_status()

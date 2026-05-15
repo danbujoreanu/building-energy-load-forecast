@@ -72,17 +72,58 @@ async def _run_scheduled_inference(app: FastAPI) -> None:
 
 
 async def _run_myenergi_poll(app: FastAPI) -> None:
-    """23:30 job — fetch today's MyEnergi minute data, aggregate to 30-min, store in DB."""
+    """00:15 job — fetch YESTERDAY's MyEnergi data + GHI archive, store in DB.
+
+    Runs just after midnight so the full 24h is complete and the Open-Meteo
+    archive endpoint (which requires the date to be in the past) can return actual
+    GHI for yesterday.  Previous schedule (23:30 for today) caused a 400 error
+    because the archive has no data for the current day.
+    """
+    import pytz
+    from datetime import timedelta
     from deployment.myenergi_poller import run_daily_poll
 
     pool = getattr(app.state, "db_pool", None)
     if pool is None:
         logger.warning("[myenergi_poller] DB pool not available — skipping.")
         return
+    # Always poll yesterday — the full day is complete and archive data is available
+    yesterday = datetime.now(pytz.timezone("Europe/Dublin")).date() - timedelta(days=1)
     try:
-        await run_daily_poll(pool)
+        await run_daily_poll(pool, target_date=yesterday)
     except Exception as exc:
         logger.error("[myenergi_poller] Daily poll failed: %s", exc)
+        await asyncio.to_thread(
+            _send_alert_pushover,
+            "⚡ Sparc: MyEnergi poll failed",
+            f"Daily energy data NOT saved.\n\nError: {exc}\n\nFix: ssh dan@192.168.68.119 and rerun backfill.",
+            priority=0,  # normal priority — will notify but not interrupt
+        )
+
+
+async def _run_weather_forecast_poll(app: FastAPI) -> None:
+    """06:00 job — fetch 7-day Open-Meteo forecast, persist to weather_log.
+
+    Captures GHI, temp, humidity, precipitation, wind, cloud cover, WMO code —
+    matching the Gardening project's variable set so both pipelines stay in sync.
+    Runs at 06:00 to pick up the overnight model update from Open-Meteo.
+    """
+    from deployment.myenergi_poller import run_weather_forecast_poll
+
+    pool = getattr(app.state, "db_pool", None)
+    if pool is None:
+        logger.warning("[weather_forecast] DB pool not available — skipping.")
+        return
+    try:
+        await run_weather_forecast_poll(pool)
+    except Exception as exc:
+        logger.error("[weather_forecast] Forecast poll failed: %s", exc)
+        await asyncio.to_thread(
+            _send_alert_pushover,
+            "⚡ Sparc: Weather forecast poll failed",
+            f"7-day forecast NOT updated.\n\nError: {exc}",
+            priority=-1,  # low priority — informational
+        )
 
 
 async def _sync_solar_actuals(app: FastAPI) -> None:
@@ -395,15 +436,23 @@ async def _check_data_gaps(app: FastAPI) -> None:
             ).total_seconds() / 3600
             missing_days = int(rec["missing_days_30d"] or 0)
 
-            if stale_h > 72:
+            if stale_h > 336:   # 14 days — ESB CSV upload cadence is biweekly
                 await asyncio.to_thread(
                     _send_alert_pushover,
-                    "⚡ Sparc: Upload overdue",
-                    f"No new ESB readings for {stale_h:.0f}h. Last: {rec['last_ts'].date()}. "
-                    f"Upload at http://localhost:8000/upload",
+                    "⚡ Sparc: ESB upload overdue",
+                    f"No new ESB readings for {stale_h/24:.0f} days. Last: {rec['last_ts'].date()}. "
+                    f"Download latest CSV from myaccount.esbnetworks.ie and upload.",
                     0,
                 )
                 logger.warning("[data_gap] household=%s stale %.0fh", hid, stale_h)
+            elif stale_h > 288:  # 12 days — reminder 2 days before overdue
+                await asyncio.to_thread(
+                    _send_alert_pushover,
+                    "📋 Sparc: ESB upload due soon",
+                    f"ESB meter data is {stale_h/24:.0f} days old (last: {rec['last_ts'].date()}). "
+                    f"Upload a fresh CSV this week to avoid a gap.",
+                    -1,
+                )
             elif missing_days >= 3:
                 await asyncio.to_thread(
                     _send_alert_pushover,
@@ -460,54 +509,73 @@ def create_scheduler(app: FastAPI) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone="Europe/Dublin")
 
     scheduler.add_job(
-        lambda: asyncio.ensure_future(_run_scheduled_inference(app)),
+        _run_scheduled_inference,
         CronTrigger(hour=16, minute=0),
         id="daily_inference", replace_existing=True,
+        args=[app],
     )
     scheduler.add_job(
-        lambda: asyncio.ensure_future(_run_morning_advisory(app)),
+        _run_morning_advisory,
         CronTrigger(hour=20, minute=0),
         id="morning_advisory", replace_existing=True,
+        args=[app],
     )
     scheduler.add_job(
-        lambda: asyncio.ensure_future(_check_data_gaps(app)),
+        _run_weather_forecast_poll,
+        CronTrigger(hour=6, minute=0),
+        id="weather_forecast_poll", replace_existing=True,
+        args=[app],
+    )
+    scheduler.add_job(
+        _check_data_gaps,
         CronTrigger(hour=9, minute=0),
         id="data_gap_check", replace_existing=True,
+        args=[app],
     )
+    # 00:15 — fetch YESTERDAY's complete MyEnergi data (full day is complete, archive GHI available)
     scheduler.add_job(
-        lambda: asyncio.ensure_future(_run_myenergi_poll(app)),
-        CronTrigger(hour=23, minute=30),
+        _run_myenergi_poll,
+        CronTrigger(hour=0, minute=15, timezone="Europe/Dublin"),
         id="myenergi_poll", replace_existing=True,
+        args=[app],
     )
+    # 00:45 — aggregate solar actuals after myenergi poll completes
     scheduler.add_job(
-        lambda: asyncio.ensure_future(_sync_solar_actuals(app)),
-        CronTrigger(hour=23, minute=45),
+        _sync_solar_actuals,
+        CronTrigger(hour=0, minute=45, timezone="Europe/Dublin"),
         id="solar_actuals_sync", replace_existing=True,
+        args=[app],
     )
+    # 01:00 — data quality check after everything is synced
     scheduler.add_job(
-        lambda: asyncio.ensure_future(_run_data_quality_check(app)),
-        CronTrigger(hour=23, minute=55),
+        _run_data_quality_check,
+        CronTrigger(hour=1, minute=0, timezone="Europe/Dublin"),
         id="data_quality_check", replace_existing=True,
+        args=[app],
     )
     scheduler.add_job(
-        lambda: asyncio.ensure_future(_run_weekly_quality_report(app)),
+        _run_weekly_quality_report,
         CronTrigger(day_of_week="mon", hour=8, minute=30),
         id="weekly_quality_report", replace_existing=True,
+        args=[app],
     )
     scheduler.add_job(
-        lambda: asyncio.ensure_future(_check_drift_sunday(app)),
+        _check_drift_sunday,
         CronTrigger(day_of_week="sun", hour=2, minute=0),
         id="drift_check_sunday", replace_existing=True,
+        args=[app],
     )
     scheduler.add_job(
-        lambda: asyncio.ensure_future(_fetch_semo_prices(app)),
+        _fetch_semo_prices,
         CronTrigger(hour=14, minute=0),
         id="semo_price_fetch", replace_existing=True,
+        args=[app],
     )
     scheduler.add_job(
-        lambda: asyncio.ensure_future(_run_lp_dispatch(app)),
+        _run_lp_dispatch,
         CronTrigger(hour=14, minute=30),
         id="lp_dispatch", replace_existing=True,
+        args=[app],
     )
 
     return scheduler

@@ -14,6 +14,28 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ---
 
+## [Dev — 2026-05-15] · RAG Pipeline + Advisory Scheduler Fixes
+
+### Added
+- `intel/embed.py` — provider-agnostic embedding (UniVec BGE-M3 primary, MiniLM fallback); `allow_fallback=False` on ingest path prevents silent dimension corruption (authored in Gardening session, cross-applied)
+- `intel/docs/operational/RAG_PIPELINE_EXPLAINED.md` — added Corpus Maintenance section (PDF eviction audit, single-topic reference file pattern, excerpt slice guideline); updated for BGE-M3 migration
+- DAN-171 filed: advisory scheduler + threshold overhaul (timezone fix, 502 resilience, seasonal irradiance gate, alert taxonomy review)
+
+### Changed
+- `intel/retrieval.py` — `excerpt[:200]` → `[:500]`; was silently cutting every chunk's second half before Gemini synthesis
+- `intel/ingest.py` / `intel/retrieval.py` — embedding model upgraded to `baai-bge-m3` 1024-dim via UniVec API; replaces local `all-MiniLM-L6-v2` 384-dim
+- ChromaDB collections (`intel_regulatory`, `intel_market`, `intel_product`, `intel_operational`, `intel_technical`) dropped and rebuilt at 1024-dim on Mac; `intel_operational` rebuilt on NUC
+- `docs/SPRINT.md` — DAN-171 added; DAN-145/DAN-156 merged into DAN-171
+
+### Fixed
+- **BUG-RAG-01** `intel/retrieval.py` — `excerpt[:200]` truncated ~half of every 512-token chunk. Gemini received incomplete source context for synthesis. Fixed to `[:500]`. Symptom: vague or incomplete `/intel/ask` answers on factual queries.
+- **BUG-RAG-02** NUC BGE-M3 ingest — `docker compose restart` does NOT reload `env_file`; `UNIVEC_API_KEY` was absent, causing fallback to MiniLM despite `allow_fallback=False`. First ingest created 384-dim collection. Fix: `docker compose up -d api` (container recreation). Second attempt confirmed `UniVecEmbedding initialised: model=baai-bge-m3 dim=1024`.
+- **BUG-SCH-01** APScheduler timezone — `AsyncIOScheduler(timezone="Europe/Dublin")` + `CronTrigger(hour=20, minute=0)` fires at 20:00 UTC = 21:00 Dublin BST; advisory is 1 hour late. Confirmed chronic from advisory_log (all entries at 21:00+01). Fix identified (DAN-171a): `CronTrigger(hour=20, minute=0, timezone=_DUBLIN)`. Not yet applied.
+- **BUG-SCH-02** Open-Meteo 502 — advisory scheduler failed 2026-05-15 20:00 UTC with `502 Server Error`. No push sent, no advisory_log entry. Retry + Pushover fallback not yet implemented (DAN-171b).
+- **BUG-SCH-03** Saturday SKIP_BOOST push — user received "Skip 07:00 Eddi boost - 2026-05-16" (a Free Saturday) at 21:00 on 2026-05-15. Advisory_log shows no entry for 2026-05-15; n8n "Sparc — Daily Morning Brief" fires at 08:00 UTC (LP dispatcher, not advisory). Source unresolved — possibly a stale iOS notification or cached push. Under investigation (DAN-171d).
+
+---
+
 ## [0.9.0] — 2026-03-31 · Code Quality + Documentation Milestone
 
 ### Added

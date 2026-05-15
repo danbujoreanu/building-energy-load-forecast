@@ -1,11 +1,14 @@
-"""Meter data upload and forecast retrieval endpoints."""
+"""Meter data upload, forecast retrieval, and advisory outcome endpoints."""
 
 import logging
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
+from pydantic import BaseModel
 
 from deployment.schemas import ForecastEntry, ForecastResponse, UploadResponse
 from energy_forecast.api.esb_parser import ESBParseError, parse_esb_csv
+from deployment import db_repository as db
 from energy_forecast.api.meter_store import (
     fetch_forecasts,
     household_exists,
@@ -109,4 +112,67 @@ async def get_forecast(
     return ForecastResponse(
         household_id=household_id,
         forecasts=[ForecastEntry(**f) for f in forecasts],
+    )
+
+
+# ---------------------------------------------------------------------------
+# DAN-P1: Advisory outcome feedback (behaviour change evidence)
+# ---------------------------------------------------------------------------
+
+class AdvisoryOutcomeResponse(BaseModel):
+    advisory_date: str
+    acted_on: bool
+    recorded_at: str
+
+
+@router.post("/advisory/{advisory_date}/outcome", response_model=AdvisoryOutcomeResponse)
+async def record_advisory_outcome(
+    advisory_date: date,
+    request: Request,
+    acted: bool = Query(default=True, description="True = user acted on the advisory (e.g. skipped boost)"),
+):
+    """Record whether the user acted on the advisory for a given date.
+
+    Called via the Pushover deep-link: tap '✅ I skipped the boost' to record acted=True.
+    Single-household MVP — unauthenticated. Add auth before multi-household rollout (ADR note).
+
+    To verify:
+        curl -X POST "http://192.168.68.119:8000/advisory/2026-05-08/outcome?acted=true"
+    """
+    pool = getattr(request.app.state, "db_pool", None)
+    if pool is None:
+        raise HTTPException(status_code=503, detail="Database not available.")
+
+    now = datetime.now(timezone.utc)
+
+    # Resolve first household (single-household MVP)
+    try:
+        households = await db.fetch_household_ids(pool)
+        if not households:
+            raise HTTPException(status_code=404, detail="No households registered.")
+        hid = str(households[0]["id"])
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Household lookup failed: %s", exc)
+        raise HTTPException(status_code=500, detail="DB error.")
+
+    try:
+        await pool.execute(
+            """
+            UPDATE advisory_log
+               SET acted_on = $1, outcome_recorded_at = $2
+             WHERE household_id = $3::uuid AND advisory_date = $4
+            """,
+            acted, now, hid, advisory_date,
+        )
+    except Exception as exc:
+        logger.error("Outcome update failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"DB write failed: {exc}")
+
+    logger.info("[advisory] Outcome recorded: date=%s acted=%s hid=%s", advisory_date, acted, hid)
+    return AdvisoryOutcomeResponse(
+        advisory_date=str(advisory_date),
+        acted_on=acted,
+        recorded_at=now.isoformat(),
     )

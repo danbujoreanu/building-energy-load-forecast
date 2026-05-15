@@ -11,3 +11,16 @@ asyncpg>=0.29.0
 apscheduler>=3.10.0
 python-multipart>=0.0.9
 pytz>=2024.1
+
+# ── Intel RAG module (optional — /intel/* routes) ────────────────────────────
+llama-index-core==0.12.52.post1
+llama-index-vector-stores-chroma==0.4.2
+llama-index-embeddings-huggingface==0.5.5
+chromadb==0.6.3
+# CPU-only torch: arm64 (Mac) and x86_64 (NUC) both have +cpu wheels from 2.6.0+.
+# Must appear BEFORE sentence-transformers so pip doesn't pull the CUDA wheel as a dependency.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.6.0+cpu
+sentence-transformers==3.4.1   # 3.x safe in Docker (no TF Metal issue)
+anthropic>=0.40.0               # /intel/ask Claude synthesis fallback (needs ANTHROPIC_API_KEY)
+google-genai>=1.0.0             # /intel/ask Gemini synthesis — preferred, free tier (needs GEMINI_API_KEY)

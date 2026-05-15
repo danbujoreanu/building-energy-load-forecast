@@ -5,13 +5,20 @@
 
 ## Dashboard URLs (via SSH tunnel → localhost)
 
+All URLs work on Mac via the persistent SSH tunnel (LaunchAgent `com.sparc.nuc-tunnel`).
+Full infrastructure architecture: `docs/explainers/INFRASTRUCTURE_EXPLAINED.md`
+
 | Dashboard | URL | Status |
 |-----------|-----|--------|
 | Sparc Overview | http://localhost:3001/d/sparc-overview | ✅ Live |
 | Household Intelligence | http://localhost:3001/d/household-intelligence | ✅ Live (set time range: last 2 years) |
 | Solar Data Pipeline | http://localhost:3001/d/solar-pipeline | ⏳ Accumulating (myEnergi data started 2026-05-06) |
 | Meter Readings | http://localhost:3001/d/meter-readings | ✅ Live (2 years of ESB data) |
-| NUC Monitoring | http://localhost:3001/d/nuc-overview | ✅ Fixed 2026-05-06 (Prometheus UID corrected) |
+| NUC Monitoring | http://localhost:3001/d/nuc-overview | ✅ Updated 2026-05-07 — shows all 13 containers (Sparc + Gardening) |
+| Gardening Grafana | http://localhost:3000 | ✅ Live — 25-panel greenhouse dashboard |
+| **Portainer (Docker UI)** | **http://localhost:9000** | ✅ Live 2026-05-07 — manage all NUC containers from browser |
+| Prometheus | http://localhost:9090 | ✅ Live — raw metrics explorer |
+| Gardening Streamlit | http://localhost:8501 | ✅ Live — LVPD, GDD, harvest log |
 
 ---
 
@@ -151,6 +158,28 @@ Shows what % of your consumption comes from solar (export_kwh / import_kwh).
 Used by the `morning_advisory.py` to predict tomorrow's Eddi solar diversion.
 `panel_factor = (export_kwh + eddi_kwh) / ghi_actual` per month. Requires 10+ clean days per month.
 
+### Tomorrow's Solar Advisory (panels 25–27)
+
+Three stat panels at y=94 showing what the 20:00 advisory issued for **tomorrow**:
+- **Panel 25**: Recommendation (SKIP_BOOST / PARTIAL / KEEP_BOOST) with colour coding
+- **Panel 26**: Estimated solar kWh + expected hot-water diversion kWh
+- **Panel 27**: GHI forecast (kWh/m²) + peak sun hours
+
+All query `advisory_log WHERE advisory_date = CURRENT_DATE + 1`. Populated each evening after 20:00 runs. First populated manually 2026-05-06.
+
+### Forecast Accuracy Audit (panels 28–32)
+
+Section added 2026-05-06. Scroll to the bottom of the dashboard. See `SOLAR_ADVISORY_EXPLAINED.md` § "Forecast Accuracy Audit" for full detail.
+
+| Panel | Shows | Needs |
+|-------|-------|-------|
+| 29: GHI Forecast vs Actual | 4-line chart — forecast/actual GHI + forecast/actual Eddi kWh | Data from 2026-05-07 onwards |
+| 30: GHI Forecast Error % | (forecast − actual) / actual per day | Same |
+| 31: GHI MAPE 30d | Open-Meteo accuracy over rolling 30 days | 30+ advisory days (~2026-06-05) |
+| 32: Advisory Accuracy % 30d | SKIP/KEEP recommendations matched outcome | Same |
+
+**Note**: Accuracy panels use `eddi_kwh ≥ 2.0 kWh` as "solar-rich day" proxy. The 2.0 kWh threshold sits above two grid boosts (2 × 0.55 kWh = 1.1 kWh) to avoid false positives. Proper h1d isolation requires DAN-139.
+
 ---
 
 ## 4. Meter Readings
@@ -174,22 +203,124 @@ Used by the `morning_advisory.py` to predict tomorrow's Eddi solar diversion.
 
 ## 5. NUC Monitoring
 
-**Purpose**: Infrastructure health — CPU, RAM, disk, network, container status.
+**Purpose**: Comprehensive infrastructure health — CPU, RAM, disk, temperature, network, per-container metrics.  
+**Dashboard UID**: `nuc-overview` | **Prometheus datasource**: `sparc-prometheus`  
+**Updated**: 2026-05-06 — full rebuild from 8 broken panels to 20+ working panels across 6 sections.
 
-**⚠️ Was blank before 2026-05-06** due to missing Prometheus datasource UID. Now fixed.
+### Section 1 — ⚡ System Health at a Glance (stat/gauge row)
 
 | Panel | Metric | Normal range |
 |-------|--------|-------------|
-| Host CPU Usage % | N3700 utilisation | < 20% at idle |
-| Host RAM Usage | Used / Total (6.4GB) | ~640MB used = 90% free |
-| Disk Usage % | SSD utilisation | ~15GB used of 107GB |
-| Disk Free (GB) | Free SSD space | ~88GB |
-| Container CPU % | Per-container CPU | api spikes during inference |
-| Container RAM (MB) | Per-container memory | api ~128MB, db ~87MB |
-| Network In/Out (KB/s) | WiFi throughput | spikes during polls |
-| Container Status | `container_last_seen` metric | all sparc-* containers |
+| CPU % | N3700 utilisation (all cores avg) | < 20% idle, < 60% normal |
+| CPU Temp (°C) | `node_hwmon_temp_celsius{chip="platform_coretemp_0"}` | < 65°C idle, < 80°C load |
+| RAM Used / Total | Used GB + Total GB | ~1.2 GB used of 6.4 GB |
+| Disk Used % | Root filesystem `/` | < 70% (NUC has 107 GB SSD) |
+| Disk Free (GB) | Free space on `/` | ~88 GB |
+| Total Docker RAM | Combined RSS of all 9 sparc-* containers | < 900 MB normal |
 
-**If panels show "No data"** after the fix, hard-refresh the browser (Cmd+Shift+R) and select time range "Last 15 minutes".
+### Section 2 — 📊 CPU & RAM Trend (timeseries)
+
+- **CPU %** — rolling 2-minute rate, blue fill. Spikes at 16:00 (inference) and 23:30 (myenergi poll).
+- **RAM Breakdown** — Used (red) / Cached (yellow) / Free (green). Cached memory is not "used" — Linux reclaims it instantly. Watch the Used line.
+
+### Section 3 — 🐳 Container Memory & CPU
+
+Three panels showing per-container resource usage across all 9 `sparc-*` containers:
+
+| Panel | Type | Shows |
+|-------|------|-------|
+| Container RAM (MB) — sorted | Horizontal bar gauge | Current RSS per container, sorted desc |
+| Container CPU % (current) | Horizontal bar gauge | Current CPU per container, sorted desc |
+| Container RAM trend (MB) | Timeseries | RAM over time per container — shows if any container has a memory leak |
+
+**Typical top consumers**:
+- `sparc-n8n`: ~320 MB (Node.js runtime, largest consumer)
+- `sparc-db`: ~120 MB (TimescaleDB — PostgreSQL 16 + TimescaleDB extension)
+- `sparc-api`: ~100 MB (FastAPI + LightGBM model in memory)
+- `sparc-grafana`: ~90 MB
+- `sparc-prometheus`: ~80 MB
+
+**Metric source**: `docker_container_memory_bytes{name=~"sparc-.+"}` — written by `scripts/docker_stats_prom.sh` cron → node_exporter textfile collector. **Not** cAdvisor (see cAdvisor workaround below).
+
+### Section 4 — 🟢 Container Running Status
+
+Stat panel: each of the 9 sparc-* containers shows **🟢 UP** (green) or **🔴 DOWN** (red). Refreshes every 30s. Any container missing from the panel (not just red) means the cron script hasn't scraped it — check `docker ps` on the NUC.
+
+### Section 5 — 🌡️ Temperature & Network
+
+| Panel | What it shows |
+|-------|--------------|
+| CPU Temperature | Package max (orange, thicker) + Core 0 + Core 1. Alert threshold: 80°C |
+| Network In/Out | WiFi `wlp2s0` RX/TX KB/s. Spikes during myenergi poll (23:30) and Grafana refreshes |
+
+### Section 6 — 💾 Disk I/O
+
+| Panel | What it shows |
+|-------|--------------|
+| Disk Read/Write throughput | `sda` (SATA SSD) read/write KB/s |
+| Disk I/O Utilisation % | `node_disk_io_time_seconds_total` — % of time disk was busy. Alert: > 75% |
+
+### Section 7 — 🗄️ Technology Stack
+
+Static reference panel showing what is running on the NUC:
+
+| Service | Technology |
+|---------|-----------|
+| Primary database | **TimescaleDB** (PostgreSQL 16 extension) |
+| Cache | Redis 7 (AOF persistence, 256 MB cap, allkeys-lru) |
+| Monitoring | Prometheus v2.52 → Grafana OSS 11 |
+| Reverse proxy | Caddy 2 (auto-TLS, HTTP/3) |
+| Automation | n8n (webhook + Pushover notifications) |
+| API | FastAPI + LightGBM H+24 model |
+| Container metrics | node_exporter v1.8.1 textfile collector (not cAdvisor) |
+
+**Why TimescaleDB?** It's a PostgreSQL extension, not a separate database. `sparc-db` runs a single PostgreSQL 16 container with TimescaleDB extension enabled. This gives native SQL JOINs across time-series (`myenergi_readings`, `weather_log`) and relational tables (`advisory_log`, `recommendations`) — impossible in InfluxDB 2.x Flux. See `docs/adr/ADR-012-timescaledb-over-influxdb-sqlite.md`.
+
+---
+
+### cAdvisor Workaround — Why the Textfile Collector
+
+**Problem**: cAdvisor v0.49 on Ubuntu 24.04 with Docker `overlay2` storage driver cannot resolve container names. It looks for `/rootfs/var/lib/docker/image/overlayfs/layerdb/mounts/` which does not exist on `overlay2`. All container labels come through as empty strings, so per-container metrics are unaddressable in Grafana.
+
+**Solution**: Bypass cAdvisor entirely for container-level metrics. Use the **node_exporter textfile collector** pattern:
+
+```
+scripts/docker_stats_prom.sh   (runs every 30s via cron)
+        │
+        └── docker stats --no-stream
+                │
+                └── writes /var/node_exporter/textfiles/docker_stats.prom
+                        │
+                        └── node_exporter (--collector.textfile.directory)
+                                │
+                                └── Prometheus scrapes → Grafana
+```
+
+**Crontab on NUC** (`crontab -e`):
+```
+* * * * * /home/dan/sparc/scripts/docker_stats_prom.sh
+* * * * * sleep 30 && /home/dan/sparc/scripts/docker_stats_prom.sh
+```
+
+**Metrics exposed**:
+- `docker_container_memory_bytes{name="sparc-api"}` — RSS in bytes
+- `docker_container_cpu_percent{name="sparc-api"}` — CPU % (0–100 per core)
+- `docker_container_running{name="sparc-api"}` — 1 if running
+
+**Important**: The `.prom` file must be world-readable for the node_exporter container to read it. `docker_stats_prom.sh` uses `chmod 644 "$TMP"` before `mv` to ensure this — without it, `node_textfile_scrape_error` = 1 and all container metrics disappear.
+
+**To verify metrics are flowing**:
+```bash
+ssh dan@192.168.68.119 "cat /var/node_exporter/textfiles/docker_stats.prom | head -20"
+# Should show all 9 sparc-* containers with memory_bytes and cpu_percent values
+```
+
+**To verify no scrape errors**:
+```bash
+# In Grafana Explore on sparc-prometheus:
+node_textfile_scrape_error
+# Should return 0 for all instances
+```
 
 ---
 

@@ -44,9 +44,32 @@ ESB CSV is still useful for:
 - Model retraining (official metered data)
 - Accuracy audits (ESB vs MyEnergi reconciliation, visible in Solar Pipeline dashboard)
 
-**Recommendation**: Download a fresh ESB CSV once per month until Harvi is configured
-and you've validated the `myenergi_readings.import_kwh` matches within 5% (visible in
-Grafana → Solar Data Pipeline → "ESB vs MyEnergi Daily Import Reconciliation").
+**Recommended cadence**: Download and upload a fresh ESB CSV **every 2 weeks**. The scheduler alerts you when it's overdue.
+
+### ESB Upload Reminder — How It Works
+
+The `_check_data_gaps` job runs daily at 09:00 Dublin time. It queries the latest `interval_start` in `meter_readings` for each household:
+
+```sql
+-- How to check last ESB upload manually:
+SELECT MAX(interval_start) AS last_reading,
+       NOW() - MAX(interval_start) AS staleness
+FROM meter_readings
+WHERE household_id = '<your-household-id>';
+```
+
+**Alert thresholds (scheduler.py):**
+| Staleness | Pushover message | Priority |
+|-----------|-----------------|---------|
+| > 12 days (288h) | 📋 "ESB upload due soon" | Low (-1) |
+| > 14 days (336h) | ⚡ "ESB upload overdue" | High (0) |
+
+**To upload a fresh CSV:**
+1. Go to [myaccount.esbnetworks.ie](https://myaccount.esbnetworks.ie) → My Usage → Download HDF CSV
+2. `POST http://192.168.68.119:8000/upload` (multipart form) — or use the Grafana upload panel
+3. The `solar_actuals.export_kwh` column auto-updates for the last 90 days on the next 23:45 scheduler run
+
+**Why not real-time?** ESB CSV provides official metered data. MyEnergi data (polled nightly) is used for live solar diversion tracking, but the ESB reading is the ground truth for model retraining and cross-validation.
 
 ---
 
