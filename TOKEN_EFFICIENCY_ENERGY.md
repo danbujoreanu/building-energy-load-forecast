@@ -107,7 +107,31 @@ Energy is the exception — it uses PostgreSQL, not InfluxDB. All other projects
 
 ---
 
-## 4. Copy-Paste Commands
+## 4. Agent Model — 3 Tiers (mandatory)
+
+**Always set `model:` explicitly. Never let it default to Sonnet for bulk work.**
+
+| Tier | Model | Use for | Cost vs default |
+|------|-------|---------|----------------|
+| 1 | `haiku` | Reading batches of files, counting chunks, scanning logs, extracting patterns from >5 files | ~5× cheaper |
+| 2 | `sonnet` | Generating explainers, architecture decisions, code synthesis, anything requiring judgment | default |
+| 3 | `opus` | **Never for subagents** | — |
+
+**Energy-specific Haiku tasks:**
+- Scanning intel/docs/ for new files to ingest
+- Reading multiple JD files for Career RAG ingest (200+ files = Haiku, always)
+- Checking chunk counts across collections
+- Parsing docker logs for errors
+
+```python
+# Correct pattern
+Agent(description="scan intel/docs for changed files", model="haiku", prompt="...")
+Agent(description="generate RAG_PIPELINE explainer", model="sonnet", prompt="...")
+```
+
+---
+
+## 5. Copy-Paste Commands  
 
 ### RAG Queries (Mac, conda ml_lab1)
 ```bash
@@ -197,9 +221,27 @@ cat /sys/class/thermal/thermal_zone*/temp | awk '{printf "%.1f°C\n", $1/1000}'
 df -h / && docker system df
 ```
 
+### NUC Diagnosis Sequence (when load is high)
+```bash
+# Step 1 — which container is hot?
+ssh nuc "docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}' | sort -t$'\t' -k2 -rn"
+
+# Step 2 — what's the actual host-level cause? (builds, runaway process)
+ssh nuc "ps aux --sort=-%cpu | head -12"
+
+# Step 3 — temperature + load
+ssh nuc "uptime && cat /sys/class/thermal/thermal_zone*/temp | awk '{printf \"%.1f°C\n\", \$1/1000}'"
+```
+
+### Dead container blocking new start
+```bash
+# Symptom: "container is marked for removal and cannot be started"
+ssh nuc "until ! docker ps -a --filter 'name=sparc-api' --format '{{.Status}}' | grep -q Dead; do sleep 2; done && docker compose up -d api"
+```
+
 ---
 
-## 5. Gotchas
+## 6. Gotchas  
 
 | Gotcha | What happens | Fix |
 |--------|-------------|-----|
@@ -213,10 +255,14 @@ df -h / && docker system df
 | **Shared `.env` path** | NUC `.env` is at `~/sparc/.env` (not in repo). Mac `.env` at project root. Both needed separately. | Never commit `.env`. Append new vars: `echo "KEY=val" >> ~/sparc/.env` on NUC |
 | **Grafana provisioned dashboard edit in UI** | Changes made in Grafana UI don't auto-save to the JSON file — diverges from repo within one session | Edit JSON on Mac → rsync → let provisioning reload. Never edit live and forget to save. |
 | **`docker stats` sort cuts containers** | `head -10` on sorted output hides lower-CPU containers that may still be problematic | Remove `head` or sort by memory: `sort -t$'\t' -k3 -rn` |
+| **Concurrent Docker builds on NUC** | Two simultaneous builds (e.g. Health + Gardening sessions both rebuild) → NUC load 9.7 on 4 cores, swap thrashing, both builds crawl | Check `ps aux \| grep 'docker.*build'` before triggering any build. Never build when load > 2.0. |
+| **Python multiline over SSH** | `ssh nuc "python3 -c '...complex code...'"` — 3 escaping layers, hard to debug | Write script to `/tmp/check.py` via heredoc, then `docker exec ... python3 /tmp/check.py`. One round-trip, no escaping. |
+| **`export_to_nuc.py` references purged collections** | Script still exports `intel_mba` + `intel_career` — both purged from Gardening on 2026-05-17 | Do not run this script without updating `EXPORT_COLLECTIONS` first. Stale as of 2026-05-17. |
+| **Dropping a collection is not data loss** | ChromaDB collections are vector indexes only — source `.md` files on Mac are untouched | Any collection can be rebuilt by running `ingest_changed.py` against the source directory. Drop freely. |
 
 ---
 
-## 6. Explainers Index — What to Read and When
+## 7. Explainers Index — What to Read and When
 
 | Situation | Read this |
 |-----------|-----------|
