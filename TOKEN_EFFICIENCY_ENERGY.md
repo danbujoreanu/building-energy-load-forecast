@@ -39,7 +39,7 @@ scripts/rag_query.py
 | RAG module | `intel/` | `/home/dan/sparc/intel/` | `rsync -av intel/ nuc:/home/dan/sparc/intel/` |
 | Scripts | `scripts/` | `/home/dan/sparc/scripts/` | volume mount `:ro` |
 | Deployment | `deployment/` | `/home/dan/sparc/deployment/` | volume mount `:rw` |
-| ChromaDB (Mac) | `outputs/chromadb/` | n/a — Mac only | — |
+| ChromaDB (Mac) | `data/chromadb/` | n/a — Mac only | — |
 | ChromaDB (NUC) | n/a | `/home/dan/sparc/outputs/chromadb/` | container volume |
 | Config | `config/config.yaml` | not on NUC | Mac-only training |
 | docker-compose | `docker-compose.yml` | `/home/dan/sparc/docker-compose.yml` | `rsync docker-compose.yml nuc:/home/dan/sparc/` |
@@ -65,7 +65,7 @@ scripts/rag_query.py
 | `intel_career` | Career (Mac only) | 2,048 | — | `Career/intel/` + `Pipeline/` + `Closed/2026/` + strategy files |
 
 **CHROMA_PATH:**
-- Mac (conda ml_lab1): `outputs/chromadb/` (relative to project root)
+- Mac (conda ml_lab1): `data/chromadb/` (relative to project root) — NOT outputs/chromadb
 - NUC (container): `/app/outputs/chromadb/` (env var `CHROMA_PATH`)
 
 **Dimension lock:** Once a collection is created, its dimension is fixed. Changing embedding model = drop collection first, then re-ingest. Never restart ingest without dropping if model changed.
@@ -259,6 +259,8 @@ ssh nuc "until ! docker ps -a --filter 'name=sparc-api' --format '{{.Status}}' |
 | **Python multiline over SSH** | `ssh nuc "python3 -c '...complex code...'"` — 3 escaping layers, hard to debug | Write script to `/tmp/check.py` via heredoc, then `docker exec ... python3 /tmp/check.py`. One round-trip, no escaping. |
 | **`export_to_nuc.py` references purged collections** | Script still exports `intel_mba` + `intel_career` — both purged from Gardening on 2026-05-17 | Do not run this script without updating `EXPORT_COLLECTIONS` first. Stale as of 2026-05-17. |
 | **Dropping a collection is not data loss** | ChromaDB collections are vector indexes only — source `.md` files on Mac are untouched | Any collection can be rebuilt by running `ingest_changed.py` against the source directory. Drop freely. |
+| **career-rag-api: volume mount kills Python module** | `~/career/intel` mounts to `/app/intel` — replaces the Python `intel/` module with Career docs. `import intel.ingest` fails. | Run ingest as one-off using `sparc-api` image: mount `~/sparc/intel:/app/intel:ro` (module) + `~/career/intel:/app/career_intel:ro` (docs) + `~/career/chromadb:/career_chromadb`. Point `CHROMA_PATH=/career_chromadb`. |
+| **Mac ChromaDB is at `data/chromadb/` not `outputs/chromadb/`** | SQLite query or rsync to wrong path finds nothing | Mac path: `data/chromadb/chroma.sqlite3`. NUC Sparc path: `/app/outputs/chromadb/`. |
 
 ---
 
