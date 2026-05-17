@@ -43,6 +43,8 @@ services:
       - ./intel:/app/intel
       # Scripts — for running ingest_changed.py inside the container
       - ./scripts:/app/scripts:ro
+      # Node Exporter textfile collector — sparc-api writes poller metrics here
+      - /var/node_exporter/textfiles:/var/textfiles:rw
     depends_on:
       db:
         condition: service_healthy

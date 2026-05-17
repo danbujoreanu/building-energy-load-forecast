@@ -4,7 +4,9 @@ import asyncio
 import json
 import logging
 import os
+import time as _time
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytz
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -16,6 +18,30 @@ from deployment import db_repository as db
 logger = logging.getLogger(__name__)
 
 _DUBLIN = pytz.timezone("Europe/Dublin")
+
+
+# ---------------------------------------------------------------------------
+# Metric helpers
+# ---------------------------------------------------------------------------
+
+def _write_poller_metric(name: str) -> None:
+    """Write last-run Unix timestamp to Node Exporter textfile collector.
+
+    Container mount: /var/node_exporter/textfiles → /var/textfiles (rw).
+    Silently no-ops if the mount is absent (dev/Mac without NUC mount).
+    Grafana panel: time() - <name>_last_run_ts (age in seconds).
+    """
+    metric = f"{name}_last_run_ts"
+    path = Path("/var/textfiles") / f"{name}.prom"
+    if not path.parent.exists():
+        logger.debug("[poller_metric] /var/textfiles not mounted — skipping %s", metric)
+        return
+    path.write_text(
+        f"# HELP {metric} Unix timestamp of last {name} run\n"
+        f"# TYPE {metric} gauge\n"
+        f"{metric} {int(_time.time())}\n"
+    )
+    logger.debug("[poller_metric] Wrote %s", path)
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +117,7 @@ async def _run_myenergi_poll(app: FastAPI) -> None:
     yesterday = datetime.now(pytz.timezone("Europe/Dublin")).date() - timedelta(days=1)
     try:
         await run_daily_poll(pool, target_date=yesterday)
+        _write_poller_metric("sparc_myenergi")
     except Exception as exc:
         logger.error("[myenergi_poller] Daily poll failed: %s", exc)
         await asyncio.to_thread(
@@ -496,6 +523,7 @@ async def _run_morning_advisory(app: FastAPI) -> None:
             for row in households:
                 await log_advisory(pool, str(row["id"]), advisory)
         await asyncio.to_thread(send_pushover, advisory)
+        _write_poller_metric("sparc_advisory")
     except Exception as exc:
         logger.error("[advisory] Morning advisory failed: %s", exc)
 
